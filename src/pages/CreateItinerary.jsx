@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useItinerary } from '../context/ItineraryContext';
+import { useLanguage } from '../context/LanguageContext';
 import { getTotalTravelDays } from '../utils/time';
 import './CreateItinerary.css';
 
 export default function CreateItinerary() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const { user } = useAuth();
   const { trip, updateTrip, addLocation, removeLocation, setTripCreator } = useItinerary();
   const [newLocation, setNewLocation] = useState('');
@@ -26,29 +28,30 @@ export default function CreateItinerary() {
 
   const canStart = trip.destination?.trim() && trip.startDate && trip.endDate;
 
+  const dayCount = trip.startDate && trip.endDate ? getTotalTravelDays(trip.startDate, trip.endDate) : 0;
   return (
     <div className="page create-itinerary-page">
       <header className="page-header">
-        <h1>Create your itinerary</h1>
+        <h1>{t('create.title')}</h1>
       </header>
       <p className="page-intro create-intro">
-        Set your destination and dates. You can add multiple locations (e.g. Osaka, Kyoto) for a multi-city trip.
+        {t('create.intro')}
       </p>
 
       <section className="section general-inputs">
-        <h2 className="section-title">Trip details</h2>
+        <h2 className="section-title">{t('create.tripDetails')}</h2>
         <div className="inputs-grid">
           <label className="input-group input-destination">
-            <span>Destination</span>
+            <span>{t('create.destination')}</span>
             <input
               type="text"
-              placeholder="e.g. Japan"
+              placeholder={t('create.destinationPlaceholder')}
               value={trip.destination}
               onChange={(e) => updateTrip({ destination: e.target.value })}
             />
           </label>
           <label className="input-group">
-            <span>Start date</span>
+            <span>{t('create.startDate')}</span>
             <input
               type="date"
               value={trip.startDate}
@@ -56,7 +59,7 @@ export default function CreateItinerary() {
             />
           </label>
           <label className="input-group">
-            <span>End date</span>
+            <span>{t('create.endDate')}</span>
             <input
               type="date"
               value={trip.endDate}
@@ -67,18 +70,18 @@ export default function CreateItinerary() {
       </section>
 
       <section className="section locations-section">
-        <h2 className="section-title">Locations (optional)</h2>
-        <p className="create-hint">Split your trip by city or region, e.g. Osaka, Kyoto.</p>
+        <h2 className="section-title">{t('create.locationsTitle')}</h2>
+        <p className="create-hint">{t('create.locationsHint')}</p>
         <form onSubmit={handleAddLocation} className="locations-form">
           <input
             type="text"
-            placeholder="e.g. Osaka"
+            placeholder={t('create.locationsPlaceholder')}
             value={newLocation}
             onChange={(e) => setNewLocation(e.target.value)}
             className="locations-input"
           />
           <button type="submit" className="primary" disabled={!newLocation.trim()}>
-            Add location
+            {t('create.addLocation')}
           </button>
         </form>
         {trip.locations?.length > 0 && (
@@ -97,12 +100,12 @@ export default function CreateItinerary() {
 
       <div className="create-actions">
         <button type="button" className="primary primary-large" onClick={handleStartPlanning} disabled={!canStart}>
-          Start planning
+          {t('create.startPlanning')}
         </button>
         <p className="create-dates-note">
           {trip.startDate && trip.endDate
-            ? `Your trip has ${getTotalTravelDays(trip.startDate, trip.endDate)} days. The itinerary page will show Day 1, Day 2, … with dates.`
-            : 'Set start and end date to see total travel days.'}
+            ? t('create.daysNote', { count: dayCount })
+            : t('create.setDatesNote')}
         </p>
       </div>
     </div>

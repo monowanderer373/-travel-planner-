@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { loadItinerary, saveItinerary } from '../utils/storage';
 import { useSaveStatus } from './SaveStatusContext';
+import { useAuth } from './AuthContext';
+import { supabase, hasSupabase } from '../lib/supabase';
 import { getTotalTravelDays, getDayLabel } from '../utils/time';
 
 const ItineraryContext = createContext(null);
@@ -40,7 +42,12 @@ function getInitialItinerary() {
   };
 }
 
+function isSupabaseUser(user) {
+  return user?.id && !user.id.startsWith('user-');
+}
+
 export function ItineraryProvider({ children }) {
+  const { user } = useAuth();
   const initial = getInitialItinerary();
   const [trip, setTrip] = useState(initial?.trip ?? defaultTrip);
   const [days, setDays] = useState(initial?.days ?? defaultDays);
@@ -53,6 +60,7 @@ export function ItineraryProvider({ children }) {
   const [tripmateShareLink, setTripmateShareLink] = useState(initial?.tripmateShareLink ?? '');
   const { reportSaving, reportSaved } = useSaveStatus();
   const saveTimeoutRef = useRef(null);
+  const supabaseLoadedRef = useRef(false);
 
   const updateTrip = useCallback((updates) => {
     setTrip((prev) => ({ ...prev, ...updates }));
@@ -220,11 +228,32 @@ export function ItineraryProvider({ children }) {
     if (typeof data.tripmateShareLink === 'string') setTripmateShareLink(data.tripmateShareLink);
   }, []);
 
+  // Load itinerary from Supabase when signed in with Google
+  useEffect(() => {
+    if (!user) {
+      supabaseLoadedRef.current = null;
+      return;
+    }
+    if (!hasSupabase() || !isSupabaseUser(user)) return;
+    if (supabaseLoadedRef.current === user.id) return;
+    supabaseLoadedRef.current = user.id;
+    supabase
+      .from('itineraries')
+      .select('data')
+      .eq('profile_id', user.id)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data: row }) => {
+        if (row?.data && typeof row.data === 'object') replaceItineraryState(row.data);
+      })
+      .catch(() => {});
+  }, [user?.id, replaceItineraryState]);
+
   useEffect(() => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     reportSaving();
     saveTimeoutRef.current = setTimeout(() => {
-      saveItinerary({
+      const payload = {
         trip,
         days,
         savedPlaces,
@@ -234,14 +263,31 @@ export function ItineraryProvider({ children }) {
         tripMemories,
         shareSettings,
         tripmateShareLink,
-      });
+      };
+      saveItinerary(payload);
+      if (hasSupabase() && isSupabaseUser(user)) {
+        supabase
+          .from('itineraries')
+          .select('id')
+          .eq('profile_id', user.id)
+          .limit(1)
+          .maybeSingle()
+          .then(({ data: row }) => {
+            const body = { data: payload, updated_at: new Date().toISOString() };
+            if (row?.id) {
+              return supabase.from('itineraries').update(body).eq('id', row.id);
+            }
+            return supabase.from('itineraries').insert({ profile_id: user.id, ...body });
+          })
+          .catch(() => {});
+      }
       reportSaved();
       saveTimeoutRef.current = null;
     }, 500);
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, shareSettings, tripmateShareLink]);
+  }, [trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, shareSettings, tripmateShareLink, user?.id]);
 
   const value = {
     trip,

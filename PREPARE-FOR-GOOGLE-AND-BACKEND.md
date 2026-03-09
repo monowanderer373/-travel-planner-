@@ -11,7 +11,7 @@ Use this checklist so the app can support **Google Sign-In** and **cloud storage
    - Name (e.g. `wander-travel-planner`), set a database password, choose a region → Create.
 
 2. **Get your Supabase keys**
-   - In the project: **Settings** (gear) → **API**.
+   - **API is under Settings, not Authentication.** In the **left sidebar**, click the **gear icon (Settings)** (usually near the bottom). Then click **API**.
    - Copy **Project URL** (e.g. `https://xxxxx.supabase.co`).
    - Copy **anon public** key (click Reveal; it starts with `eyJ...`).
 
@@ -41,19 +41,27 @@ Use this checklist so the app can support **Google Sign-In** and **cloud storage
    - Choose **External** (or Internal if only for your org) → Next.
    - Fill App name (e.g. `Wander Travel Planner`), User support email, Developer contact → Save and Continue until you’re back.
 
-7. **Create OAuth 2.0 credentials**
+7. **Get the Supabase Callback URL (you need this before creating the OAuth client)**
+   - **Where it comes from:** Supabase **gives** you this URL. You do **not** get it from Google. You copy it **from** Supabase and paste it **into** Google in step 8.
+   - **You do not need any users.** The Authentication page can be empty (no users). The Callback URL is a fixed setting, not a list of users.
+   - **How to find it in Supabase:**
+     - In the **left sidebar**, click **Authentication**.
+     - Under **CONFIGURATION**, click **Sign In / Providers** (Supabase may show this instead of “Providers”).
+     - Click **Google**. On that page you’ll see a **Callback URL** (or “Redirect URL”) like:  
+       `https://xxxxxxxx.supabase.co/auth/v1/callback`  
+       Copy that full URL.
+   - **If you don’t see Google:** You can build the URL yourself. Click the **gear (Settings)** in the sidebar → **API** → copy your **Project URL** (e.g. `https://abcdefghijk.supabase.co`). The callback URL is that URL + `/auth/v1/callback`, e.g. `https://abcdefghijk.supabase.co/auth/v1/callback`.
+
+8. **Create OAuth 2.0 credentials in Google Cloud**
    - **APIs & Services** → **Credentials** → **Create credentials** → **OAuth client ID**.
    - Application type: **Web application**.
    - Name: e.g. `Wander Web`.
-   - **Authorized redirect URIs** → **Add URI**.
-   - You need Supabase’s redirect URL. In **Supabase dashboard** go to **Authentication** → **Providers** → **Google**; Supabase shows a “Callback URL” like:
-     `https://xxxxx.supabase.co/auth/v1/callback`
-   - Copy that exact URL and add it in Google Cloud under **Authorized redirect URIs**.
+   - Under **Authorized redirect URIs** → **Add URI** → paste the **Supabase Callback URL** you copied in step 7 (from Supabase, not from Google).
    - Create → copy the **Client ID** and **Client Secret**.
 
-8. **Turn on Google in Supabase**
-   - In Supabase: **Authentication** → **Providers** → **Google** → Enable.
-   - Paste **Client ID** and **Client Secret** from step 7 → Save.
+9. **Turn on Google in Supabase**
+   - In Supabase: **Authentication** → **Sign In / Providers** (under CONFIGURATION) → **Google** → Enable.
+   - Paste **Client ID** and **Client Secret** from step 8 → Save.
 
 ---
 
@@ -77,6 +85,6 @@ Then I can wire the app to use Google Sign-In and the Supabase database so profi
 | Supabase anon key | Supabase → Settings → API → anon public |
 | Google Client ID  | Google Cloud Console → Credentials → OAuth 2.0 Client ID |
 | Google Client Secret | Same OAuth client → copy secret |
-| Supabase callback URL (for Google) | Supabase → Authentication → Providers → Google → Callback URL |
+| Supabase callback URL (for Google) | Supabase → Authentication → **Sign In / Providers** → Google → Callback URL |
 
 All of this is prepared in your project in **SUPABASE_SETUP.md** (Part 1). Part 2 (Google) is summarized above; if you want, I can add a **GOOGLE-SIGNIN-SETUP.md** with the same steps in more detail.

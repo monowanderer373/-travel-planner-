@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import './Welcome.css';
 
 export default function Welcome() {
   const navigate = useNavigate();
-  const { user, setUser } = useAuth();
+  const { t } = useLanguage();
+  const { user, setUser, signInWithGoogle, hasSupabase } = useAuth();
   const [mode, setMode] = useState('welcome'); // 'welcome' | 'signup' | 'signin'
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
     if (user) navigate('/', { replace: true });
@@ -21,12 +24,21 @@ export default function Welcome() {
     navigate('/create', { replace: true });
   };
 
-  const handleSignInWithGoogle = () => {
-    if (name.trim()) {
-      setUser({ name: name.trim(), email: email.trim() || undefined });
-      navigate('/create', { replace: true });
+  const handleSignInWithGoogle = async () => {
+    if (hasSupabase()) {
+      setGoogleLoading(true);
+      try {
+        await signInWithGoogle();
+      } finally {
+        setGoogleLoading(false);
+      }
     } else {
-      setMode('signup');
+      if (name.trim()) {
+        setUser({ name: name.trim(), email: email.trim() || undefined });
+        navigate('/create', { replace: true });
+      } else {
+        setMode('signup');
+      }
     }
   };
 
@@ -35,24 +47,24 @@ export default function Welcome() {
       <div className="welcome-card">
         {mode === 'welcome' && (
           <>
-            <h1 className="welcome-title">Welcome to Wander</h1>
-            <p className="welcome-tagline">Your travel itinerary planner</p>
+            <h1 className="welcome-title">{t('welcome.title')}</h1>
+            <p className="welcome-tagline">{t('welcome.tagline')}</p>
             <div className="welcome-how">
-              <h2>How it works</h2>
+              <h2>{t('welcome.howTitle')}</h2>
               <ul>
-                <li>Set your <strong>destination</strong>, <strong>dates</strong>, and optional locations (e.g. Osaka, Kyoto) for multi-city trips.</li>
-                <li>Build a <strong>day-by-day timeline</strong> from 8 AM to 11 PM — add activities and transport.</li>
-                <li><strong>Save places</strong> from Google Maps links and vote with tripmates.</li>
-                <li><strong>Share</strong> your itinerary or export it as JSON.</li>
+                <li>{t('welcome.how1')}</li>
+                <li>{t('welcome.how2')}</li>
+                <li>{t('welcome.how3')}</li>
+                <li>{t('welcome.how4')}</li>
               </ul>
             </div>
-            <p className="welcome-cta">Create a profile to start planning your trip.</p>
+            <p className="welcome-cta">{t('welcome.cta')}</p>
             <div className="welcome-actions">
               <button type="button" className="primary" onClick={() => setMode('signup')}>
-                Sign up
+                {t('welcome.signUp')}
               </button>
               <button type="button" onClick={() => setMode('signin')}>
-                Sign in
+                {t('welcome.signIn')}
               </button>
             </div>
           </>
@@ -60,47 +72,58 @@ export default function Welcome() {
 
         {(mode === 'signup' || mode === 'signin') && (
           <>
-            <h1 className="welcome-title">{mode === 'signup' ? 'Sign up' : 'Sign in'}</h1>
+            <h1 className="welcome-title">{mode === 'signup' ? t('welcome.signUp') : t('welcome.signIn')}</h1>
             <form onSubmit={handleSignUp} className="welcome-form">
               <label className="input-group">
-                <span>Display name</span>
+                <span>{t('welcome.displayName')}</span>
                 <input
                   type="text"
-                  placeholder="Your name"
+                  placeholder={t('welcome.namePlaceholder')}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   autoFocus
                 />
               </label>
               <label className="input-group">
-                <span>Email (optional)</span>
+                <span>{t('welcome.emailOptional')}</span>
                 <input
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder={t('welcome.emailPlaceholder')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </label>
               {mode === 'signup' && (
                 <button type="submit" className="primary" disabled={!name.trim()}>
-                  Create profile & continue
+                  {t('welcome.createProfile')}
                 </button>
               )}
               {mode === 'signin' && (
                 <button type="submit" className="primary" disabled={!name.trim()}>
-                  Continue
+                  {t('welcome.continue')}
                 </button>
               )}
             </form>
             <div className="welcome-google">
-              <span className="welcome-google-label">Or</span>
-              <button type="button" className="welcome-google-btn" onClick={handleSignInWithGoogle}>
-                Sign in with Google (coming soon)
-              </button>
-              <p className="welcome-google-note">Google sign-in is a placeholder. For now use your name above. Data is stored only in your browser.</p>
+              <span className="welcome-google-label">{t('welcome.or')}</span>
+              {hasSupabase() ? (
+                <>
+                  <button type="button" className="welcome-google-btn" onClick={handleSignInWithGoogle} disabled={googleLoading}>
+                    {googleLoading ? t('welcome.googleRedirecting') : t('welcome.googleSignIn')}
+                  </button>
+                  <p className="welcome-google-note">{t('welcome.googleNote')}</p>
+                </>
+              ) : (
+                <>
+                  <button type="button" className="welcome-google-btn" onClick={handleSignInWithGoogle}>
+                    {t('welcome.googleUseName')}
+                  </button>
+                  <p className="welcome-google-note">{t('welcome.googleNoteNoConfig')}</p>
+                </>
+              )}
             </div>
             <button type="button" className="welcome-back" onClick={() => { setMode('welcome'); setName(''); setEmail(''); }}>
-              ← Back
+              {t('welcome.back')}
             </button>
           </>
         )}

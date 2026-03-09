@@ -56,8 +56,11 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ## Step 4: Create the database tables (run in Supabase SQL editor)
 
 1. In Supabase dashboard, go to **SQL Editor**.
-2. Click **New query** and paste the SQL below.
-3. Run it (Run button). This creates tables for user profiles and itineraries.
+2. Click **New query**.
+3. **Important:** Paste **only** the SQL — do **not** copy the whole SUPABASE_SETUP.md file (that is Markdown and will cause a syntax error). Either:
+   - Open the file **`supabase-tables.sql`** in this project and copy **all** of its contents into the SQL editor, or
+   - Copy **only** the block between the \`\`\`sql and \`\`\` lines below (nothing else).
+4. Run it (Run button). This creates tables for user profiles and itineraries.
 
 ```sql
 -- Profiles: one row per user (linked to Supabase Auth later, or use a simple id for now)

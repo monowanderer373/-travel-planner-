@@ -1,6 +1,7 @@
 import { Component } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
+import { LanguageProvider } from './context/LanguageContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SaveStatusProvider } from './context/SaveStatusContext';
 import { ItineraryProvider } from './context/ItineraryContext';
@@ -48,6 +49,7 @@ export default function App() {
   return (
     <ErrorBoundary>
     <ThemeProvider>
+    <LanguageProvider>
     <AuthProvider>
     <BrowserRouter basename={import.meta.env.BASE_URL === './' ? '/' : import.meta.env.BASE_URL}>
       <SaveStatusProvider>
@@ -74,6 +76,7 @@ export default function App() {
       </SaveStatusProvider>
     </BrowserRouter>
     </AuthProvider>
+    </LanguageProvider>
     </ThemeProvider>
     </ErrorBoundary>
   );

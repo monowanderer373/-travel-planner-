@@ -1,14 +1,17 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { useItinerary } from '../context/ItineraryContext';
 import { useCost } from '../context/CostContext';
 import { getAllTripData, clearAllTripData } from '../utils/storage';
+import { languageOptions } from '../i18n/translations';
 import './Settings.css';
 
 export default function Settings() {
   const navigate = useNavigate();
+  const { t, lang, setLanguage } = useLanguage();
   const { themeId, setThemeId, themes } = useTheme();
   const { user, signOut } = useAuth();
   const { replaceItineraryState, tripCreator } = useItinerary();
@@ -47,7 +50,7 @@ export default function Settings() {
         if (data.cost) replaceCostState(data.cost);
         if (importInputRef.current) importInputRef.current.value = '';
       } catch (err) {
-        setImportError('Invalid file. Use an exported trip JSON.');
+        setImportError(t('settings.importError'));
       }
     };
     reader.readAsText(file);
@@ -66,29 +69,45 @@ export default function Settings() {
   return (
     <div className="page settings-page">
       <header className="page-header">
-        <h1>Settings</h1>
+        <h1>{t('settings.title')}</h1>
       </header>
       <section className="section">
-        <h2 className="section-title">Account</h2>
-        <p className="settings-hint">Signed in as <strong>{user?.name || 'Guest'}</strong>. Data is stored only in this browser.</p>
+        <h2 className="section-title">{t('settings.language')}</h2>
+        <p className="settings-hint">{t('settings.languageHint')}</p>
+        <div className="settings-language-switch">
+          <select
+            value={lang}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="settings-language-select"
+            aria-label={t('settings.language')}
+          >
+            {languageOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      </section>
+      <section className="section">
+        <h2 className="section-title">{t('settings.account')}</h2>
+        <p className="settings-hint">{t('settings.signedInAs')} <strong>{user?.name || t('settings.guest')}</strong>. {t('settings.dataHint')}</p>
         <button type="button" className="settings-signout" onClick={handleSignOut}>
-          Sign out
+          {t('settings.signOut')}
         </button>
       </section>
       <section className="section">
-        <h2 className="section-title">Theme</h2>
-        <p className="settings-hint">Choose a visual theme. Google Doodle is a dark theme with pink, purple and blue accents.</p>
+        <h2 className="section-title">{t('settings.theme')}</h2>
+        <p className="settings-hint">{t('settings.themeHint')}</p>
         <div className="theme-selection">
-          {themes.map((t) => (
-            <label key={t.id} className={`theme-option ${themeId === t.id ? 'theme-option-active' : ''}`}>
+          {themes.map((theme) => (
+            <label key={theme.id} className={`theme-option ${themeId === theme.id ? 'theme-option-active' : ''}`}>
               <input
                 type="radio"
                 name="theme"
-                value={t.id}
-                checked={themeId === t.id}
-                onChange={() => setThemeId(t.id)}
+                value={theme.id}
+                checked={themeId === theme.id}
+                onChange={() => setThemeId(theme.id)}
               />
-              <span className="theme-option-label">{t.label}</span>
+              <span className="theme-option-label">{theme.label}</span>
             </label>
           ))}
         </div>
@@ -97,11 +116,11 @@ export default function Settings() {
       {isCreator ? (
         <>
           <section className="section">
-            <h2 className="section-title">Trip data</h2>
-            <p className="settings-hint">Export to share with friends or backup. Import to load a shared trip file. Only the itinerary creator can use this.</p>
+            <h2 className="section-title">{t('settings.tripData')}</h2>
+            <p className="settings-hint">{t('settings.tripDataHint')}</p>
             <div className="settings-data-actions">
               <button type="button" className="primary" onClick={handleExport}>
-                Export trip data (JSON)
+                {t('settings.exportTrip')}
               </button>
               <label className="settings-import-btn">
                 <input
@@ -111,27 +130,27 @@ export default function Settings() {
                   onChange={handleImport}
                   style={{ display: 'none' }}
                 />
-                Import trip data
+                {t('settings.importTrip')}
               </label>
             </div>
             {importError && <p className="settings-error">{importError}</p>}
           </section>
 
           <section className="section">
-            <h2 className="section-title">Clear data</h2>
-            <p className="settings-hint">Remove all trip and cost data from this device. This cannot be undone.</p>
+            <h2 className="section-title">{t('settings.clearData')}</h2>
+            <p className="settings-hint">{t('settings.clearDataHint')}</p>
             <div className="settings-clear-actions">
               {!clearConfirm ? (
                 <button type="button" className="settings-clear-btn" onClick={() => setClearConfirm(true)}>
-                  Clear all trip data
+                  {t('settings.clearAll')}
                 </button>
               ) : (
                 <>
-                  <span className="settings-clear-warn">Are you sure? Page will reload.</span>
+                  <span className="settings-clear-warn">{t('settings.clearConfirm')}</span>
                   <button type="button" className="primary" onClick={handleClearAll}>
-                    Yes, clear everything
+                    {t('settings.clearYes')}
                   </button>
-                  <button type="button" onClick={() => setClearConfirm(false)}>Cancel</button>
+                  <button type="button" onClick={() => setClearConfirm(false)}>{t('settings.cancel')}</button>
                 </>
               )}
             </div>
@@ -139,8 +158,8 @@ export default function Settings() {
         </>
       ) : (
         <section className="section">
-          <h2 className="section-title">Trip data &amp; Clear data</h2>
-          <p className="settings-hint">Only the person who created this itinerary can export, import, or clear trip data. Sign out and create your own trip from the welcome page to become the creator.</p>
+          <h2 className="section-title">{t('settings.tripDataCreatorOnly')}</h2>
+          <p className="settings-hint">{t('settings.creatorOnlyHint')}</p>
         </section>
       )}
     </div>
