@@ -10,6 +10,7 @@ This app is a static React (Vite) SPA. After `npm run build`, deploy the `dist/`
 - If using **branch**: set branch to `main` (or your branch), folder to `/ (root)` or the folder that contains `index.html` after build. For Vite, you can set **Build** to `npm run build` and **Output directory** to `dist`, or use the **static HTML** option and copy `dist` contents to the chosen branch folder.
 - **Recommended**: Use the **“GitHub Actions”** workflow. Create `.github/workflows/deploy.yml` to build and deploy to `gh-pages` (or use a ready-made “Vite deploy to GitHub Pages” workflow). Your site will be at `https://<username>.github.io/<repo-name>/`.
 - **Base URL**: If the app is not at the root (e.g. `https://user.github.io/travel-planner/`), set in `vite.config`: `base: '/travel-planner/'` (match your repo name).
+- **Refresh / direct links**: The build creates `404.html` (same as `index.html`). When someone opens a deep link (e.g. `/transport`) or refreshes, GitHub Pages serves `404.html`, so the SPA loads and the correct page is shown. Deploy the full `dist/` folder including `404.html`.
 
 ### 2. **Netlify** (free tier)
 - [netlify.com](https://www.netlify.com) – drag-and-drop the `dist` folder or connect your Git repo.

@@ -220,3 +220,43 @@
   border-top: 1px solid var(--border-soft);
   background: var(--pastel-cream);
 }
+
+/* ----- Mobile: single column, no zoomed-desktop look ----- */
+@media (max-width: 768px) {
+  .transport-page {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .transport-row {
+    grid-template-columns: 1fr;
+  }
+
+  .transport-modal-time-row {
+    grid-template-columns: 1fr;
+  }
+
+  .transport-modal {
+    width: calc(100% - 2rem);
+    max-width: none;
+    margin: 1rem;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .transport-saved-actions {
+    flex-direction: column;
+  }
+
+  .transport-saved-actions button {
+    width: 100%;
+  }
+
+  .transport-loaded-actions {
+    flex-direction: column;
+  }
+
+  .transport-loaded-actions button {
+    width: 100%;
+  }
+}
