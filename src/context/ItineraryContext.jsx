@@ -179,7 +179,12 @@ export function ItineraryProvider({ children }) {
       typeof window !== 'undefined'
         ? (() => {
             const origin = window.location.origin;
-            const path = (import.meta.env.BASE_URL || '/').replace(/^\/+|\/+$/g, '') || '';
+            let path = (import.meta.env.BASE_URL || '/').replace(/^\/+|\/+$/g, '') || '';
+            if (!path && window.location.pathname) {
+              const first = window.location.pathname.split('/').filter(Boolean)[0];
+              if (first) path = first;
+            }
+            if (!path && origin.includes('github.io')) path = '-travel-planner-';
             return path ? `${origin}/${path}` : origin;
           })()
         : getPublicBaseUrl();
@@ -223,15 +228,20 @@ export function ItineraryProvider({ children }) {
   }, []);
 
   const generateTripmateLink = useCallback(() => {
+    const id = btoa(JSON.stringify({ trip: Date.now() })).slice(0, 14);
     const base =
       typeof window !== 'undefined'
         ? (() => {
             const origin = window.location.origin;
-            const path = (import.meta.env.BASE_URL || '/').replace(/^\/+|\/+$/g, '') || '';
+            let path = (import.meta.env.BASE_URL || '/').replace(/^\/+|\/+$/g, '') || '';
+            if (!path && window.location.pathname) {
+              const first = window.location.pathname.split('/').filter(Boolean)[0];
+              if (first) path = first;
+            }
+            if (!path && origin.includes('github.io')) path = '-travel-planner-';
             return path ? `${origin}/${path}` : origin;
           })()
         : getPublicBaseUrl();
-    const id = btoa(JSON.stringify({ trip: Date.now() })).slice(0, 14);
     const link = base ? `${base.replace(/\/$/, '')}/join/${id}` : `#join-${id}`;
     setTripmateShareLink(link);
     return link;
