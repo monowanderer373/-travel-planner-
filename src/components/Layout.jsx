@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useItinerary } from '../context/ItineraryContext';
+import TopBar from './TopBar';
 import Sidebar from './Sidebar';
+import BottomNav from './BottomNav';
 import SaveIndicator from './SaveIndicator';
 import './Layout.css';
 
@@ -25,27 +27,27 @@ export default function Layout() {
 
   return (
     <div className="app-layout">
-      <button
-        type="button"
-        className="mobile-menu-btn"
-        onClick={() => setMobileMenuOpen((o) => !o)}
-        aria-label="Toggle menu"
-      >
-        {mobileMenuOpen ? '✕' : '☰'}
-      </button>
-      <div className={`sidebar-wrap ${mobileMenuOpen ? 'sidebar-wrap-open' : ''}`}>
-        <Sidebar onNavigate={() => setMobileMenuOpen(false)} />
-      </div>
+      <header className="layout-topbar">
+        <TopBar onMenuClick={() => setMobileMenuOpen((o) => !o)} menuOpen={mobileMenuOpen} />
+      </header>
       {mobileMenuOpen && (
         <div
-          className="sidebar-overlay"
+          className="sidebar-overlay visible"
           onClick={() => setMobileMenuOpen(false)}
           aria-hidden="true"
         />
       )}
-      <main className="main-content">
-        <Outlet />
-      </main>
+      <div className="layout-body">
+        <div className={`sidebar-wrap ${mobileMenuOpen ? 'sidebar-wrap-open' : ''}`}>
+          <Sidebar onNavigate={() => setMobileMenuOpen(false)} />
+        </div>
+        <main className="main-content">
+          <Outlet />
+        </main>
+      </div>
+      <nav className="bottom-nav-wrap">
+        <BottomNav />
+      </nav>
       <SaveIndicator />
     </div>
   );

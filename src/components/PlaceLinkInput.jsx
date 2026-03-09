@@ -3,16 +3,64 @@ import { useItinerary } from '../context/ItineraryContext';
 import PlaceCard from './PlaceCard';
 import './PlaceLinkInput.css';
 
+/** Convert any Google Maps URL (share link from phone, goo.gl, etc.) to an embeddable URL. */
+function normalizeToEmbedUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+  const u = url.trim();
+  if (!u.startsWith('http')) return null;
+  // Already embed format
+  if (u.includes('maps/embed')) return u;
+  // Iframe src: normalize the extracted URL
+  if (u.includes('google.com/maps') && u.includes('output=embed')) return u;
+
+  // google.com/maps/place/Name/@lat,lng[,zoom] → use coordinates for reliable embed
+  const placeMatch = u.match(/google\.com\/maps\/place\/[^/]+\/@(-?[\d.]+),(-?[\d.]+)/);
+  if (placeMatch) {
+    const [, lat, lng] = placeMatch;
+    return `https://www.google.com/maps?q=${lat},${lng}&output=embed`;
+  }
+  // google.com/maps/search/PlaceName
+  const searchPathMatch = u.match(/google\.com\/maps\/search\/([^/?#]+)/);
+  if (searchPathMatch) {
+    const term = decodeURIComponent(searchPathMatch[1].replace(/\+/g, ' '));
+    return `https://www.google.com/maps?q=${encodeURIComponent(term)}&output=embed`;
+  }
+  // google.com/maps?q=... — add output=embed
+  if (u.includes('google.com/maps') && u.includes('?')) {
+    try {
+      const parsed = new URL(u);
+      parsed.searchParams.set('output', 'embed');
+      return parsed.toString();
+    } catch (_) {}
+  }
+  // goo.gl/maps/xxx or maps.app.goo.gl/xxx — use as query so iframe loads the place
+  if (u.includes('goo.gl/maps') || u.includes('maps.app.goo.gl')) {
+    return `https://www.google.com/maps?output=embed&q=${encodeURIComponent(u)}`;
+  }
+  // Fallback: treat as search query
+  try {
+    const parsed = new URL(u);
+    if (parsed.hostname.includes('google') && parsed.pathname.includes('maps')) {
+      const q = parsed.searchParams.get('q') || parsed.pathname.split('/').pop() || '';
+      if (q) return `https://www.google.com/maps?q=${encodeURIComponent(q)}&output=embed`;
+    }
+  } catch (_) {}
+  return null;
+}
+
 function extractEmbedUrl(input) {
   if (!input || typeof input !== 'string') return null;
   const trimmed = input.trim();
   if (!trimmed) return null;
+  let urlToCheck = trimmed;
   if (trimmed.includes('<iframe') && trimmed.includes('src=')) {
     const match = trimmed.match(/src=["']([^"']+)["']/i);
-    if (match && match[1]) return match[1].trim();
+    if (match && match[1]) urlToCheck = match[1].trim();
   }
-  if (trimmed.startsWith('http') && trimmed.includes('maps/embed')) return trimmed;
-  return trimmed.startsWith('http') ? trimmed : null;
+  if (urlToCheck.startsWith('http') && urlToCheck.includes('maps/embed')) return urlToCheck;
+  const normalized = normalizeToEmbedUrl(urlToCheck);
+  if (normalized) return normalized;
+  return urlToCheck.startsWith('http') ? urlToCheck : null;
 }
 
 // 24hr options: 00:00 to 23:30 in 30-min steps
@@ -122,12 +170,12 @@ export default function PlaceLinkInput() {
 
   return (
     <section className="section place-link-section">
-      <h2 className="section-title">Map place (embed only)</h2>
+      <h2 className="section-title">Map place</h2>
       <form onSubmit={handleSubmit} className="place-link-form">
         <label className="place-link-field place-link-embed">
-          <span>Embed — paste embed URL or full iframe HTML from Google Maps → Share → Embed a map</span>
+          <span>Paste any Google Maps link (share link from phone, goo.gl, or embed URL) — we’ll embed it</span>
           <textarea
-            placeholder='Paste embed URL or iframe HTML (<iframe src="..." ...></iframe>)'
+            placeholder='Paste Google Maps URL (e.g. from Share on the Maps app) or embed/iframe'
             value={embedInput}
             onChange={handleEmbedChange}
             className="place-link-input place-link-embed-textarea"

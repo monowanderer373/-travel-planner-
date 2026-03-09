@@ -365,6 +365,13 @@ input::placeholder, textarea::placeholder {
   color: var(--text-primary);
 }
 
+@media (max-width: 768px) {
+  [data-theme="nier"] .main-content {
+    padding-left: 1rem;
+    background-image: none;
+  }
+}
+
 [data-theme="nier"] .main-content::before {
   content: "";
   display: block;
