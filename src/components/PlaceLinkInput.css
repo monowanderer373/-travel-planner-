@@ -25,7 +25,8 @@
 
 .place-link-input {
   width: 100%;
-  min-width: 200px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .place-link-embed-textarea {
@@ -93,6 +94,24 @@
   box-shadow: var(--shadow-lg);
   animation: slideUp 0.3s ease;
   overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .place-link-section .place-link-manual-fields,
+  .place-link-time-row {
+    max-width: 100%;
+  }
+
+  .place-link-time-row {
+    grid-template-columns: 1fr;
+  }
+
+  .place-modal {
+    width: calc(100% - 2rem);
+    max-width: none;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
 }
 
 .place-modal-header {

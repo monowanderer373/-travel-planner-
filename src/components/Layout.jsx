@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useItinerary } from '../context/ItineraryContext';
 import TopBar from './TopBar';
@@ -45,9 +46,12 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
-      <nav className="bottom-nav-wrap">
-        <BottomNav />
-      </nav>
+      {createPortal(
+        <div className="bottom-nav-wrap">
+          <BottomNav />
+        </div>,
+        document.body
+      )}
       <SaveIndicator />
     </div>
   );

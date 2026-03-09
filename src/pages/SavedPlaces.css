@@ -92,3 +92,29 @@
 .saved-place-card .place-card-actions {
   margin-top: 0.5rem;
 }
+
+/* ----- Mobile: single column, no zoomed-desktop look ----- */
+@media (max-width: 768px) {
+  .saved-places-page {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .saved-places-grid {
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
+
+  .saved-place-edit-row {
+    grid-template-columns: 1fr;
+  }
+
+  .saved-place-footer {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .saved-place-footer button {
+    width: 100%;
+  }
+}

@@ -56,12 +56,12 @@ body {
   min-height: 100vh;
 }
 
-/* Prevent horizontal scroll/zoom on mobile so Transport and other pages fit the screen */
+/* Prevent horizontal scroll/zoom on mobile so all pages (Saved Places, Transport, etc.) fit the screen */
 @media (max-width: 768px) {
   html {
     overflow-x: hidden;
   }
-  body, #root, .main-content {
+  body, #root, .main-content, .page {
     max-width: 100vw;
     min-width: 0;
   }
