@@ -3,6 +3,7 @@ import { loadItinerary, saveItinerary } from '../utils/storage';
 import { useSaveStatus } from './SaveStatusContext';
 import { useAuth } from './AuthContext';
 import { supabase, hasSupabase } from '../lib/supabase';
+import { getPublicBaseUrl } from '../utils/publicUrl';
 import { getTotalTravelDays, getDayLabel } from '../utils/time';
 
 const ItineraryContext = createContext(null);
@@ -173,11 +174,30 @@ export function ItineraryProvider({ children }) {
   }, []);
 
   const generateShareLink = useCallback(() => {
-    const base = typeof window !== 'undefined' ? window.location.origin : '';
+    let base = getPublicBaseUrl();
+    if (!base && typeof window !== 'undefined') {
+      const path = (import.meta.env.BASE_URL || '/').replace(/^\/+|\/+$/g, '') || '';
+      base = path ? `${window.location.origin}/${path}` : window.location.origin;
+    }
     const id = btoa(JSON.stringify({ t: Date.now() })).slice(0, 12);
-    setShareSettings((prev) => ({ ...prev, shareLink: `${base}/share/${id}` }));
-    return `${base}/share/${id}`;
-  }, []);
+    const link = `${base.replace(/\/$/, '')}/share/${id}`;
+    setShareSettings((prev) => ({ ...prev, shareLink: link }));
+    if (hasSupabase() && supabase) {
+      const payload = {
+        trip,
+        days,
+        savedPlaces,
+        savedTransports,
+        tripmates,
+        tripCreator,
+        tripMemories,
+        shareSettings: { ...shareSettings, shareLink: link },
+        tripmateShareLink,
+      };
+      supabase.from('shared_itineraries').upsert({ id, data: payload }, { onConflict: 'id' }).catch(() => {});
+    }
+    return link;
+  }, [trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, shareSettings, tripmateShareLink]);
 
   const addSavedTransport = useCallback((transport) => {
     setSavedTransports((prev) => [...prev, { ...transport, id: `transport-${Date.now()}` }]);
@@ -200,7 +220,7 @@ export function ItineraryProvider({ children }) {
   }, []);
 
   const generateTripmateLink = useCallback(() => {
-    const base = typeof window !== 'undefined' ? window.location.origin : '';
+    const base = getPublicBaseUrl();
     const id = btoa(JSON.stringify({ trip: Date.now() })).slice(0, 14);
     const link = `${base}/join/${id}`;
     setTripmateShareLink(link);
