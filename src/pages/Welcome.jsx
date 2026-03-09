@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import './Welcome.css';
 
 export default function Welcome() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useLanguage();
   const { user, setUser, signInWithGoogle, hasSupabase } = useAuth();
   const [mode, setMode] = useState('welcome'); // 'welcome' | 'signup' | 'signin'
@@ -13,15 +14,17 @@ export default function Welcome() {
   const [email, setEmail] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
 
+  const returnTo = location.state?.from || '/';
+
   useEffect(() => {
-    if (user) navigate('/', { replace: true });
-  }, [user, navigate]);
+    if (user) navigate(returnTo, { replace: true });
+  }, [user, navigate, returnTo]);
 
   const handleSignUp = (e) => {
     e.preventDefault();
     if (!name.trim()) return;
     setUser({ name: name.trim(), email: email.trim() || undefined });
-    navigate('/create', { replace: true });
+    navigate(returnTo === '/' ? '/create' : returnTo, { replace: true });
   };
 
   const handleSignInWithGoogle = async () => {

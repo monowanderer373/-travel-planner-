@@ -1,17 +1,39 @@
-import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
 import SummaryBlock from '../components/SummaryBlock';
 import ShareModal from '../components/ShareModal';
 import AddTripmateButton from '../components/AddTripmateButton';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
+import { supabase, hasSupabase } from '../lib/supabase';
 import { getTotalTravelDays } from '../utils/time';
 import './Home.css';
 
 export default function Home() {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [shareOpen, setShareOpen] = useState(false);
-  const { trip, days } = useItinerary();
+  const { trip, days, replaceItineraryState } = useItinerary();
+  const shareHandledRef = useRef(false);
+
+  const shareId = searchParams.get('share');
+
+  useEffect(() => {
+    if (!shareId || !user || !hasSupabase() || !supabase || shareHandledRef.current) return;
+    shareHandledRef.current = true;
+    supabase
+      .from('shared_itineraries')
+      .select('data')
+      .eq('id', shareId)
+      .maybeSingle()
+      .then(({ data: row, error }) => {
+        if (!error && row?.data) replaceItineraryState(row.data);
+        setSearchParams({}, { replace: true });
+      })
+      .catch(() => setSearchParams({}, { replace: true }));
+  }, [shareId, user, replaceItineraryState, setSearchParams]);
   const hasTripDetails = trip.destination?.trim() && trip.startDate && trip.endDate;
   const totalDays = hasTripDetails ? getTotalTravelDays(trip.startDate, trip.endDate) : days.length;
 

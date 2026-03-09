@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -16,9 +16,11 @@ import Transport from './pages/Transport';
 import TripJournal from './pages/TripJournal';
 import Cost from './pages/Cost';
 import Settings from './pages/Settings';
+import ShareView from './pages/ShareView';
 import './App.css';
 
 function RequireAuth() {
+  const location = useLocation();
   const { user, authReady } = useAuth();
   if (!authReady) {
     return (
@@ -27,7 +29,7 @@ function RequireAuth() {
       </div>
     );
   }
-  if (!user) return <Navigate to="/welcome" replace />;
+  if (!user) return <Navigate to="/welcome" state={{ from: location.pathname + location.search }} replace />;
   return <Outlet />;
 }
 
@@ -75,6 +77,7 @@ export default function App() {
                 <Route path="cost" element={<Cost />} />
                 <Route path="settings" element={<Settings />} />
               </Route>
+              <Route path="/share/:shareId" element={<ShareView />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

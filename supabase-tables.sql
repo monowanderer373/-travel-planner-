@@ -22,5 +22,15 @@ CREATE TABLE IF NOT EXISTS public.itineraries (
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.itineraries ENABLE ROW LEVEL SECURITY;
 
+-- Shared itineraries: public read by share id (for share links)
+CREATE TABLE IF NOT EXISTS public.shared_itineraries (
+  id TEXT PRIMARY KEY,
+  data JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.shared_itineraries ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all for shared_itineraries" ON public.shared_itineraries FOR ALL USING (true) WITH CHECK (true);
+
 CREATE POLICY "Allow all for now" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for now" ON public.itineraries FOR ALL USING (true) WITH CHECK (true);

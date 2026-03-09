@@ -60,7 +60,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 3. **Important:** Paste **only** the SQL — do **not** copy the whole SUPABASE_SETUP.md file (that is Markdown and will cause a syntax error). Either:
    - Open the file **`supabase-tables.sql`** in this project and copy **all** of its contents into the SQL editor, or
    - Copy **only** the block between the \`\`\`sql and \`\`\` lines below (nothing else).
-4. Run it (Run button). This creates tables for user profiles and itineraries.
+4. Run it (Run button). This creates tables for user profiles and itineraries. If your project already has profiles/itineraries and you want **Share itinerary** to work, open **`supabase-tables.sql`** and run the `shared_itineraries` table section.
 
 ```sql
 -- Profiles: one row per user (linked to Supabase Auth later, or use a simple id for now)

@@ -18,6 +18,8 @@ This app is a static React (Vite) SPA. After `npm run build`, deploy the `dist/`
 - **Base URL**: If the app is not at the root (e.g. `https://user.github.io/travel-planner/`), set in `vite.config`: `base: '/travel-planner/'` (match your repo name).
 - **Refresh / direct links**: The build creates `404.html` (same as `index.html`). When someone opens a deep link (e.g. `/transport`) or refreshes, GitHub Pages serves `404.html`, so the SPA loads and the correct page is shown. Deploy the full `dist/` folder including `404.html`.
 
+**If the share link still gives 404:** (1) Redeploy from a new push to `main` — do not only "Re-run" an old workflow. (2) Test the app root in incognito: `https://<user>.github.io/<repo-name>/` — if that 404s, check Settings → Pages and that repo name matches `base` in `vite.config.js`. (3) Copy the full share link from the app; the ID after `?share=` must be complete. (4) Hard refresh (Ctrl+Shift+R) on the app, then generate a new share link and open it in incognito.
+
 ### 2. **Netlify** (free tier)
 - [netlify.com](https://www.netlify.com) – drag-and-drop the `dist` folder or connect your Git repo.
 - **Build command:** `npm run build`  
