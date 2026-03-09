@@ -131,3 +131,43 @@
   font-size: 0.9rem;
   color: var(--text-muted);
 }
+
+.cities-section {
+  margin-top: 1.5rem;
+}
+
+.city-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.city-name-input {
+  flex: 1;
+  min-width: 120px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-card);
+  font-size: 0.95rem;
+}
+
+.city-row input[type="date"] {
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-card);
+  font-size: 0.9rem;
+}
+
+.primary-outline {
+  background: transparent;
+  border: 1px solid var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.primary-outline:hover:not(:disabled) {
+  background: var(--pastel-lavender);
+}

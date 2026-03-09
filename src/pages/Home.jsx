@@ -1,8 +1,9 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import SummaryBlock from '../components/SummaryBlock';
-import ShareModal from '../components/ShareModal';
 import AddTripmateButton from '../components/AddTripmateButton';
+import ActivityFeed from '../components/ActivityFeed';
+import TripmatesBoard from '../components/TripmatesBoard';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -14,7 +15,6 @@ export default function Home() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [shareOpen, setShareOpen] = useState(false);
   const { trip, days, replaceItineraryState } = useItinerary();
   const shareHandledRef = useRef(false);
 
@@ -29,7 +29,13 @@ export default function Home() {
       .eq('id', shareId)
       .maybeSingle()
       .then(({ data: row, error }) => {
-        if (!error && row?.data) replaceItineraryState(row.data);
+        if (!error && row?.data) {
+          const data = row.data;
+          replaceItineraryState({
+            ...data,
+            shareSettings: { ...data.shareSettings, tripId: shareId },
+          });
+        }
         setSearchParams({}, { replace: true });
       })
       .catch(() => setSearchParams({}, { replace: true }));
@@ -43,9 +49,6 @@ export default function Home() {
         <h1>{t('home.title')}</h1>
         <div className="page-header-actions">
           <AddTripmateButton />
-          <button type="button" className="primary" onClick={() => setShareOpen(true)}>
-            {t('home.shareItinerary')}
-          </button>
         </div>
       </header>
       {!hasTripDetails && (
@@ -68,7 +71,8 @@ export default function Home() {
         </div>
       </section>
       <SummaryBlock />
-      <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} />
+      <TripmatesBoard />
+      <ActivityFeed />
     </div>
   );
 }

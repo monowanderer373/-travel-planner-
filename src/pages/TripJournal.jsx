@@ -1,11 +1,22 @@
 import { useState, useCallback } from 'react';
 import { useItinerary } from '../context/ItineraryContext';
-import { formatHour } from '../utils/time';
+import { useLanguage } from '../context/LanguageContext';
+import { formatHour, getTripStatus } from '../utils/time';
 import './TripJournal.css';
+
+const STATUS_LABELS = {
+  upcoming: { en: 'Upcoming Trip', zh: '即将出发' },
+  current: { en: 'Current Trip', zh: '进行中' },
+  past: { en: 'Past Trip', zh: '已结束' },
+};
 
 export default function TripJournal() {
   const { trip, days, savedPlaces, savedTransports, tripMemories, updateTripMemories } = useItinerary();
+  const { lang } = useLanguage();
   const [copyStatus, setCopyStatus] = useState('');
+  const tripStatus = getTripStatus(trip.startDate, trip.endDate);
+  const isZh = lang === 'zh-CN';
+  const statusLabel = tripStatus && STATUS_LABELS[tripStatus] ? (isZh ? STATUS_LABELS[tripStatus].zh : STATUS_LABELS[tripStatus].en) : '';
 
   const buildSummaryText = useCallback(() => {
     const lines = [];
@@ -16,7 +27,7 @@ export default function TripJournal() {
     if (trip.travelStyle) lines.push(`Style: ${trip.travelStyle}`);
     if (trip.budget) lines.push(`Budget: ${trip.budget}`);
     lines.push('');
-    lines.push('ITINERARY BY DAY');
+    lines.push('ITINERARY OF THE TRIP');
     days.forEach((day) => {
       lines.push(`\n${day.label}`);
       (day.timeline || []).forEach((item) => {
@@ -60,38 +71,42 @@ export default function TripJournal() {
   return (
     <div className="page journal-page">
       <header className="page-header">
-        <h1>Trip Journal</h1>
+        <h1>{isZh ? '旅行日记' : 'Trip Journal'}</h1>
         <div className="journal-header-actions">
           <button type="button" className="primary" onClick={handleCopySummary}>
-            Copy trip summary
+            {isZh ? '复制行程摘要' : 'Copy trip summary'}
           </button>
-          <button type="button" onClick={handlePrint}>Print / Save as PDF</button>
+          <button type="button" onClick={handlePrint}>{isZh ? '打印 / 另存为 PDF' : 'Print / Save as PDF'}</button>
           {copyStatus && <span className="journal-copy-status">{copyStatus}</span>}
         </div>
       </header>
-      <p className="journal-intro">Your whole trip at a glance. Summarize it into memories below.</p>
+      <p className="journal-intro">{isZh ? '行程一览，可在下方写下回忆。' : 'Your whole trip at a glance. Summarize it into memories below.'}</p>
 
       <section className="section journal-section journal-trip">
-        <h2 className="section-title">Trip details</h2>
+        <h2 className="section-title">{isZh ? '行程详情' : 'Trip details'}</h2>
         <div className="journal-trip-details">
-          <p><strong>Destination:</strong> {trip.destination || '—'}</p>
-          <p><strong>Dates:</strong> {trip.startDate && trip.endDate ? `${trip.startDate} – ${trip.endDate}` : '—'}</p>
-          {trip.travelStyle && <p><strong>Style:</strong> {trip.travelStyle}</p>}
-          {trip.budget && <p><strong>Budget:</strong> {trip.budget}</p>}
+          {statusLabel && (
+            <p className="journal-trip-status">
+              <strong>{isZh ? '状态' : 'Status'}:</strong>{' '}
+              <span className={`journal-status-badge journal-status-${tripStatus}`}>{statusLabel}</span>
+            </p>
+          )}
+          <p><strong>{isZh ? '目的地' : 'Destination'}:</strong> {trip.destination || '—'}</p>
+          <p><strong>{isZh ? '日期' : 'Dates'}:</strong> {trip.startDate && trip.endDate ? `${trip.startDate} – ${trip.endDate}` : '—'}</p>
+          {trip.travelStyle && <p><strong>{isZh ? '风格' : 'Style'}:</strong> {trip.travelStyle}</p>}
+          {trip.budget && <p><strong>{isZh ? '预算' : 'Budget'}:</strong> {trip.budget}</p>}
         </div>
-      </section>
 
-      <section className="section journal-section">
-        <h2 className="section-title">Itinerary by day</h2>
+        <h3 className="journal-subsection-title">{isZh ? '行程安排' : 'Itinerary of the trip'}</h3>
         {days.length === 0 ? (
-          <p className="journal-empty">No days added yet.</p>
+          <p className="journal-empty">{isZh ? '尚未添加日程' : 'No days added yet.'}</p>
         ) : (
           <div className="journal-days">
             {days.map((day) => (
               <div key={day.id} className="journal-day">
-                <h3>{day.label}</h3>
+                <h4 className="journal-day-label">{day.label}</h4>
                 {!day.timeline?.length ? (
-                  <p className="journal-empty">No activities</p>
+                  <p className="journal-empty">{isZh ? '无活动' : 'No activities'}</p>
                 ) : (
                   <ul className="journal-timeline">
                     {day.timeline.map((item) => (
@@ -113,36 +128,34 @@ export default function TripJournal() {
             ))}
           </div>
         )}
-      </section>
 
-      {savedPlaces.length > 0 && (
-        <section className="section journal-section">
-          <h2 className="section-title">Saved places</h2>
-          <ul className="journal-places">
-            {savedPlaces.map((p) => (
-              <li key={p.id}>{p.name || p.title || 'Place'}</li>
-            ))}
-          </ul>
-        </section>
-      )}
+        {savedPlaces.length > 0 && (
+          <>
+            <h3 className="journal-subsection-title">{isZh ? '收藏地点' : 'Saved places'}</h3>
+            <ul className="journal-places">
+              {savedPlaces.map((p) => (
+                <li key={p.id}>{p.name || p.title || 'Place'}</li>
+              ))}
+            </ul>
+          </>
+        )}
 
-      {savedTransports.length > 0 && (
-        <section className="section journal-section">
-          <h2 className="section-title">Saved routes</h2>
-          <ul className="journal-routes">
-            {savedTransports.map((t) => (
-              <li key={t.id}>{t.lineName}: {t.locationA} → {t.locationB} ({t.durationMinutes} min)</li>
-            ))}
-          </ul>
-        </section>
-      )}
+        {savedTransports.length > 0 && (
+          <>
+            <h3 className="journal-subsection-title">{isZh ? '交通路线' : 'Saved routes'}</h3>
+            <ul className="journal-routes">
+              {savedTransports.map((t) => (
+                <li key={t.id}>{t.lineName}: {t.locationA} → {t.locationB} ({t.durationMinutes} min)</li>
+              ))}
+            </ul>
+          </>
+        )}
 
-      <section className="section journal-section journal-memories">
-        <h2 className="section-title">Memories</h2>
-        <p className="journal-memories-hint">Summarize your trip into memories (e.g. highlights, feelings, tips).</p>
+        <h3 className="journal-subsection-title">{isZh ? '回忆' : 'Memories'}</h3>
+        <p className="journal-memories-hint">{isZh ? '写下行程中的亮点、感受或小贴士。' : 'Summarize your trip into memories (e.g. highlights, feelings, tips).'}</p>
         <textarea
           className="journal-memories-input"
-          placeholder="Write your trip memories here..."
+          placeholder={isZh ? '在此写下旅行回忆…' : 'Write your trip memories here...'}
           value={tripMemories}
           onChange={(e) => updateTripMemories(e.target.value)}
           rows={6}

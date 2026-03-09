@@ -3,22 +3,49 @@ import { useItinerary } from '../context/ItineraryContext';
 import PlaceCard from './PlaceCard';
 import './PlaceLinkInput.css';
 
-/** Convert any Google Maps URL (share link from phone, goo.gl, etc.) to an embeddable URL. */
+/**
+ * Extract lat,lng from various Google Maps URL formats for reliable embed (avoids "custom content" errors).
+ */
+function extractCoordsFromMapsUrl(u) {
+  // @lat,lng or @lat,lng,zoom
+  const atMatch = u.match(/@(-?[\d.]+),(-?[\d.]+)(?:,[\d.]+)?/);
+  if (atMatch) {
+    const [, lat, lng] = atMatch;
+    const latN = parseFloat(lat);
+    const lngN = parseFloat(lng);
+    if (latN >= -90 && latN <= 90 && lngN >= -180 && lngN <= 180) return `${lat},${lng}`;
+  }
+  // ?q=lat,lng or ll=lat,lng
+  const qMatch = u.match(/[?&](?:q|ll)=(-?[\d.]+),(-?[\d.]+)/);
+  if (qMatch) {
+    const [, lat, lng] = qMatch;
+    const latN = parseFloat(lat);
+    const lngN = parseFloat(lng);
+    if (latN >= -90 && latN <= 90 && lngN >= -180 && lngN <= 180) return `${lat},${lng}`;
+  }
+  // place/.../data=...!3d...!4d... (data layer)
+  const dataMatch = u.match(/!3d(-?[\d.]+)!4d(-?[\d.]+)/);
+  if (dataMatch) {
+    const [, lat, lng] = dataMatch;
+    return `${lat},${lng}`;
+  }
+  return null;
+}
+
+/** Convert any Google Maps URL to an embed URL; prefer q=lat,lng to avoid "custom content" errors. */
 function normalizeToEmbedUrl(url) {
   if (!url || typeof url !== 'string') return null;
   const u = url.trim();
   if (!u.startsWith('http')) return null;
-  // Already embed format
-  if (u.includes('maps/embed')) return u;
-  // Iframe src: normalize the extracted URL
+  // Already embed format with simple q=
+  if (u.includes('maps/embed') && u.includes('q=')) return u;
   if (u.includes('google.com/maps') && u.includes('output=embed')) return u;
 
-  // google.com/maps/place/Name/@lat,lng[,zoom] → use coordinates for reliable embed
-  const placeMatch = u.match(/google\.com\/maps\/place\/[^/]+\/@(-?[\d.]+),(-?[\d.]+)/);
-  if (placeMatch) {
-    const [, lat, lng] = placeMatch;
-    return `https://www.google.com/maps?q=${lat},${lng}&output=embed`;
-  }
+  // Prefer coordinates for reliable display (no "Some custom on-map content could not be displayed")
+  const coords = extractCoordsFromMapsUrl(u);
+  if (coords) return `https://www.google.com/maps?q=${coords}&output=embed`;
+
+  // google.com/maps/place/Name/@lat,lng (already handled above)
   // google.com/maps/search/PlaceName
   const searchPathMatch = u.match(/google\.com\/maps\/search\/([^/?#]+)/);
   if (searchPathMatch) {
@@ -33,11 +60,10 @@ function normalizeToEmbedUrl(url) {
       return parsed.toString();
     } catch (_) {}
   }
-  // goo.gl/maps/xxx or maps.app.goo.gl/xxx — use as query so iframe loads the place
+  // goo.gl/maps/xxx or maps.app.goo.gl/xxx — redirect URLs; use as query
   if (u.includes('goo.gl/maps') || u.includes('maps.app.goo.gl')) {
     return `https://www.google.com/maps?output=embed&q=${encodeURIComponent(u)}`;
   }
-  // Fallback: treat as search query
   try {
     const parsed = new URL(u);
     if (parsed.hostname.includes('google') && parsed.pathname.includes('maps')) {

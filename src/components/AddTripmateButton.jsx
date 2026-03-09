@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useItinerary } from '../context/ItineraryContext';
+import { useLanguage } from '../context/LanguageContext';
 import './AddTripmateButton.css';
 
 export default function AddTripmateButton() {
+  const { t } = useLanguage();
   const {
     tripmates,
     addTripmate,
@@ -34,39 +36,38 @@ export default function AddTripmateButton() {
   return (
     <>
       <button type="button" className="add-tripmate-btn" onClick={() => setModalOpen(true)}>
-        Add Tripmate
+        {t('tripmate.addBtn')}
       </button>
       {modalOpen && (
         <div className="tripmate-modal-backdrop" onClick={() => setModalOpen(false)}>
           <div className="tripmate-modal" onClick={(e) => e.stopPropagation()}>
             <div className="tripmate-modal-header">
-              <h2>Trip mates</h2>
+              <h2>{t('tripmate.title')}</h2>
               <button type="button" className="tripmate-modal-close" onClick={() => setModalOpen(false)}>×</button>
             </div>
             <div className="tripmate-modal-body">
-              <p className="tripmate-hint">Share a link for others to join this trip (they can sign in with Google and add their name).</p>
+              <p className="tripmate-hint">{t('tripmate.hint')}</p>
               {!linkGenerated ? (
                 <button type="button" className="primary" onClick={handleGenerateLink}>
-                  Generate share link
+                  {t('tripmate.generateLink')}
                 </button>
               ) : (
                 <div className="tripmate-link-box">
-                  <label className="tripmate-link-label">Share this link (sign in with Google on your app):</label>
+                  <label className="tripmate-link-label">{t('tripmate.shareLinkLabel')}</label>
                   <div className="tripmate-link-row">
                     <input type="text" readOnly value={tripmateShareLink} className="tripmate-link-input" />
-                    <button type="button" onClick={() => navigator.clipboard?.writeText(tripmateShareLink)}>Copy</button>
+                    <button type="button" onClick={() => navigator.clipboard?.writeText(tripmateShareLink)}>{t('tripmate.copy')}</button>
                   </div>
-                  <p className="tripmate-oauth-note">Joining with Google will be enabled when you connect a backend. For now, add trip mates below.</p>
                 </div>
               )}
 
-              <h3 className="tripmate-list-title">You (trip creator)</h3>
-              <p className="tripmate-hint">Set your profile so others see who created this trip. Sign in with Google can be enabled later.</p>
+              <h3 className="tripmate-list-title">{t('tripmate.youCreator')}</h3>
+              <p className="tripmate-hint">{t('tripmate.setProfile')}</p>
               {tripCreator.name ? (
                 <div className="tripmate-creator-row">
                   <span className="tripmate-avatar">{tripCreator.name.charAt(0).toUpperCase()}</span>
                   <span className="tripmate-creator-name">{tripCreator.name}</span>
-                  <button type="button" onClick={() => { setTripCreator({ name: '' }); setCreatorName(''); }}>Change</button>
+                  <button type="button" onClick={() => { setTripCreator({ name: '' }); setCreatorName(''); }}>{t('tripmate.change')}</button>
                 </div>
               ) : (
                 <form
@@ -82,25 +83,25 @@ export default function AddTripmateButton() {
                 >
                   <input
                     type="text"
-                    placeholder="Your name"
+                    placeholder={t('tripmate.yourName')}
                     value={creatorName}
                     onChange={(e) => setCreatorName(e.target.value)}
                     className="tripmate-name-input"
                   />
-                  <button type="submit" className="primary">Set my profile</button>
+                  <button type="submit" className="primary">{t('tripmate.setProfileBtn')}</button>
                 </form>
               )}
 
-              <h3 className="tripmate-list-title">Trip mates on this trip</h3>
+              <h3 className="tripmate-list-title">{t('tripmate.membersTitle')}</h3>
               <form onSubmit={handleAddLocal} className="tripmate-add-form">
                 <input
                   type="text"
-                  placeholder="Name"
+                  placeholder={t('tripmate.namePlaceholder')}
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   className="tripmate-name-input"
                 />
-                <button type="submit" className="primary">Add profile</button>
+                <button type="submit" className="primary">{t('tripmate.addProfile')}</button>
               </form>
               <ul className="tripmate-list">
                 {tripmates.map((t) => (
@@ -112,12 +113,12 @@ export default function AddTripmateButton() {
                       onChange={(e) => updateTripmate(t.id, { name: e.target.value })}
                       className="tripmate-item-name"
                     />
-                    <button type="button" className="tripmate-remove" onClick={() => removeTripmate(t.id)}>Remove</button>
+                    <button type="button" className="tripmate-remove" onClick={() => removeTripmate(t.id)}>{t('tripmate.remove')}</button>
                   </li>
                 ))}
               </ul>
               {tripmates.length === 0 && (
-                <p className="tripmate-empty">No trip mates yet. Add a name above or share the link.</p>
+                <p className="tripmate-empty">{t('tripmate.empty')}</p>
               )}
             </div>
           </div>

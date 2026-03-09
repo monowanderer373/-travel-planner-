@@ -98,6 +98,64 @@ export default function CreateItinerary() {
         )}
       </section>
 
+      <section className="section cities-section">
+        <h2 className="section-title">{t('create.citiesTitle')}</h2>
+        <p className="create-hint">{t('create.citiesHint')}</p>
+        {(trip.cities || []).map((city, idx) => (
+          <div key={idx} className="city-row">
+            <input
+              type="text"
+              placeholder={t('create.cityNamePlaceholder')}
+              value={city.name || ''}
+              onChange={(e) => {
+                const next = [...(trip.cities || [])];
+                next[idx] = { ...next[idx], name: e.target.value };
+                updateTrip({ cities: next });
+              }}
+              className="city-name-input"
+            />
+            <input
+              type="date"
+              value={city.startDate || ''}
+              min={trip.startDate}
+              max={trip.endDate}
+              onChange={(e) => {
+                const next = [...(trip.cities || [])];
+                next[idx] = { ...next[idx], startDate: e.target.value };
+                updateTrip({ cities: next });
+              }}
+            />
+            <input
+              type="date"
+              value={city.endDate || ''}
+              min={city.startDate || trip.startDate}
+              max={trip.endDate}
+              onChange={(e) => {
+                const next = [...(trip.cities || [])];
+                next[idx] = { ...next[idx], endDate: e.target.value };
+                updateTrip({ cities: next });
+              }}
+            />
+            <button
+              type="button"
+              className="locations-remove"
+              onClick={() => updateTrip({ cities: (trip.cities || []).filter((_, i) => i !== idx) })}
+              aria-label="Remove city"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          className="primary primary-outline"
+          onClick={() => updateTrip({ cities: [...(trip.cities || []), { name: '', startDate: trip.startDate || '', endDate: trip.endDate || '' }] })}
+          disabled={!trip.startDate || !trip.endDate}
+        >
+          {t('create.addCity')}
+        </button>
+      </section>
+
       <div className="create-actions">
         <button type="button" className="primary primary-large" onClick={handleStartPlanning} disabled={!canStart}>
           {t('create.startPlanning')}

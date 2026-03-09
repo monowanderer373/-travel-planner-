@@ -36,13 +36,53 @@
   color: var(--text-secondary);
 }
 
+.journal-trip-status {
+  margin-bottom: 0.5rem !important;
+}
+
+.journal-status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.journal-status-upcoming {
+  background: var(--pastel-lavender, #e0e7ff);
+  color: var(--accent-primary, #4f46e5);
+}
+
+.journal-status-current {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.journal-status-past {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.journal-subsection-title {
+  margin: 1rem 0 0.5rem;
+  font-size: 1rem;
+  color: var(--accent-primary);
+}
+
+.journal-day-label {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: var(--accent-primary);
+}
+
 .journal-days {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-.journal-day h3 {
+.journal-day h3,
+.journal-day h4 {
   margin: 0 0 0.5rem;
   font-size: 1rem;
   color: var(--accent-primary);

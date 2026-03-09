@@ -33,6 +33,21 @@ export function getDayDate(startDate, dayIndex) {
   return `${y}-${m}-${day}`;
 }
 
+/**
+ * Trip status based on today vs start/end dates.
+ * @returns 'upcoming' | 'current' | 'past' | null (if dates missing)
+ */
+export function getTripStatus(startDate, endDate) {
+  if (!startDate || !endDate) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(startDate + 'T00:00:00');
+  const end = new Date(endDate + 'T23:59:59');
+  if (start > today) return 'upcoming';
+  if (end < today) return 'past';
+  return 'current';
+}
+
 /** Short label for display e.g. "Mar 10" (local time). */
 export function formatDateShort(dateStr) {
   if (!dateStr) return '';
@@ -48,4 +63,33 @@ export function getDayLabel(dayIndex, startDate) {
   const dateStr = getDayDate(startDate, dayIndex);
   const short = formatDateShort(dateStr);
   return short ? `Day ${n} (${short})` : `Day ${n}`;
+}
+
+/**
+ * Get city name for a day index if cities with date ranges are defined.
+ * @param {number} dayIndex - 0-based day index
+ * @param {string} startDate - trip start YYYY-MM-DD
+ * @param {Array<{ name: string, startDate: string, endDate: string }>} cities
+ * @returns {string|null} - city name or null
+ */
+export function getCityForDay(dayIndex, startDate, cities) {
+  if (!startDate || !Array.isArray(cities) || cities.length === 0) return null;
+  const dayDateStr = getDayDate(startDate, dayIndex);
+  if (!dayDateStr) return null;
+  const dayDate = new Date(dayDateStr + 'T00:00:00');
+  for (const city of cities) {
+    if (!city.name || !city.startDate || !city.endDate) continue;
+    const start = new Date(city.startDate + 'T00:00:00');
+    const end = new Date(city.endDate + 'T23:59:59');
+    if (dayDate >= start && dayDate <= end) return city.name.trim();
+  }
+  return null;
+}
+
+/** "Day 1 — Tokyo" or "Day 1 (Mar 10)" when cities are used or not. */
+export function getDayLabelWithCity(dayIndex, startDate, cities) {
+  const n = dayIndex + 1;
+  const city = getCityForDay(dayIndex, startDate, cities);
+  if (city) return `Day ${n} — ${city}`;
+  return getDayLabel(dayIndex, startDate);
 }

@@ -78,6 +78,7 @@ export default function App() {
                 <Route path="settings" element={<Settings />} />
               </Route>
               <Route path="/share/:shareId" element={<ShareView />} />
+              <Route path="/join/:joinId" element={<ShareView />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

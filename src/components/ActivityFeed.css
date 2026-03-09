@@ -1,0 +1,44 @@
+.activity-feed-section {
+  margin-top: 1rem;
+}
+
+.activity-feed-loading,
+.activity-feed-empty {
+  color: var(--text-muted, #666);
+  font-size: 0.9rem;
+}
+
+.activity-feed-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.activity-feed-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-color, #eee);
+  font-size: 0.9rem;
+}
+
+.activity-feed-item:last-child {
+  border-bottom: none;
+}
+
+.activity-feed-user {
+  font-weight: 600;
+  color: var(--primary, #2563eb);
+}
+
+.activity-feed-action {
+  color: var(--text, #333);
+}
+
+.activity-feed-time {
+  color: var(--text-muted, #888);
+  font-size: 0.8rem;
+  margin-left: auto;
+}

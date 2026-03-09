@@ -1,0 +1,161 @@
+.tripmates-board-section {
+  margin-top: 1rem;
+}
+
+.tripmates-board-count {
+  color: var(--text-muted, #666);
+  font-size: 0.9rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.tripmates-board-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tripmates-board-item {
+  margin: 0;
+}
+
+.tripmates-board-member-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 8px;
+  background: var(--bg, #fff);
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.tripmates-board-member-btn:hover {
+  background: var(--bg-hover, #f5f5f5);
+  border-color: var(--primary, #2563eb);
+}
+
+.tripmates-board-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary, #2563eb);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.tripmates-board-name {
+  font-weight: 500;
+}
+
+.tripmates-board-badge {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.4rem;
+  background: var(--primary-light, #e0e7ff);
+  color: var(--primary, #2563eb);
+  border-radius: 4px;
+}
+
+.tripmates-board-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.tripmates-board-modal {
+  background: var(--bg, #fff);
+  border-radius: 12px;
+  max-width: 420px;
+  width: 100%;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.tripmates-board-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color, #eee);
+}
+
+.tripmates-board-modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.tripmates-board-modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-muted, #666);
+  padding: 0 0.25rem;
+}
+
+.tripmates-board-modal-close:hover {
+  color: var(--text, #333);
+}
+
+.tripmates-board-modal-body {
+  padding: 1rem 1.25rem;
+  overflow-y: auto;
+}
+
+.tripmates-board-modal-subtitle {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: var(--text-muted, #666);
+}
+
+.tripmates-board-modal-empty {
+  color: var(--text-muted, #666);
+  font-size: 0.9rem;
+}
+
+.tripmates-board-activity-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tripmates-board-activity-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border-color, #f0f0f0);
+  font-size: 0.9rem;
+}
+
+.tripmates-board-activity-item:last-child {
+  border-bottom: none;
+}
+
+.tripmates-board-activity-action {
+  flex: 1;
+}
+
+.tripmates-board-activity-time {
+  font-size: 0.8rem;
+  color: var(--text-muted, #888);
+  white-space: nowrap;
+}

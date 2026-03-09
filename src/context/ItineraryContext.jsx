@@ -4,7 +4,8 @@ import { useSaveStatus } from './SaveStatusContext';
 import { useAuth } from './AuthContext';
 import { supabase, hasSupabase } from '../lib/supabase';
 import { getPublicBaseUrl } from '../utils/publicUrl';
-import { getTotalTravelDays, getDayLabel } from '../utils/time';
+import { getTotalTravelDays, getDayLabel, getDayLabelWithCity } from '../utils/time';
+import { logTripActivity } from '../lib/tripActivity';
 
 const ItineraryContext = createContext(null);
 
@@ -19,6 +20,7 @@ const defaultTrip = {
   placeLink: '',
   transportLink: '',
   locations: [],
+  cities: [], // { name, startDate, endDate } for multi-city day labels
 };
 
 const defaultDays = [{ id: 'day-1', label: 'Day 1', timeline: [] }];
@@ -28,6 +30,7 @@ function getInitialItinerary() {
   if (!loaded || !loaded.trip) return null;
   const trip = { ...defaultTrip, ...loaded.trip };
   if (!Array.isArray(trip.locations)) trip.locations = [];
+  if (!Array.isArray(trip.cities)) trip.cities = [];
   return {
     trip,
     days: Array.isArray(loaded.days) && loaded.days.length > 0 ? loaded.days : defaultDays,
@@ -37,8 +40,8 @@ function getInitialItinerary() {
     tripCreator: loaded.tripCreator && typeof loaded.tripCreator === 'object' ? loaded.tripCreator : { name: '' },
     tripMemories: typeof loaded.tripMemories === 'string' ? loaded.tripMemories : '',
     shareSettings: loaded.shareSettings && typeof loaded.shareSettings === 'object'
-      ? { allowVote: false, allowEdit: false, shareLink: '', ...loaded.shareSettings }
-      : { allowVote: false, allowEdit: false, shareLink: '' },
+      ? { allowVote: false, allowEdit: false, shareLink: '', tripId: null, ...loaded.shareSettings }
+      : { allowVote: false, allowEdit: false, shareLink: '', tripId: null },
     tripmateShareLink: typeof loaded.tripmateShareLink === 'string' ? loaded.tripmateShareLink : '',
   };
 }
@@ -57,7 +60,7 @@ export function ItineraryProvider({ children }) {
   const [tripmates, setTripmates] = useState(initial?.tripmates ?? []);
   const [tripCreator, setTripCreatorState] = useState(initial?.tripCreator ?? { name: '' });
   const [tripMemories, setTripMemories] = useState(initial?.tripMemories ?? '');
-  const [shareSettings, setShareSettings] = useState(initial?.shareSettings ?? { allowVote: false, allowEdit: false, shareLink: '' });
+  const [shareSettings, setShareSettings] = useState(initial?.shareSettings ?? { allowVote: false, allowEdit: false, shareLink: '', tripId: null });
   const [tripmateShareLink, setTripmateShareLink] = useState(initial?.tripmateShareLink ?? '');
   const { reportSaving, reportSaved } = useSaveStatus();
   const saveTimeoutRef = useRef(null);
@@ -86,33 +89,35 @@ export function ItineraryProvider({ children }) {
   const addDay = useCallback((locationName) => {
     setDays((prev) => {
       const n = prev.length + 1;
-      const label = getDayLabel(prev.length, trip.startDate);
+      const cities = Array.isArray(trip.cities) ? trip.cities : [];
+      const label = getDayLabelWithCity(prev.length, trip.startDate, cities);
       return [
         ...prev,
         { id: `day-${n}-${Date.now()}`, label, timeline: [], location: locationName || '' },
       ];
     });
-  }, [trip.startDate]);
+  }, [trip.startDate, trip.cities]);
 
-  /** Sync day count and labels from trip start/end dates. */
+  /** Sync day count and labels from trip start/end dates (and cities if set). */
   useEffect(() => {
     if (!trip.startDate || !trip.endDate) return;
     const total = getTotalTravelDays(trip.startDate, trip.endDate);
     if (total <= 0) return;
+    const cities = Array.isArray(trip.cities) ? trip.cities : [];
     setDays((prev) => {
       const next = [];
       for (let i = 0; i < total; i++) {
         const existing = prev[i];
         next.push({
           id: existing?.id || `day-${i + 1}-${Date.now()}`,
-          label: getDayLabel(i, trip.startDate),
+          label: getDayLabelWithCity(i, trip.startDate, cities),
           timeline: existing?.timeline ?? [],
           location: existing?.location ?? '',
         });
       }
       return next.length ? next : prev;
     });
-  }, [trip.startDate, trip.endDate]);
+  }, [trip.startDate, trip.endDate, trip.cities]);
 
   const updateDayTimeline = useCallback((dayId, timeline) => {
     setDays((prev) =>
@@ -155,7 +160,10 @@ export function ItineraryProvider({ children }) {
 
   const addSavedPlace = useCallback((place) => {
     setSavedPlaces((prev) => [...prev, { ...place, id: `place-${Date.now()}` }]);
-  }, []);
+    if (shareSettings.tripId && hasSupabase() && supabase) {
+      logTripActivity(supabase, shareSettings.tripId, user?.name, user?.id, 'added_saved_place', { placeName: place?.title || place?.name || 'Place' });
+    }
+  }, [shareSettings.tripId, user?.name, user?.id]);
 
   const removeSavedPlace = useCallback((id) => {
     setSavedPlaces((prev) => prev.filter((p) => p.id !== id));
@@ -188,7 +196,8 @@ export function ItineraryProvider({ children }) {
       base = path ? `${origin}/${path}` : origin;
     }
     const link = base ? `${base.replace(/\/$/, '')}/?share=${id}` : `#share-${id}`;
-    setShareSettings((prev) => ({ ...prev, shareLink: link }));
+    const nextShareSettings = { ...shareSettings, shareLink: link, tripId: id };
+    setShareSettings(nextShareSettings);
     if (hasSupabase() && supabase) {
       const payload = {
         trip,
@@ -198,17 +207,23 @@ export function ItineraryProvider({ children }) {
         tripmates,
         tripCreator,
         tripMemories,
-        shareSettings: { ...shareSettings, shareLink: link },
-        tripmateShareLink,
+        shareSettings: nextShareSettings,
+        tripmateShareLink: tripmateShareLink || (base ? `${base.replace(/\/$/, '')}/join/${id}` : `#join-${id}`),
       };
-      supabase.from('shared_itineraries').upsert({ id, data: payload }, { onConflict: 'id' }).catch(() => {});
+      supabase.from('shared_itineraries').upsert({ id, data: payload, updated_at: new Date().toISOString() }, { onConflict: 'id' }).catch(() => {});
     }
     return link;
   }, [trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, shareSettings, tripmateShareLink]);
 
   const addSavedTransport = useCallback((transport) => {
     setSavedTransports((prev) => [...prev, { ...transport, id: `transport-${Date.now()}` }]);
-  }, []);
+    if (shareSettings.tripId && hasSupabase() && supabase) {
+      logTripActivity(supabase, shareSettings.tripId, user?.name, user?.id, 'added_transport', {
+        lineName: transport?.lineName,
+        route: transport?.locationA && transport?.locationB ? `${transport.locationA} → ${transport.locationB}` : null,
+      });
+    }
+  }, [shareSettings.tripId, user?.name, user?.id]);
 
   const removeSavedTransport = useCallback((id) => {
     setSavedTransports((prev) => prev.filter((t) => t.id !== id));
@@ -227,7 +242,9 @@ export function ItineraryProvider({ children }) {
   }, []);
 
   const generateTripmateLink = useCallback(() => {
-    const id = btoa(JSON.stringify({ trip: Date.now() })).slice(0, 14);
+    // Use same trip id as share link so share and join point to the same trip
+    const tripId = shareSettings.tripId || btoa(JSON.stringify({ trip: Date.now() })).slice(0, 14);
+    if (!shareSettings.tripId) setShareSettings((prev) => ({ ...prev, tripId }));
     let base = getPublicBaseUrl();
     if (!base && typeof window !== 'undefined') {
       const origin = window.location.origin;
@@ -239,10 +256,10 @@ export function ItineraryProvider({ children }) {
       if (!path && origin.includes('github.io')) path = '-travel-planner-';
       base = path ? `${origin}/${path}` : origin;
     }
-    const link = base ? `${base.replace(/\/$/, '')}/join/${id}` : `#join-${id}`;
+    const link = base ? `${base.replace(/\/$/, '')}/join/${tripId}` : `#join-${tripId}`;
     setTripmateShareLink(link);
     return link;
-  }, []);
+  }, [shareSettings.tripId]);
 
   const updateTripMemories = useCallback((text) => {
     setTripMemories(text);
@@ -265,26 +282,64 @@ export function ItineraryProvider({ children }) {
     if (typeof data.tripmateShareLink === 'string') setTripmateShareLink(data.tripmateShareLink);
   }, []);
 
-  // Load itinerary from Supabase when signed in with Google
+  const setActiveTripId = useCallback((tripId) => {
+    setShareSettings((prev) => ({ ...prev, tripId: tripId || null }));
+  }, []);
+
+  // Load itinerary: shared trip (by tripId) or user's own (by profile_id)
   useEffect(() => {
     if (!user) {
       supabaseLoadedRef.current = null;
       return;
     }
-    if (!hasSupabase() || !isSupabaseUser(user)) return;
-    if (supabaseLoadedRef.current === user.id) return;
-    supabaseLoadedRef.current = user.id;
-    supabase
-      .from('itineraries')
-      .select('data')
-      .eq('profile_id', user.id)
-      .limit(1)
-      .maybeSingle()
-      .then(({ data: row }) => {
-        if (row?.data && typeof row.data === 'object') replaceItineraryState(row.data);
-      })
-      .catch(() => {});
-  }, [user?.id, replaceItineraryState]);
+    if (!hasSupabase() || !supabase || !isSupabaseUser(user)) return;
+    const tripId = shareSettings.tripId;
+    if (tripId) {
+      if (supabaseLoadedRef.current === `shared-${tripId}`) return;
+      supabaseLoadedRef.current = `shared-${tripId}`;
+      supabase
+        .from('shared_itineraries')
+        .select('data')
+        .eq('id', tripId)
+        .maybeSingle()
+        .then(({ data: row }) => {
+          if (row?.data && typeof row.data === 'object') replaceItineraryState(row.data);
+        })
+        .catch(() => {});
+    } else {
+      if (supabaseLoadedRef.current === user.id) return;
+      supabaseLoadedRef.current = user.id;
+      supabase
+        .from('itineraries')
+        .select('data')
+        .eq('profile_id', user.id)
+        .limit(1)
+        .maybeSingle()
+        .then(({ data: row }) => {
+          if (row?.data && typeof row.data === 'object') replaceItineraryState(row.data);
+        })
+        .catch(() => {});
+    }
+  }, [user?.id, shareSettings.tripId, replaceItineraryState]);
+
+  // Realtime: when in a shared trip, subscribe so all participants see updates
+  useEffect(() => {
+    const tripId = shareSettings.tripId;
+    if (!tripId || !hasSupabase() || !supabase) return;
+    const channel = supabase
+      .channel(`trip:${tripId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'shared_itineraries', filter: `id=eq.${tripId}` },
+        (payload) => {
+          if (payload?.new?.data) replaceItineraryState(payload.new.data);
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [shareSettings.tripId, replaceItineraryState]);
 
   useEffect(() => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -302,21 +357,30 @@ export function ItineraryProvider({ children }) {
         tripmateShareLink,
       };
       saveItinerary(payload);
-      if (hasSupabase() && isSupabaseUser(user)) {
-        supabase
-          .from('itineraries')
-          .select('id')
-          .eq('profile_id', user.id)
-          .limit(1)
-          .maybeSingle()
-          .then(({ data: row }) => {
-            const body = { data: payload, updated_at: new Date().toISOString() };
-            if (row?.id) {
-              return supabase.from('itineraries').update(body).eq('id', row.id);
-            }
-            return supabase.from('itineraries').insert({ profile_id: user.id, ...body });
-          })
-          .catch(() => {});
+      if (hasSupabase() && supabase && isSupabaseUser(user)) {
+        const tripId = shareSettings.tripId;
+        const updatedAt = new Date().toISOString();
+        if (tripId) {
+          supabase
+            .from('shared_itineraries')
+            .upsert({ id: tripId, data: payload, updated_at: updatedAt }, { onConflict: 'id' })
+            .catch(() => {});
+        } else {
+          supabase
+            .from('itineraries')
+            .select('id')
+            .eq('profile_id', user.id)
+            .limit(1)
+            .maybeSingle()
+            .then(({ data: row }) => {
+              const body = { data: payload, updated_at: updatedAt };
+              if (row?.id) {
+                return supabase.from('itineraries').update(body).eq('id', row.id);
+              }
+              return supabase.from('itineraries').insert({ profile_id: user.id, ...body });
+            })
+            .catch(() => {});
+        }
       }
       reportSaved();
       saveTimeoutRef.current = null;
@@ -360,6 +424,8 @@ export function ItineraryProvider({ children }) {
     tripMemories,
     updateTripMemories,
     replaceItineraryState,
+    setActiveTripId,
+    activeTripId: shareSettings.tripId,
     TRAVEL_STYLES,
   };
 

@@ -5,7 +5,8 @@ import { supabase, hasSupabase } from '../lib/supabase';
 import './ShareView.css';
 
 export default function ShareView() {
-  const { shareId } = useParams();
+  const params = useParams();
+  const shareId = params.shareId || params.joinId;
   const navigate = useNavigate();
   const { replaceItineraryState } = useItinerary();
   const [status, setStatus] = useState('loading'); // 'loading' | 'done' | 'error'
@@ -29,7 +30,11 @@ export default function ShareView() {
           setStatus('error');
           return;
         }
-        replaceItineraryState(row.data);
+        const data = row.data;
+        replaceItineraryState({
+          ...data,
+          shareSettings: { ...data.shareSettings, tripId: shareId },
+        });
         setStatus('done');
         navigate('/', { replace: true });
       })
