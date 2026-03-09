@@ -40,7 +40,9 @@ export function AuthProvider({ children }) {
 
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const isOAuthReturn = typeof window !== 'undefined' && window.location.hash?.includes('access_token');
+
+    function applySession(session, markReady = true) {
       if (!mounted) return;
       if (session?.user) {
         const u = mapSupabaseUser(session.user);
@@ -49,8 +51,29 @@ export function AuthProvider({ children }) {
       } else {
         setUserState(loadUser());
       }
-      setAuthReady(true);
+      if (markReady) setAuthReady(true);
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (isOAuthReturn && !session?.user) {
+        // Session may not be parsed from hash yet; wait and re-check before showing welcome.
+        applySession(session, false);
+      } else {
+        applySession(session);
+      }
     });
+
+    let timeoutId;
+    if (isOAuthReturn) {
+      timeoutId = setTimeout(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (mounted) {
+            if (session?.user) applySession(session);
+            else setAuthReady(true);
+          }
+        });
+      }, 200);
+    }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
@@ -66,6 +89,7 @@ export function AuthProvider({ children }) {
 
     return () => {
       mounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, []);
@@ -96,7 +120,11 @@ export function AuthProvider({ children }) {
 
   const signInWithGoogle = useCallback(async () => {
     if (!hasSupabase()) return;
-    await supabase.auth.signInWithOAuth({ provider: 'google' });
+    const redirectTo = typeof window !== 'undefined' ? window.location.origin + (window.location.pathname || '') : undefined;
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: redirectTo ? { redirectTo } : undefined,
+    });
   }, []);
 
   const value = {

@@ -19,7 +19,14 @@ import Settings from './pages/Settings';
 import './App.css';
 
 function RequireAuth() {
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
+  if (!authReady) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', fontFamily: 'system-ui' }}>
+        Loading…
+      </div>
+    );
+  }
   if (!user) return <Navigate to="/welcome" replace />;
   return <Outlet />;
 }
