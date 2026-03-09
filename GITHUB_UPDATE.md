@@ -1,6 +1,24 @@
 # How to Update Your Travel Planner on GitHub
 
-You have **two ways** to replace or update the files in your GitHub repo. **Option 1 (Git)** is recommended.
+---
+
+## Update live (quick) — after you’ve made changes
+
+From the **Travel Planner Project** folder in a terminal:
+
+```bash
+git add .
+git commit -m "Your short description of changes"
+git push origin main
+```
+
+Your repo is already connected to: `https://github.com/monowanderer373/-travel-planner-.git`
+
+---
+
+## Option 1: Using Git (recommended)
+
+You do **not** need to erase the repo or manually delete files. You update from your current project folder and push.
 
 ---
 
