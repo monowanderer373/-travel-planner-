@@ -174,13 +174,16 @@ export function ItineraryProvider({ children }) {
   }, []);
 
   const generateShareLink = useCallback(() => {
-    let base = getPublicBaseUrl();
-    if (!base && typeof window !== 'undefined') {
-      const path = (import.meta.env.BASE_URL || '/').replace(/^\/+|\/+$/g, '') || '';
-      base = path ? `${window.location.origin}/${path}` : window.location.origin;
-    }
     const id = btoa(JSON.stringify({ t: Date.now() })).slice(0, 12);
-    const link = `${base.replace(/\/$/, '')}/share/${id}`;
+    const base =
+      typeof window !== 'undefined'
+        ? (() => {
+            const origin = window.location.origin;
+            const path = (import.meta.env.BASE_URL || '/').replace(/^\/+|\/+$/g, '') || '';
+            return path ? `${origin}/${path}` : origin;
+          })()
+        : getPublicBaseUrl();
+    const link = base ? `${base.replace(/\/$/, '')}/share/${id}` : `#share-${id}`;
     setShareSettings((prev) => ({ ...prev, shareLink: link }));
     if (hasSupabase() && supabase) {
       const payload = {
@@ -220,9 +223,16 @@ export function ItineraryProvider({ children }) {
   }, []);
 
   const generateTripmateLink = useCallback(() => {
-    const base = getPublicBaseUrl();
+    const base =
+      typeof window !== 'undefined'
+        ? (() => {
+            const origin = window.location.origin;
+            const path = (import.meta.env.BASE_URL || '/').replace(/^\/+|\/+$/g, '') || '';
+            return path ? `${origin}/${path}` : origin;
+          })()
+        : getPublicBaseUrl();
     const id = btoa(JSON.stringify({ trip: Date.now() })).slice(0, 14);
-    const link = `${base}/join/${id}`;
+    const link = base ? `${base.replace(/\/$/, '')}/join/${id}` : `#join-${id}`;
     setTripmateShareLink(link);
     return link;
   }, []);
