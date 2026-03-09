@@ -41,3 +41,17 @@ Then run `git add .`, `git commit -m "Fix base for GitHub Pages"`, `git push ori
 
 - If you see **404** on files like `index-xxxxx.js` or `index-xxxxx.css`, the **base path is wrong**. Fix it as in step 3 (match `base` to the path in the “Your site is live at” URL).
 - If you see other errors, copy the message and use it to debug (or share it for help).
+
+---
+
+## 5. 404 after “Sign in with Google”
+
+If you see **“There isn’t a GitHub Pages site here”** after logging in with Google:
+
+1. **Check the address bar** when the 404 appears. Note the exact URL (e.g. `https://monowanderer373.github.io` with no path, or a path that’s wrong). That’s where Supabase sent you; it must match your real app URL.
+2. **Supabase Redirect URLs** (Authentication → URL Configuration) must include **exactly** that URL (and the correct one with path), e.g.:
+   - `https://monowanderer373.github.io/-travel-planner-/`
+   - Optionally also: `https://monowanderer373.github.io/-travel-planner-` (no trailing slash)
+3. **Site URL** in the same page should be: `https://monowanderer373.github.io/-travel-planner-/`
+4. Confirm **GitHub Pages** is on and the last deploy succeeded: repo → **Actions** → latest “Deploy to GitHub Pages” run has a green check. Then open **Settings → Pages** and use the “Your site is live at…” URL to open the app.
+5. Always **open the app from that full URL** (with path and trailing slash) before clicking “Sign in with Google”, so the redirect after login goes back to the same address.

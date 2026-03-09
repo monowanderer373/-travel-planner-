@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { loadUser, saveUser } from '../utils/storage';
 import { supabase, hasSupabase } from '../lib/supabase';
-import { getPublicBaseUrl } from '../utils/publicUrl';
 
 const AuthContext = createContext(null);
 
@@ -121,9 +120,10 @@ export function AuthProvider({ children }) {
 
   const signInWithGoogle = useCallback(async () => {
     if (!hasSupabase()) return;
-    // Use canonical app URL so after Google sign-in we stay on the same host (production or localhost), not Supabase's default Site URL
-    const base = getPublicBaseUrl();
-    const redirectTo = base ? `${base}/` : undefined;
+    // Redirect back to the same origin + base path the user is on (avoids 404 from wrong URL)
+    const base = import.meta.env.BASE_URL || '/';
+    const redirectTo =
+      typeof window !== 'undefined' ? `${window.location.origin}${base.startsWith('/') ? base : '/' + base}` : undefined;
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: redirectTo ? { redirectTo } : undefined,
