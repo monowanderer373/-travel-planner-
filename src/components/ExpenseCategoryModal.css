@@ -1,0 +1,132 @@
+.category-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(45, 42, 50, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.category-modal {
+  background: var(--bg-card);
+  border-radius: 14px;
+  max-width: 420px;
+  width: 90%;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-soft);
+}
+
+.category-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.category-modal-back,
+.category-modal-close {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.category-modal-back:hover,
+.category-modal-close:hover {
+  background: var(--pastel-lavender);
+}
+
+.category-modal-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.category-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  padding: 1rem 1.25rem;
+}
+
+.category-modal-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.75rem 0.5rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+  background: #f5f4f6;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.category-modal-btn:hover {
+  background: var(--pastel-lavender);
+  border-color: var(--border-accent);
+}
+
+.category-modal-btn-selected {
+  background: var(--pastel-lavender);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.category-modal-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.category-modal-label {
+  text-align: center;
+  line-height: 1.2;
+}
+
+[data-theme="doodle"] .category-modal-btn {
+  background: var(--pastel-lavender);
+  color: var(--text-primary);
+}
+
+[data-theme="doodle"] .category-modal-btn:hover {
+  background: var(--pastel-lilac);
+  border-color: var(--border-accent);
+}
+
+[data-theme="doodle"] .category-modal-btn-selected {
+  background: var(--pastel-lilac);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+[data-theme="nier"] .category-modal-btn {
+  background: var(--pastel-lavender);
+  color: var(--text-primary);
+}
+
+[data-theme="nier"] .category-modal-btn:hover {
+  background: var(--pastel-lilac);
+  border-color: var(--border-accent);
+}
+
+[data-theme="nier"] .category-modal-btn-selected {
+  background: var(--pastel-lilac);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}

@@ -1,0 +1,95 @@
+.summary-intro {
+  margin: 0 0 1rem;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.summary-section {
+  margin-bottom: 1.25rem;
+}
+
+.summary-day-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.summary-day-tab {
+  padding: 0.5rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-card);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.summary-day-tab:hover {
+  background: var(--pastel-lavender);
+  border-color: var(--border-accent);
+}
+
+.summary-day-tab-active {
+  background: var(--pastel-lavender);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  font-weight: 500;
+}
+
+.summary-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.summary-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: summary;
+}
+
+.summary-item {
+  counter-increment: summary;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.summary-item::before {
+  content: counter(summary) ".";
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 1.5rem;
+}
+
+.summary-item-time {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  min-width: 7rem;
+}
+
+.summary-item-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.summary-item-transport .summary-item-name {
+  color: var(--accent-secondary);
+}
+
+.summary-item-notes {
+  width: 100%;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-left: 2.5rem;
+}
+
+.summary-overview p {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}

@@ -1,0 +1,42 @@
+.save-indicator {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-md);
+  z-index: 500;
+  animation: saveIndicatorIn 0.2s ease;
+}
+
+.save-indicator-saving {
+  color: var(--text-secondary);
+}
+
+.save-indicator-saved {
+  color: var(--accent-secondary);
+  border-color: var(--accent-secondary);
+}
+
+@keyframes saveIndicatorIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .save-indicator {
+    bottom: 4rem;
+    right: 0.75rem;
+  }
+}

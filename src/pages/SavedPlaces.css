@@ -1,0 +1,94 @@
+.saved-places-list-title {
+  margin: 1.5rem 0 1rem;
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+}
+
+.empty-state {
+  padding: 2rem;
+  text-align: center;
+  background: var(--pastel-sand);
+  border-radius: 14px;
+  color: var(--text-secondary);
+}
+
+.saved-places-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.25rem;
+}
+
+.saved-place-card {
+  position: relative;
+}
+
+.saved-place-edit {
+  margin-top: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  background: var(--pastel-sand);
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+}
+
+.saved-place-edit-label {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.saved-place-edit-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.5rem;
+  align-items: end;
+  flex-wrap: wrap;
+}
+
+.saved-place-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.saved-place-edit-field input,
+.saved-place-edit-field select {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.88rem;
+}
+
+.saved-place-edit-field span {
+  font-weight: 500;
+}
+
+.saved-place-edit-extra {
+  margin-top: 0.5rem;
+  grid-column: 1 / -1;
+}
+
+.saved-place-edit-btn {
+  margin-top: 0.5rem;
+  font-size: 0.88rem;
+  padding: 0.4rem 0.75rem;
+}
+
+@media (max-width: 520px) {
+  .saved-place-edit-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.saved-place-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0 0;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--border-soft);
+}
+
+.saved-place-card .place-card-actions {
+  margin-top: 0.5rem;
+}

@@ -1,0 +1,130 @@
+.journal-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.journal-copy-status {
+  font-size: 0.85rem;
+  color: var(--accent-secondary);
+}
+
+@media print {
+  .journal-header-actions,
+  .sidebar,
+  .save-indicator,
+  button {
+    display: none !important;
+  }
+}
+
+.journal-intro {
+  margin: 0 0 1.25rem;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.journal-section {
+  margin-bottom: 1.5rem;
+}
+
+.journal-trip-details p {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+.journal-days {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.journal-day h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: var(--accent-primary);
+}
+
+.journal-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.journal-timeline li {
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
+}
+
+.journal-item-time {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  min-width: 6rem;
+}
+
+.journal-item-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.journal-item-transport .journal-item-name {
+  color: var(--accent-secondary);
+}
+
+.journal-item-notes {
+  width: 100%;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-left: 6.5rem;
+}
+
+.journal-empty {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.journal-places,
+.journal-routes {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+.journal-places li,
+.journal-routes li {
+  margin-bottom: 0.25rem;
+}
+
+.journal-memories-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.journal-memories-input {
+  width: 100%;
+  resize: vertical;
+  min-height: 120px;
+  padding: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-card);
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.journal-memories-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px var(--pastel-lavender);
+}

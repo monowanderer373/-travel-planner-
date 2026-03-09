@@ -1,0 +1,46 @@
+.transport-card {
+  padding: 1.25rem;
+  border-radius: 14px;
+  border: 1px solid var(--border-soft);
+  background: var(--pastel-sky);
+  box-shadow: var(--shadow-sm);
+}
+
+.transport-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.transport-mode {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.transport-time {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+.transport-route {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+.transport-times {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.transport-arrival {
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.transport-card .primary {
+  width: 100%;
+}

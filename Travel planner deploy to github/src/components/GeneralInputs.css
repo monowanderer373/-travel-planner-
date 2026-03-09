@@ -1,0 +1,28 @@
+.general-inputs .inputs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.input-group-full {
+  grid-column: 1 / -1;
+}
+
+.input-group input,
+.input-group select {
+  width: 100%;
+}
+
+@media (max-width: 600px) {
+  .general-inputs .inputs-grid {
+    grid-template-columns: 1fr;
+  }
+}

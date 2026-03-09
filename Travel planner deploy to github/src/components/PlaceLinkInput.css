@@ -1,0 +1,191 @@
+.place-link-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.place-link-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.place-link-field span {
+  font-weight: 500;
+}
+
+.place-link-embed span {
+  font-weight: 400;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.place-link-input {
+  width: 100%;
+  min-width: 200px;
+}
+
+.place-link-embed-textarea {
+  resize: vertical;
+  min-height: 4rem;
+  font-family: inherit;
+}
+
+.place-link-manual-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.85rem 0;
+  border-top: 1px solid var(--border-soft);
+}
+
+.place-link-manual-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.place-link-time-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.place-link-extra-note {
+  margin-top: 0.5rem;
+}
+
+.place-link-extra-note textarea {
+  resize: vertical;
+  min-height: 2.5rem;
+}
+
+.place-link-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.place-result {
+  margin-top: 1rem;
+}
+
+/* Add to timeline modal */
+.place-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(45, 42, 50, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+.place-modal {
+  background: var(--bg-card);
+  border-radius: 14px;
+  max-width: 380px;
+  width: 90%;
+  box-shadow: var(--shadow-lg);
+  animation: slideUp 0.3s ease;
+  overflow: hidden;
+}
+
+.place-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.place-modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.place-modal-close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 1.4rem;
+  line-height: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.place-modal-close:hover {
+  background: var(--pastel-blush);
+  color: var(--text-primary);
+}
+
+.place-modal-body {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.place-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.place-modal-field select {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+}
+
+.place-modal-time-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.place-modal-time-mode > span {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.place-modal-radio {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.place-modal-radio input {
+  width: auto;
+}
+
+.place-modal-time-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+}
+
+.place-modal-range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.place-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.85rem 1.25rem;
+  border-top: 1px solid var(--border-soft);
+  background: var(--pastel-cream);
+}

@@ -1,0 +1,140 @@
+.place-card {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.25s ease;
+}
+
+.place-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* Embed map first (top of card) */
+.place-card-embed {
+  padding: 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.place-card-embed-iframe {
+  width: 100%;
+  height: 280px;
+  border: none;
+  display: block;
+  background: var(--pastel-sand);
+}
+
+.place-card-embed-open {
+  display: inline-block;
+  margin: 0.5rem 1rem 0.75rem;
+  font-size: 0.82rem;
+  color: var(--accent-warm);
+  text-decoration: none;
+}
+
+.place-card-embed-open:hover {
+  text-decoration: underline;
+}
+
+/* Place name, address, hours below the map */
+.place-card-body {
+  padding: 1rem 1.25rem;
+}
+
+.place-card-title {
+  margin: 0 0 0.4rem 0;
+  font-size: 1.15rem;
+}
+
+.place-card-hours {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.place-card-extra-note {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.65rem;
+  background: var(--pastel-peach);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-soft);
+}
+
+.place-card-hours strong {
+  color: var(--text-primary);
+}
+
+.place-card-toggle {
+  margin-top: 0.75rem;
+  background: none;
+  border: none;
+  box-shadow: none;
+  color: var(--accent-primary);
+  padding: 0.35rem 0;
+  font-size: 0.9rem;
+}
+
+.place-card-toggle:hover {
+  background: transparent;
+  transform: none;
+  text-decoration: underline;
+}
+
+.place-card-details {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-soft);
+}
+
+.place-card-details h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+.place-card-reviews {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.place-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Saved feedback */
+.place-card-saved-feedback {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.place-card-saved-badge {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent-secondary);
+  background: var(--pastel-mint);
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+}
+
+.place-card-saved-link {
+  font-size: 0.9rem;
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.place-card-saved-link:hover {
+  text-decoration: underline;
+}

@@ -1,0 +1,9 @@
+.page-intro {
+  margin: 0 0 1.25rem 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.itinerary-page .day-panel {
+  max-width: 100%;
+}

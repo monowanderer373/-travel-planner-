@@ -1,0 +1,28 @@
+.voting-ui {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.voting-badge {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  background: var(--pastel-mint);
+  color: var(--accent-secondary);
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.voting-btn {
+  padding: 0.4rem 0.65rem;
+  font-size: 0.9rem;
+}
+
+.voting-btn:disabled {
+  opacity: 0.8;
+  cursor: default;
+}
+
+.voting-btn:hover:not(:disabled) {
+  background: var(--pastel-lavender);
+}

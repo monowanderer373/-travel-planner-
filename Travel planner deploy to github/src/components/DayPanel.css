@@ -1,0 +1,33 @@
+.day-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.day-panel-header .section-title {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.days-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.day-block {
+  padding: 1.25rem;
+  background: var(--pastel-sand);
+  border-radius: 14px;
+  border: 1px solid var(--border-soft);
+}
+
+.day-block-title {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+}

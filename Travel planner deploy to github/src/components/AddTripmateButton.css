@@ -1,0 +1,204 @@
+.add-tripmate-btn {
+  padding: 0.5rem 0.85rem;
+  font-size: 0.9rem;
+  background: var(--pastel-mint);
+  border-color: var(--accent-secondary);
+  color: var(--accent-secondary);
+  font-weight: 500;
+}
+
+.add-tripmate-btn:hover {
+  background: #cdefdf;
+  transform: none;
+}
+
+.tripmate-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(45, 42, 50, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+.tripmate-modal {
+  background: var(--bg-card);
+  border-radius: 14px;
+  max-width: 440px;
+  width: 90%;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+  animation: slideUp 0.3s ease;
+}
+
+.tripmate-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.tripmate-modal-header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.tripmate-modal-close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 1.4rem;
+  line-height: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.tripmate-modal-close:hover {
+  background: var(--pastel-blush);
+  color: var(--text-primary);
+}
+
+.tripmate-modal-body {
+  padding: 1.25rem;
+  overflow-y: auto;
+}
+
+.tripmate-hint {
+  margin: 0 0 1rem;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.tripmate-creator-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.tripmate-creator-row .tripmate-avatar {
+  flex-shrink: 0;
+}
+
+.tripmate-creator-name {
+  flex: 1;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.tripmate-link-box {
+  margin-bottom: 1.25rem;
+}
+
+.tripmate-link-label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.35rem;
+}
+
+.tripmate-link-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.tripmate-link-input {
+  flex: 1;
+  font-size: 0.82rem;
+  padding: 0.4rem 0.5rem;
+}
+
+.tripmate-oauth-note {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.tripmate-list-title {
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+  color: var(--text-secondary);
+}
+
+.tripmate-add-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.tripmate-name-input {
+  flex: 1;
+  padding: 0.45rem 0.6rem;
+}
+
+.tripmate-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tripmate-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.tripmate-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.tripmate-item-name {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 0.95rem;
+  padding: 0.25rem 0;
+}
+
+.tripmate-item-name:focus {
+  outline: none;
+  border-bottom: 1px solid var(--accent-primary);
+}
+
+.tripmate-remove {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.5rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  box-shadow: none;
+}
+
+.tripmate-remove:hover {
+  background: var(--pastel-blush);
+  color: #d06060;
+  transform: none;
+}
+
+.tripmate-empty {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin: 0.5rem 0 0;
+}

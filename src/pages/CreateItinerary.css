@@ -1,0 +1,133 @@
+.create-itinerary-page .create-intro {
+  margin-bottom: 1.5rem;
+  color: var(--text-secondary);
+}
+
+/* Trip details section — aligned grid and labels */
+.create-itinerary-page .section.general-inputs {
+  margin-bottom: 1.5rem;
+}
+
+.create-itinerary-page .section-title {
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+}
+
+.create-itinerary-page .inputs-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (min-width: 520px) {
+  .create-itinerary-page .inputs-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem 1.5rem;
+  }
+  .create-itinerary-page .input-group.input-destination {
+    grid-column: 1 / -1;
+  }
+}
+
+.create-itinerary-page .input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.create-itinerary-page .input-group span {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.create-itinerary-page .input-group input {
+  width: 100%;
+  padding: 0.6rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  box-sizing: border-box;
+}
+
+.create-itinerary-page .input-group input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+@media (max-width: 519px) {
+  .create-itinerary-page .inputs-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.create-hint {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.locations-form {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.locations-input {
+  flex: 1;
+  min-width: 140px;
+}
+
+.locations-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.locations-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  background: var(--pastel-lavender);
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--border-soft);
+}
+
+.locations-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.25rem;
+}
+
+.locations-remove:hover {
+  color: var(--text-primary);
+}
+
+.create-actions {
+  margin-top: 1.5rem;
+}
+
+.primary-large {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+}
+
+.create-dates-note {
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}

@@ -1,0 +1,31 @@
+GITHUB UPLOAD CHECKLIST – Wander Travel Planner
+===============================================
+
+Your project root = the folder that CONTAINS this "for-github-upload" folder.
+That entire project root is what you push or upload to GitHub.
+
+INCLUDE (upload / commit these):
+--------------------------------
+  [x] index.html
+  [x] package.json
+  [x] package-lock.json
+  [x] .gitignore
+  [x] .env.example
+  [x] vite.config.js (if present)
+  [x] src/ (entire folder: App.jsx, main.jsx, components, pages, context, utils, lib, etc.)
+  [x] public/ (vite.svg, icons/*.png for sidebar)
+  [x] README.md, DEPLOYMENT.md, GITHUB_UPDATE.md
+  [x] DATA_AND_MONETIZATION.md, SUPABASE_SETUP.md, NIER_THEME_MATERIALS.md
+  [x] for-github-upload/ (this folder – optional but useful)
+
+DO NOT UPLOAD:
+--------------
+  [ ] node_modules/   (everyone runs "npm install" after clone)
+  [ ] dist/          (build output; can be regenerated)
+  [ ] .env.local     (contains your Supabase keys – keep private)
+  [ ] *.local files
+  [ ] reference/nier-automata-ui/ (optional: add if you want to share reference screenshots)
+
+RECOMMENDED METHOD:
+-------------------
+Use Git (Option 1 in GITHUB_UPDATE.md). Then you don’t have to manually exclude anything – .gitignore does it for you.

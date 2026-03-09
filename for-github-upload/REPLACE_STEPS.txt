@@ -1,0 +1,21 @@
+STEPS TO REPLACE GITHUB REPO (run in "Travel Planner Project" folder)
+======================================================================
+
+1. Open terminal in:  Travel Planner Project
+
+2. First time only (if Git not set up):
+   git init
+   git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+
+3. Replace the repo on GitHub (run these 4 commands):
+   git add .
+   git commit -m "Update travel planner: icons, Nier theme, auth, fix icon paths"
+   git branch -M main
+   git push -u origin main --force
+
+4. Done. Your GitHub repo now matches this local folder.
+
+---
+To only add new changes (without overwriting history), use step 3 but replace the last line with:
+   git push origin main
+(no --force)
