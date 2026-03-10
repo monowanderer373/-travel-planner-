@@ -282,7 +282,9 @@ export function ItineraryProvider({ children }) {
   }, []);
 
   const generateTripmateLink = useCallback(() => {
-    const tripId = shareSettings.tripId || btoa(JSON.stringify({ trip: Date.now() })).slice(0, 14);
+    // Normalize existing tripId in case older data stored an invite token instead of raw id.
+    const normalizedExistingTripId = shareSettings.tripId ? (decodeInviteToken(shareSettings.tripId) || shareSettings.tripId) : null;
+    const tripId = normalizedExistingTripId || btoa(JSON.stringify({ trip: Date.now() })).slice(0, 14);
     if (!shareSettings.tripId) setShareSettings((prev) => ({ ...prev, tripId }));
 
     const base = getPublicBaseUrl() || getInviteBaseUrl();

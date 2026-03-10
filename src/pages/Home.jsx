@@ -24,7 +24,13 @@ export default function Home() {
 
   const shareId = searchParams.get('share');
   const inviteParam = searchParams.get('invite') || (typeof localStorage !== 'undefined' ? localStorage.getItem(PENDING_INVITE_KEY) : null);
-  const effectiveTripId = inviteParam ? decodeInviteToken(inviteParam) || inviteParam : null;
+
+  const getInviteCandidates = (token) => {
+    if (!token) return [];
+    const first = decodeInviteToken(token) || token;
+    const second = decodeInviteToken(first) || first;
+    return [...new Set([first, second, token].filter(Boolean))];
+  };
 
   // Legacy ?share= param (same behaviour as before)
   useEffect(() => {
@@ -54,37 +60,41 @@ export default function Home() {
 
   // Invite param ?invite=TOKEN: decode to tripId, load shared trip once, then clear URL and localStorage
   useEffect(() => {
-    if (!effectiveTripId || !user || !hasSupabase() || !supabase || inviteHandledRef.current) return;
+    if (!inviteParam || !user || !hasSupabase() || !supabase || inviteHandledRef.current) return;
     inviteHandledRef.current = true;
-    setActiveTripId(effectiveTripId);
-    supabase
-      .from('shared_itineraries')
-      .select('data')
-      .eq('id', effectiveTripId)
-      .maybeSingle()
-      .then(({ data: row, error }) => {
-        if (error || !row?.data) {
-          // Keep invite token/query on failure so user can retry after auth/session settles.
-          inviteHandledRef.current = false;
+    const candidates = getInviteCandidates(inviteParam);
+
+    const tryFetch = async () => {
+      for (const candidateId of candidates) {
+        setActiveTripId(candidateId);
+        const { data: row, error } = await supabase
+          .from('shared_itineraries')
+          .select('data')
+          .eq('id', candidateId)
+          .maybeSingle();
+        if (!error && row?.data) {
+          if (typeof localStorage !== 'undefined') localStorage.removeItem(PENDING_INVITE_KEY);
+          const data = row.data;
+          replaceItineraryState({
+            ...data,
+            shareSettings: { ...data.shareSettings, tripId: candidateId },
+          });
+          setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('invite');
+            return next;
+          }, { replace: true });
           return;
         }
-        if (typeof localStorage !== 'undefined') localStorage.removeItem(PENDING_INVITE_KEY);
-        const data = row.data;
-        replaceItineraryState({
-          ...data,
-          shareSettings: { ...data.shareSettings, tripId: effectiveTripId },
-        });
-        setSearchParams((prev) => {
-          const next = new URLSearchParams(prev);
-          next.delete('invite');
-          return next;
-        }, { replace: true });
-      })
-      .catch(() => {
-        // Keep invite token/query on network errors so the flow can retry.
-        inviteHandledRef.current = false;
-      });
-  }, [effectiveTripId, user, replaceItineraryState, setActiveTripId, setSearchParams]);
+      }
+      // Keep invite token/query on failure so user can retry after auth/session settles.
+      inviteHandledRef.current = false;
+    };
+
+    tryFetch().catch(() => {
+      inviteHandledRef.current = false;
+    });
+  }, [inviteParam, user, replaceItineraryState, setActiveTripId, setSearchParams]);
   const hasTripDetails = trip.destination?.trim() && trip.startDate && trip.endDate;
   const totalDays = hasTripDetails ? getTotalTravelDays(trip.startDate, trip.endDate) : days.length;
 
