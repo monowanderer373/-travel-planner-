@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useItinerary } from '../context/ItineraryContext';
+import { useLanguage } from '../context/LanguageContext';
 import PlaceCard from '../components/PlaceCard';
 import PlaceLinkInput from '../components/PlaceLinkInput';
 import VotingUI from '../components/VotingUI';
@@ -37,33 +38,34 @@ function SavedPlaceEdit({ place, onUpdate }) {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const { t } = useLanguage();
   return (
     <div className="saved-place-edit">
-      <span className="saved-place-edit-label">Add or edit name & hours (saved location):</span>
+      <span className="saved-place-edit-label">{t('saved.editLabel')}</span>
       <div className="saved-place-edit-row">
         <label className="saved-place-edit-field">
-          <span>Place name</span>
-          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Place name" />
+          <span>{t('saved.placeName')}</span>
+          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('saved.placeName')} />
         </label>
         <label className="saved-place-edit-field">
-          <span>Open (24hr)</span>
+          <span>{t('saved.open')}</span>
           <select value={openTime} onChange={(e) => setOpenTime(e.target.value)}>
             {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         </label>
         <label className="saved-place-edit-field">
-          <span>Close (24hr)</span>
+          <span>{t('saved.close')}</span>
           <select value={closeTime} onChange={(e) => setCloseTime(e.target.value)}>
-            {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+            {TIME_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
           </select>
         </label>
       </div>
       <label className="saved-place-edit-field saved-place-edit-extra">
-        <span>Extra note</span>
+        <span>{t('saved.extraNote')}</span>
         <input type="text" value={extraNote} onChange={(e) => setExtraNote(e.target.value)} placeholder="e.g. Cash only, watch for stairs" />
       </label>
       <button type="button" className="primary saved-place-edit-btn" onClick={handleSave}>
-        {saved ? 'Updated ✓' : 'Update'}
+        {saved ? t('saved.updated') : t('saved.update')}
       </button>
     </div>
   );
@@ -72,6 +74,7 @@ function SavedPlaceEdit({ place, onUpdate }) {
 const HOURS = Array.from({ length: 16 }, (_, i) => i + 8); // 8–23
 
 export default function SavedPlaces() {
+  const { t } = useLanguage();
   const { savedPlaces, removeSavedPlace, setVotes, updateSavedPlace, days, addToTimeline } = useItinerary();
   const maxVotes = savedPlaces.length ? Math.max(...savedPlaces.map((p) => p.votes || 0)) : 0;
 
@@ -111,15 +114,15 @@ export default function SavedPlaces() {
   return (
     <div className="page saved-places-page">
       <header className="page-header">
-        <h1>Saved places</h1>
+        <h1>{t('saved.title')}</h1>
       </header>
 
       <PlaceLinkInput />
 
-      <h2 className="saved-places-list-title">Saved locations</h2>
+      <h2 className="saved-places-list-title">{t('saved.listTitle')}</h2>
       {savedPlaces.length === 0 ? (
         <div className="empty-state">
-          <p>No saved places yet. Add a map place above and click &quot;Save place&quot; to add one.</p>
+          <p>{t('saved.empty')}</p>
         </div>
       ) : (
         <div className="saved-places-grid">
@@ -135,7 +138,7 @@ export default function SavedPlaces() {
                   onVote={(id, count) => setVotes(id, count)}
                 />
                 <button type="button" onClick={() => removeSavedPlace(place.id)}>
-                  Remove
+                  {t('saved.remove')}
                 </button>
               </div>
             </div>
@@ -147,12 +150,12 @@ export default function SavedPlaces() {
         <div className="place-modal-backdrop" onClick={() => setAddModalOpen(false)}>
           <div className="place-modal" onClick={(e) => e.stopPropagation()}>
             <div className="place-modal-header">
-              <h3>Add to timeline</h3>
+              <h3>{t('saved.addToTimeline')}</h3>
               <button type="button" className="place-modal-close" onClick={() => setAddModalOpen(false)}>×</button>
             </div>
             <div className="place-modal-body">
               <label className="place-modal-field">
-                <span>Day</span>
+                <span>{t('saved.day')}</span>
                 <select value={addDayId} onChange={(e) => setAddDayId(e.target.value)}>
                   {days.map((d) => (
                     <option key={d.id} value={d.id}>{d.label}</option>
@@ -160,19 +163,19 @@ export default function SavedPlaces() {
                 </select>
               </label>
               <div className="place-modal-time-mode">
-                <span>Time</span>
+                <span>{t('saved.time')}</span>
                 <label className="place-modal-radio">
                   <input type="radio" checked={addTimeMode === 'specific'} onChange={() => setAddTimeMode('specific')} />
-                  Specific hour
+                  {t('saved.specificHour')}
                 </label>
                 <label className="place-modal-radio">
                   <input type="radio" checked={addTimeMode === 'range'} onChange={() => setAddTimeMode('range')} />
-                  Between hours
+                  {t('saved.betweenHours')}
                 </label>
               </div>
               {addTimeMode === 'specific' ? (
                 <label className="place-modal-field">
-                  <span>Hour</span>
+                  <span>{t('saved.hour')}</span>
                   <select value={addStartHour} onChange={(e) => setAddStartHour(Number(e.target.value))}>
                     {HOURS.map((h) => (
                       <option key={h} value={h}>{h === 12 ? '12:00' : h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`}</option>
@@ -183,7 +186,7 @@ export default function SavedPlaces() {
               ) : (
                 <div className="place-modal-range">
                   <label className="place-modal-field">
-                    <span>Start</span>
+                    <span>{t('saved.start')}</span>
                     <select value={addStartHour} onChange={(e) => { const v = Number(e.target.value); setAddStartHour(v); if (addEndHour <= v) setAddEndHour(v + 1); }}>
                       {HOURS.map((h) => (
                         <option key={h} value={h}>{h === 12 ? '12:00' : h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`}</option>
@@ -191,7 +194,7 @@ export default function SavedPlaces() {
                     </select>
                   </label>
                   <label className="place-modal-field">
-                    <span>End</span>
+                    <span>{t('saved.end')}</span>
                     <select value={addEndHour} onChange={(e) => setAddEndHour(Number(e.target.value))}>
                       {HOURS.filter((h) => h > addStartHour).map((h) => (
                         <option key={h} value={h}>{h === 12 ? '12:00' : h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`}</option>
@@ -202,9 +205,9 @@ export default function SavedPlaces() {
               )}
             </div>
             <div className="place-modal-footer">
-              <button type="button" onClick={() => setAddModalOpen(false)}>Cancel</button>
+              <button type="button" onClick={() => setAddModalOpen(false)}>{t('saved.cancel')}</button>
               <button type="button" className="primary" onClick={handleConfirmAddToTimeline}>
-                Add to timeline
+                {t('saved.addToTimeline')}
               </button>
             </div>
           </div>

@@ -1,16 +1,20 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { getDisplayEmbedUrl } from '../utils/mapsEmbed';
+import { useLanguage } from '../context/LanguageContext';
 import './PlaceCard.css';
 
 export default function PlaceCard({ place, onAddToDay, onAddToSaved, savedFeedback }) {
+  const { t } = useLanguage();
   const [expanded, setExpanded] = useState(false);
+  const displayEmbedUrl = place.embedUrl ? getDisplayEmbedUrl(place.embedUrl) : null;
 
   return (
     <article className="place-card">
-      {place.embedUrl && (
+      {displayEmbedUrl && (
         <div className="place-card-embed">
           <iframe
-            src={place.embedUrl}
+            src={displayEmbedUrl}
             title={place.title}
             className="place-card-embed-iframe"
             allowFullScreen
@@ -18,12 +22,12 @@ export default function PlaceCard({ place, onAddToDay, onAddToSaved, savedFeedba
             referrerPolicy="no-referrer-when-downgrade"
           />
           <a
-            href={place.embedUrl}
+            href={displayEmbedUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="place-card-embed-open"
           >
-            Open map in new tab
+            {t('place.openMapNewTab')}
           </a>
         </div>
       )}
@@ -32,13 +36,13 @@ export default function PlaceCard({ place, onAddToDay, onAddToSaved, savedFeedba
         <h3 className="place-card-title">{place.title}</h3>
         {place.hours && place.hours !== '—' && (
           <p className="place-card-hours">
-            <strong>Operating hours:</strong> {place.hours}
+            <strong>{t('place.operatingHours')}</strong> {place.hours}
           </p>
         )}
 
         {place.extraNote && (
           <div className="place-card-extra-note">
-            <strong>Extra note:</strong> {place.extraNote}
+            <strong>{t('place.extraNote')}:</strong> {place.extraNote}
           </div>
         )}
 
@@ -48,7 +52,7 @@ export default function PlaceCard({ place, onAddToDay, onAddToSaved, savedFeedba
           onClick={() => setExpanded(!expanded)}
           aria-expanded={expanded}
         >
-          {expanded ? 'Less' : 'More details'}
+          {expanded ? t('place.less') : t('place.moreDetails')}
         </button>
 
         {expanded && place.reviews?.length > 0 && (
@@ -64,18 +68,18 @@ export default function PlaceCard({ place, onAddToDay, onAddToSaved, savedFeedba
 
         <div className="place-card-actions">
           <button type="button" className="primary" onClick={onAddToDay}>
-            Add to day timeline
+            {t('place.addToDay')}
           </button>
           {onAddToSaved && (
             <>
               {savedFeedback ? (
                 <div className="place-card-saved-feedback">
-                  <span className="place-card-saved-badge">Saved ✓</span>
-                  <Link to="/saved" className="place-card-saved-link">View in Saved Places</Link>
+                  <span className="place-card-saved-badge">{t('place.saved')}</span>
+                  <Link to="/saved" className="place-card-saved-link">{t('place.viewInSaved')}</Link>
                 </div>
               ) : (
                 <button type="button" onClick={onAddToSaved}>
-                  Save place
+                  {t('place.savePlace')}
                 </button>
               )}
             </>

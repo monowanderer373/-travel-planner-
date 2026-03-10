@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useItinerary } from '../context/ItineraryContext';
+import { useLanguage } from '../context/LanguageContext';
 import './Transport.css';
 
 function extractEmbedUrl(input) {
@@ -18,6 +19,7 @@ const HOURS = Array.from({ length: 16 }, (_, i) => i + 8);
 const MINUTES = [0, 15, 30, 45];
 
 export default function Transport() {
+  const { t } = useLanguage();
   const { days, addToTimeline, savedTransports, addSavedTransport, removeSavedTransport } = useItinerary();
   const [embedInput, setEmbedInput] = useState('');
   const [locationA, setLocationA] = useState('');
@@ -43,10 +45,10 @@ export default function Transport() {
     setLoadedRoute({
       id: `route-${Date.now()}`,
       embedUrl: embedUrl || null,
-      locationA: locationA.trim() || 'Location A',
-      locationB: locationB.trim() || 'Location B',
+      locationA: locationA.trim() || t('transport.locationA'),
+      locationB: locationB.trim() || t('transport.locationB'),
       durationMinutes: useManualDuration ? durationMinutes : 45,
-      lineName: lineName.trim() || 'Transport',
+      lineName: lineName.trim() || t('transport.defaultLineName'),
     });
   };
 
@@ -106,17 +108,17 @@ export default function Transport() {
   return (
     <div className="page transport-page">
       <header className="page-header">
-        <h1>Transport / train route</h1>
+        <h1>{t('transport.title')}</h1>
       </header>
 
       <section className="section transport-section">
-        <h2 className="section-title">Add route</h2>
-        <p className="transport-hint">Paste an embed link or iframe HTML (like Saved Places), or enter locations and duration manually.</p>
+        <h2 className="section-title">{t('transport.addRoute')}</h2>
+        <p className="transport-hint">{t('transport.hint')}</p>
         <form onSubmit={handleLoadRoute} className="transport-form">
           <label className="transport-field transport-field-wide">
-            <span>Embed link or iframe HTML (optional)</span>
+            <span>{t('transport.embedLabel')}</span>
             <textarea
-              placeholder="Paste embed URL or full iframe HTML from Google Maps"
+              placeholder={t('transport.embedPlaceholder')}
               value={embedInput}
               onChange={handleEmbedChange}
               className="transport-textarea"
@@ -125,37 +127,37 @@ export default function Transport() {
           </label>
           <div className="transport-row">
             <label className="transport-field">
-              <span>From (Location A)</span>
+              <span>{t('transport.from')}</span>
               <input type="text" placeholder="e.g. Tokyo Station" value={locationA} onChange={(e) => setLocationA(e.target.value)} />
             </label>
             <label className="transport-field">
-              <span>To (Location B)</span>
+              <span>{t('transport.to')}</span>
               <input type="text" placeholder="e.g. Shinjuku" value={locationB} onChange={(e) => setLocationB(e.target.value)} />
             </label>
           </div>
           <label className="transport-field transport-check">
             <input type="checkbox" checked={useManualDuration} onChange={(e) => setUseManualDuration(e.target.checked)} />
-            <span>Enter duration manually (if embed doesn’t work)</span>
+            <span>{t('transport.manualDuration')} (if embed doesn’t work)</span>
           </label>
           {useManualDuration && (
             <label className="transport-field">
-              <span>Duration (minutes)</span>
+              <span>{t('transport.durationMinutes')}</span>
               <input type="number" min={1} max={600} value={durationMinutes} onChange={(e) => setDurationMinutes(Number(e.target.value))} />
             </label>
           )}
           <label className="transport-field">
-            <span>Line / route name</span>
+            <span>{t('transport.lineRouteName')}</span>
             <input type="text" placeholder="e.g. JR Yamanote Line" value={lineName} onChange={(e) => setLineName(e.target.value)} />
           </label>
           <button type="submit" className="primary" disabled={!canLoad}>
-            Load route
+            {t('transport.loadRoute')}
           </button>
         </form>
       </section>
 
       {loadedRoute && (
         <section className="section transport-section transport-loaded animate-in">
-          <h2 className="section-title">Loaded route</h2>
+          <h2 className="section-title">{t('transport.loadedRoute')}</h2>
           {loadedRoute.embedUrl && (
             <div className="transport-embed-wrap">
               <iframe
@@ -173,15 +175,15 @@ export default function Transport() {
             <p>{loadedRoute.lineName} · {loadedRoute.durationMinutes} min</p>
           </div>
           <div className="transport-loaded-actions">
-            <button type="button" className="primary" onClick={handleSaveRoute}>Save route</button>
-            <button type="button" onClick={() => openAddToItineraryModal(loadedRoute)}>Add to itinerary</button>
+            <button type="button" className="primary" onClick={handleSaveRoute}>{t('transport.saveRoute')}</button>
+            <button type="button" onClick={() => openAddToItineraryModal(loadedRoute)}>{t('transport.addToItinerary')}</button>
           </div>
         </section>
       )}
 
       {savedTransports.length > 0 && (
         <section className="section transport-section">
-          <h2 className="section-title">Saved routes</h2>
+          <h2 className="section-title">{t('transport.savedRoutes')}</h2>
           <div className="transport-saved-list">
             {savedTransports.map((t) => (
               <div key={t.id} className="transport-saved-card">
@@ -194,8 +196,8 @@ export default function Transport() {
                   <p className="transport-saved-route">{t.locationA} → {t.locationB}</p>
                   <p className="transport-saved-meta">{t.lineName} · {t.durationMinutes} min</p>
                   <div className="transport-saved-actions">
-                    <button type="button" className="primary" onClick={() => openAddToItineraryModal(t)}>Add to itinerary</button>
-                    <button type="button" onClick={() => removeSavedTransport(t.id)}>Remove</button>
+                    <button type="button" className="primary" onClick={() => openAddToItineraryModal(t)}>{t('transport.addToItinerary')}</button>
+                    <button type="button" onClick={() => removeSavedTransport(t.id)}>{t('transport.remove')}</button>
                   </div>
                 </div>
               </div>
@@ -208,20 +210,20 @@ export default function Transport() {
         <div className="transport-modal-backdrop" onClick={() => { setAddModalOpen(false); setTransportToAdd(null); }}>
           <div className="transport-modal" onClick={(e) => e.stopPropagation()}>
             <div className="transport-modal-header">
-              <h3>Add to itinerary</h3>
+              <h3>{t('transport.addToItinerary')}</h3>
               <button type="button" className="transport-modal-close" onClick={() => { setAddModalOpen(false); setTransportToAdd(null); }}>×</button>
             </div>
             <div className="transport-modal-body">
-              <p className="transport-modal-hint">Set leaving and arriving time. A transport row will be added to the timeline.</p>
+              <p className="transport-modal-hint">{t('transport.modalHint')}</p>
               <label className="transport-modal-field">
-                <span>Day</span>
+                <span>{t('transport.day')}</span>
                 <select value={addDayId} onChange={(e) => setAddDayId(e.target.value)}>
                   {days.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
                 </select>
               </label>
               <div className="transport-modal-time-row">
                 <div className="transport-modal-field-group">
-                  <span className="transport-modal-field-label">Leaving</span>
+                  <span className="transport-modal-field-label">{t('transport.leaving')}</span>
                   <div className="transport-time-inputs">
                     <label className="transport-time-label">
                       <select value={leaveHour} onChange={(e) => { const h = Number(e.target.value); setLeaveHour(h); if (arriveHour < h || (arriveHour === h && arriveMin <= leaveMin)) { setArriveHour(h); setArriveMin(Math.min(59, leaveMin + 30)); } }}>
@@ -238,7 +240,7 @@ export default function Transport() {
                   </div>
                 </div>
                 <div className="transport-modal-field-group">
-                  <span className="transport-modal-field-label">Arriving</span>
+                  <span className="transport-modal-field-label">{t('transport.arriving')}</span>
                   <div className="transport-time-inputs">
                     <label className="transport-time-label">
                       <select value={arriveHour} onChange={(e) => { setArriveHour(Number(e.target.value)); if (Number(e.target.value) === leaveHour && arriveMin <= leaveMin) setArriveMin(Math.min(59, leaveMin + 15)); }}>
@@ -257,9 +259,9 @@ export default function Transport() {
               </div>
             </div>
             <div className="transport-modal-footer">
-              <button type="button" onClick={() => { setAddModalOpen(false); setTransportToAdd(null); }}>Cancel</button>
+              <button type="button" onClick={() => { setAddModalOpen(false); setTransportToAdd(null); }}>{t('transport.cancel')}</button>
               <button type="button" className="primary" onClick={handleAddToItinerary}>
-                Add to timeline
+                {t('transport.addToItinerary')}
               </button>
             </div>
           </div>

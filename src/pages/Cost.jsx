@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useCost, fetchRate } from '../context/CostContext';
 import { useItinerary } from '../context/ItineraryContext';
+import { useLanguage } from '../context/LanguageContext';
 import ExpenseCategoryModal, { EXPENSE_CATEGORIES } from '../components/ExpenseCategoryModal';
 import './Cost.css';
 
@@ -863,11 +864,12 @@ function SettlementSummary() {
 
 // ─── Main Page ────────────────────────────────────────────────
 export default function Cost() {
+  const { t } = useLanguage();
   return (
     <div className="page cost-page">
       <header className="page-header">
-        <h1>Cost splitter</h1>
-        <p className="page-intro-inline">Track who paid what, split by day, and settle up.</p>
+        <h1>{t('cost.splitter')}</h1>
+        <p className="page-intro-inline">{t('cost.intro')}</p>
       </header>
       <PeopleManager />
       <TravellerPaymentDetails />
