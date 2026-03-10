@@ -13,6 +13,7 @@ function useSymbol(code) {
 
 // ─── People Manager ───────────────────────────────────────────
 function PeopleManager() {
+  const { t } = useLanguage();
   const { people, addPerson, updatePerson, removePerson } = useCost();
   const { tripmates, tripCreator } = useItinerary();
   const [nameInput, setNameInput] = useState('');
@@ -47,33 +48,33 @@ function PeopleManager() {
   return (
     <section className="section cost-section">
       <h2 className="section-title">
-        Travellers <span className="count-badge">{people.length}</span>
+        {t('cost.travellers')} <span className="count-badge">{people.length}</span>
       </h2>
       {canAddAll && (
         <div className="cost-tripmates-row cost-prefill-banner">
           <p className="cost-hint">
-            Add trip mates and creator as travellers in one click?
+            {t('cost.addTripmatesHint')}
           </p>
           <button type="button" className="primary" onClick={addTripMatesAndCreatorAsTravellers}>
-            Add trip mates and creator as travellers
+            {t('cost.addTripmatesAndCreator')}
           </button>
         </div>
       )}
       {!canAddAll && tripmatesToAdd.length > 0 && (
         <div className="cost-tripmates-row">
           <p className="cost-hint">
-            Tripmates from this trip: {tripmates.map((t) => t.name).join(', ')}.
+            {t('cost.tripmatesFromTrip')} {tripmates.map((m) => m.name).join(', ')}.
           </p>
           <button type="button" className="primary" onClick={addTripmatesAsTravellers}>
-            Add tripmates as travellers
+            {t('cost.addTripmatesAsTravellers')}
           </button>
         </div>
       )}
       {!canAddAll && creatorNotInPeople && (
         <div className="cost-tripmates-row">
-          <p className="cost-hint">Trip creator not yet in travellers.</p>
+          <p className="cost-hint">{t('cost.creatorNotInTravellers')}</p>
           <button type="button" className="primary" onClick={addCreatorAsTraveller}>
-            Add {creatorName} (trip creator) as traveller
+            {t('cost.addCreatorAsTraveller', { name: creatorName })}
           </button>
         </div>
       )}
@@ -94,12 +95,12 @@ function PeopleManager() {
       <form onSubmit={handleAdd} className="add-person-form">
         <input
           type="text"
-          placeholder="Add traveller name"
+          placeholder={t('cost.addTravellerPlaceholder')}
           value={nameInput}
           onChange={(e) => setNameInput(e.target.value)}
           maxLength={30}
         />
-        <button type="submit" className="primary">Add</button>
+        <button type="submit" className="primary">{t('cost.add')}</button>
       </form>
     </section>
   );
@@ -107,6 +108,7 @@ function PeopleManager() {
 
 // ─── Traveller Payment Details (QR + bank for others to pay) ───
 function TravellerPaymentDetails() {
+  const { t } = useLanguage();
   const { people, updatePersonPayment } = useCost();
 
   if (people.length === 0) return null;
@@ -121,9 +123,9 @@ function TravellerPaymentDetails() {
 
   return (
     <section className="section cost-section">
-      <h2 className="section-title">Traveller payment details</h2>
+      <h2 className="section-title">{t('cost.travellerPaymentDetails')}</h2>
       <p className="cost-hint payment-details-hint">
-        Add your QR code or bank account so others can pay you back.
+        {t('cost.paymentHint')}
       </p>
       <div className="traveller-payment-grid">
         {people.map((p) => {
@@ -136,7 +138,7 @@ function TravellerPaymentDetails() {
               </div>
               <div className="traveller-payment-body">
                 <label className="payment-field">
-                  <span>QR Code (PayNow, DuitNow, etc.)</span>
+                  <span>{t('cost.qrCode')}</span>
                   <div className="qr-upload-area">
                     {pay.qrCode ? (
                       <div className="qr-preview">
@@ -146,7 +148,7 @@ function TravellerPaymentDetails() {
                           className="qr-remove"
                           onClick={() => updatePersonPayment(p.id, { qrCode: null })}
                         >
-                          Remove
+                          {t('cost.remove')}
                         </button>
                       </div>
                     ) : (
@@ -162,13 +164,13 @@ function TravellerPaymentDetails() {
                           }}
                           style={{ display: 'none' }}
                         />
-                        📷 Upload QR code
+                        📷 {t('cost.uploadQR')}
                       </label>
                     )}
                   </div>
                 </label>
                 <label className="payment-field">
-                  <span>Bank name</span>
+                  <span>{t('cost.bankName')}</span>
                   <input
                     type="text"
                     placeholder="e.g. Maybank, CIMB"
@@ -177,28 +179,28 @@ function TravellerPaymentDetails() {
                   />
                 </label>
                 <label className="payment-field">
-                  <span>Account holder name</span>
+                  <span>{t('cost.accountHolder')}</span>
                   <input
                     type="text"
-                    placeholder="Name on account"
+                    placeholder={t('cost.nameOnAccount')}
                     value={pay.accountHolder}
                     onChange={(e) => updatePersonPayment(p.id, { accountHolder: e.target.value })}
                   />
                 </label>
                 <label className="payment-field">
-                  <span>Account number</span>
+                  <span>{t('cost.accountNumber')}</span>
                   <input
                     type="text"
-                    placeholder="Account or card number"
+                    placeholder={t('cost.accountOrCard')}
                     value={pay.accountNumber}
                     onChange={(e) => updatePersonPayment(p.id, { accountNumber: e.target.value })}
                   />
                 </label>
                 <label className="payment-field">
-                  <span>Notes (e.g. branch, Swift)</span>
+                  <span>{t('cost.notes')}</span>
                   <input
                     type="text"
-                    placeholder="Optional"
+                    placeholder={t('cost.optional')}
                     value={pay.notes}
                     onChange={(e) => updatePersonPayment(p.id, { notes: e.target.value })}
                   />
@@ -206,7 +208,7 @@ function TravellerPaymentDetails() {
               </div>
               {(pay.qrCode || pay.bankName || pay.accountNumber) && (
                 <div className="payment-preview-note">
-                  ✓ Others can use this to pay {p.name}
+                  ✓ {t('cost.othersCanPay', { name: p.name })}
                 </div>
               )}
             </div>
@@ -236,6 +238,7 @@ function blankForm(people) {
 }
 
 function AddExpenseForm() {
+  const { t } = useLanguage();
   const { people, addExpense, getCachedRate, setCachedRate, CURRENCIES } = useCost();
   const { days, trip } = useItinerary();
   const receiptRef = useRef();
@@ -283,7 +286,7 @@ function AddExpenseForm() {
       setCachedRate(form.paidCurrency, form.repayCurrency, date, result);
       setRateInfo(result);
     } else {
-      setRateError('Could not fetch rate. Check connection.');
+      setRateError(t('cost.rateError'));
     }
   };
 
@@ -297,19 +300,19 @@ function AddExpenseForm() {
     e.preventDefault();
     setFormError('');
     if (!form.description?.trim()) {
-      setFormError('Enter a description.');
+      setFormError(t('cost.enterDescription'));
       return;
     }
     if (!form.amount || parseFloat(form.amount) <= 0) {
-      setFormError('Enter a valid amount.');
+      setFormError(t('cost.enterValidAmount'));
       return;
     }
     if (!form.payerId) {
-      setFormError('Select who paid.');
+      setFormError(t('cost.selectWhoPaid'));
       return;
     }
     if (form.splitPersonIds.length === 0) {
-      setFormError('Select at least one person to split the expense with.');
+      setFormError(t('cost.selectOnePerson'));
       return;
     }
 
@@ -355,8 +358,8 @@ function AddExpenseForm() {
   if (people.length === 0) {
     return (
       <section className="section cost-section">
-        <h2 className="section-title">Add expense</h2>
-        <p className="cost-hint">Add at least one traveller above first.</p>
+        <h2 className="section-title">{t('cost.addExpense')}</h2>
+        <p className="cost-hint">{t('cost.addTravellerFirst')}</p>
       </section>
     );
   }
@@ -366,13 +369,13 @@ function AddExpenseForm() {
 
   return (
     <section className="section cost-section">
-      <h2 className="section-title">Add expense</h2>
+      <h2 className="section-title">{t('cost.addExpense')}</h2>
       <form onSubmit={handleSubmit} className="expense-form">
 
         {/* Category */}
         <div className="ef-row">
           <div className="ef-field ef-wide">
-            <span className="ef-label">Category</span>
+            <span className="ef-label">{t('cost.category')}</span>
             <button
               type="button"
               className="ef-category-trigger"
@@ -382,7 +385,7 @@ function AddExpenseForm() {
                 {EXPENSE_CATEGORIES.find((c) => c.id === form.category)?.icon || '📄'}
               </span>
               <span className="ef-category-label">
-                {EXPENSE_CATEGORIES.find((c) => c.id === form.category)?.label || 'Other'}
+                {EXPENSE_CATEGORIES.find((c) => c.id === form.category)?.label || t('cost.other')}
               </span>
             </button>
             <ExpenseCategoryModal
@@ -397,7 +400,7 @@ function AddExpenseForm() {
         {/* Description */}
         <div className="ef-row">
           <label className="ef-field ef-wide">
-            <span>Description</span>
+            <span>{t('cost.description')}</span>
             <input
               type="text"
               placeholder="e.g. Ramen dinner, Shinkansen ticket"
@@ -411,23 +414,23 @@ function AddExpenseForm() {
         {/* Payer · Day · Method */}
         <div className="ef-row">
           <label className="ef-field">
-            <span>Who paid?</span>
+            <span>{t('cost.whoPaid')}</span>
             <select value={form.payerId} onChange={(e) => set('payerId', e.target.value)} required>
-              <option value="">Select person</option>
+              <option value="">{t('cost.selectPerson')}</option>
               {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </label>
           <label className="ef-field">
-            <span>Day</span>
+            <span>{t('cost.day')}</span>
             <select value={form.dayTag} onChange={(e) => { set('dayTag', e.target.value); setRateInfo(null); }}>
               {days.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
             </select>
           </label>
           <label className="ef-field">
-            <span>Paid by</span>
+            <span>{t('cost.paidBy')}</span>
             <div className="toggle-group">
-              <button type="button" className={form.paymentMethod === 'card' ? 'toggle-active' : ''} onClick={() => set('paymentMethod', 'card')}>💳 Card</button>
-              <button type="button" className={form.paymentMethod === 'cash' ? 'toggle-active' : ''} onClick={() => set('paymentMethod', 'cash')}>💵 Cash</button>
+              <button type="button" className={form.paymentMethod === 'card' ? 'toggle-active' : ''} onClick={() => set('paymentMethod', 'card')}>💳 {t('cost.card')}</button>
+              <button type="button" className={form.paymentMethod === 'cash' ? 'toggle-active' : ''} onClick={() => set('paymentMethod', 'cash')}>💵 {t('cost.cash')}</button>
             </div>
           </label>
         </div>
@@ -436,7 +439,7 @@ function AddExpenseForm() {
         <div className="ef-row ef-row-align">
           <label className="ef-date-toggle">
             <input type="checkbox" checked={form.useCustomDate} onChange={(e) => set('useCustomDate', e.target.checked)} />
-            <span>Custom date (if you forgot to log on the day)</span>
+            <span>{t('cost.customDate')}</span>
           </label>
           {form.useCustomDate && (
             <input
@@ -451,7 +454,7 @@ function AddExpenseForm() {
         {/* Amount · Paid currency */}
         <div className="ef-row">
           <label className="ef-field">
-            <span>Amount ({paidSym})</span>
+            <span>{t('cost.amount')} ({paidSym})</span>
             <input
               type="number"
               min="0"
@@ -463,7 +466,7 @@ function AddExpenseForm() {
             />
           </label>
           <label className="ef-field">
-            <span>Paid in currency</span>
+            <span>{t('cost.paidInCurrency')}</span>
             <select value={form.paidCurrency} onChange={(e) => { set('paidCurrency', e.target.value); setRateInfo(null); }}>
               {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.label}</option>)}
             </select>
@@ -472,7 +475,7 @@ function AddExpenseForm() {
 
         {/* Split among */}
         <div className="ef-row ef-row-col">
-          <span className="ef-label">Split among</span>
+          <span className="ef-label">{t('cost.splitAmong')}</span>
           <div className="split-people">
             {people.map((p) => (
               <label key={p.id} className={`split-chip ${form.splitPersonIds.includes(p.id) ? 'split-chip-active' : ''}`}>
@@ -484,7 +487,7 @@ function AddExpenseForm() {
           </div>
           {form.splitPersonIds.length > 0 && form.amount && (
             <p className="split-preview">
-              {paidSym}{(parseFloat(form.amount || 0) / form.splitPersonIds.length).toFixed(2)} / person
+              {paidSym}{(parseFloat(form.amount || 0) / form.splitPersonIds.length).toFixed(2)} {t('cost.perPerson')}
             </p>
           )}
         </div>
@@ -492,16 +495,16 @@ function AddExpenseForm() {
         {/* Repayment currency + rate */}
         <div className="ef-row ef-row-align">
           <label className="ef-field">
-            <span>Debtors repay in</span>
+            <span>{t('cost.debtorsRepayIn')}</span>
             <select value={form.repayCurrency} onChange={(e) => { set('repayCurrency', e.target.value); setRateInfo(null); }}>
               {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.label}</option>)}
             </select>
           </label>
           <div className="ef-field ef-rate-field">
-            <span>Exchange rate on day</span>
+            <span>{t('cost.exchangeRateOnDay')}</span>
             <div className="rate-row">
               <button type="button" onClick={handleFetchRate} disabled={rateLoading} className="rate-fetch-btn">
-                {rateLoading ? 'Fetching…' : '🔄 Get rate'}
+                {rateLoading ? t('cost.fetching') : `🔄 ${t('cost.getRate')}`}
               </button>
               {rateInfo && (
                 <span className="rate-badge">
@@ -517,7 +520,7 @@ function AddExpenseForm() {
         {/* Conversion preview */}
         {rateInfo && form.amount && form.splitPersonIds.length > 0 && (
           <div className="conversion-preview animate-in">
-            <span>Each debtor owes approx.</span>
+            <span>{t('cost.eachDebtorOwes')}</span>
             <strong>{repaySym}{(parseFloat(form.amount) / form.splitPersonIds.length * rateInfo.rate).toFixed(2)}</strong>
             <span>({form.repayCurrency})</span>
           </div>
@@ -525,7 +528,7 @@ function AddExpenseForm() {
 
         {/* Receipt upload */}
         <div className="ef-row ef-row-col">
-          <span className="ef-label">Receipt / bill photo (optional)</span>
+          <span className="ef-label">{t('cost.receiptOptional')}</span>
           <label className="receipt-upload-btn">
             <input
               ref={receiptRef}
@@ -537,14 +540,14 @@ function AddExpenseForm() {
             {form.receipt ? (
               <span className="receipt-attached">📎 {form.receipt.name} <button type="button" onClick={() => set('receipt', null)}>×</button></span>
             ) : (
-              <span>📎 Upload receipt</span>
+              <span>📎 {t('cost.uploadReceipt')}</span>
             )}
           </label>
         </div>
 
         {formError && <p className="ef-form-error">{formError}</p>}
         <div className="ef-actions">
-          <button type="submit" className="primary">Add expense</button>
+          <button type="submit" className="primary">{t('cost.addExpenseBtn')}</button>
         </div>
       </form>
     </section>
@@ -553,6 +556,7 @@ function AddExpenseForm() {
 
 // ─── Split Repay Row ──────────────────────────────────────────
 function SplitRepayRow({ exp, splitIndex }) {
+  const { t } = useLanguage();
   const { markSplitRepaid, unmarkSplitRepaid, people, CURRENCIES } = useCost();
   const split = exp.splits[splitIndex];
   const person = people.find((p) => p.id === split.personId);
@@ -589,7 +593,7 @@ function SplitRepayRow({ exp, splitIndex }) {
       <div className="split-row split-row-payer">
         <span className="split-person-avatar">{person?.name.charAt(0).toUpperCase() || '?'}</span>
         <span className="split-person-name">{person?.name || '?'}</span>
-        <span className="payer-chip">Payer</span>
+        <span className="payer-chip">{t('cost.payer')}</span>
         <span className="split-amount-label payer-amount">{paidSym}{split.amount.toFixed(2)} {exp.paidCurrency}</span>
       </div>
     );
@@ -601,15 +605,15 @@ function SplitRepayRow({ exp, splitIndex }) {
         <span className="split-person-avatar">{person?.name.charAt(0).toUpperCase() || '?'}</span>
         <span className="split-person-name">{person?.name || '?'}</span>
         <span className="split-amount-label">{amountLabel}</span>
-        <span className="repaid-chip">✅ Repaid</span>
-        <span className="repaid-date">on {split.repaidDate}</span>
+        <span className="repaid-chip">✅ {t('cost.repaid')}</span>
+        <span className="repaid-date">{t('cost.onDate')} {split.repaidDate}</span>
         {split.repaidAttachment && (
           <a href={split.repaidAttachment.url} target="_blank" rel="noreferrer" className="attach-link">
             📎 {split.repaidAttachment.name}
           </a>
         )}
         <button type="button" className="undo-repaid-btn" onClick={() => unmarkSplitRepaid(exp.id, splitIndex)}>
-          Undo
+          {t('cost.undo')}
         </button>
       </div>
     );
@@ -622,20 +626,20 @@ function SplitRepayRow({ exp, splitIndex }) {
       <span className="split-amount-label">{amountLabel}</span>
       {!showForm ? (
         <button type="button" className="mark-repaid-btn" onClick={() => setShowForm(true)}>
-          Mark repaid
+          {t('cost.markRepaid')}
         </button>
       ) : (
         <div className="repay-inline-form animate-in">
           <label className="repay-inline-label">
-            <span>Repaid on</span>
+            <span>{t('cost.repaidOn')}</span>
             <input type="date" value={repayDate} onChange={(e) => setRepayDate(e.target.value)} />
           </label>
           <label className="attach-btn">
             <input ref={fileRef} type="file" accept="image/*,.pdf" onChange={handleFile} style={{ display: 'none' }} />
-            <span>{attachment ? `📎 ${attachment.name}` : '📎 Proof'}</span>
+            <span>{attachment ? `📎 ${attachment.name}` : `📎 ${t('cost.proof')}`}</span>
           </label>
-          <button type="button" className="primary" onClick={handleConfirm}>Confirm</button>
-          <button type="button" onClick={() => { setShowForm(false); setAttachment(null); }}>Cancel</button>
+          <button type="button" className="primary" onClick={handleConfirm}>{t('cost.confirm')}</button>
+          <button type="button" onClick={() => { setShowForm(false); setAttachment(null); }}>{t('cost.cancel')}</button>
         </div>
       )}
     </div>
@@ -644,6 +648,7 @@ function SplitRepayRow({ exp, splitIndex }) {
 
 // ─── Single Expense Card ──────────────────────────────────────
 function ExpenseCard({ exp }) {
+  const { t } = useLanguage();
   const { removeExpense, people, CURRENCIES } = useCost();
   const [expanded, setExpanded] = useState(true);
 
@@ -666,7 +671,7 @@ function ExpenseCard({ exp }) {
             </span>
           )}
           <span className={`tag tag-method`}>{exp.paymentMethod === 'card' ? '💳' : '💵'}</span>
-          {allRepaid && <span className="settled-badge">✅ Settled</span>}
+          {allRepaid && <span className="settled-badge">✅ {t('cost.allSettled')}</span>}
         </div>
         <div className="expense-amount-v2">
           <span className="amount-big">{paidSym}{exp.amount.toLocaleString()}</span>
@@ -677,7 +682,7 @@ function ExpenseCard({ exp }) {
       {expanded && (
         <div className="expense-card-body animate-in">
           <div className="expense-meta-row">
-            <span>Paid by <strong>{payer?.name || '?'}</strong></span>
+            <span>{t('cost.paidByLabel')} <strong>{payer?.name || '?'}</strong></span>
             <span>· {exp.date}</span>
             {rateInfo?.rate && (
               <span className="rate-source-small">· Rate 1 {exp.paidCurrency} = {rateInfo.rate.toFixed(4)} {exp.repayCurrency} ({rateInfo.rateSource})</span>
@@ -696,7 +701,7 @@ function ExpenseCard({ exp }) {
           </div>
 
           <button type="button" className="expense-remove-v2" onClick={() => removeExpense(exp.id)}>
-            Remove expense
+            {t('cost.removeExpense')}
           </button>
         </div>
       )}
@@ -706,6 +711,7 @@ function ExpenseCard({ exp }) {
 
 // ─── Day Expense View ─────────────────────────────────────────
 function DayExpenseView() {
+  const { t } = useLanguage();
   const { expenses, CURRENCIES } = useCost();
   const { days } = useItinerary();
   const [collapsedDays, setCollapsedDays] = useState({});
@@ -719,15 +725,15 @@ function DayExpenseView() {
   return (
     <section className="section cost-section">
       <div className="day-exp-header-row">
-        <h2 className="section-title">Expenses by day</h2>
+        <h2 className="section-title">{t('cost.expensesByDay')}</h2>
         <label className="cost-category-filter">
-          <span className="cost-category-filter-label">Category:</span>
+          <span className="cost-category-filter-label">{t('cost.categoryFilter')}</span>
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
             className="cost-category-filter-select"
           >
-            <option value="all">All</option>
+            <option value="all">{t('cost.all')}</option>
             {EXPENSE_CATEGORIES.map((c) => (
               <option key={c.id} value={c.id}>{c.icon} {c.label}</option>
             ))}
@@ -755,8 +761,8 @@ function DayExpenseView() {
                 <div className="day-exp-header-left">
                   <span className="day-collapse-icon">{collapsed ? '▸' : '▾'}</span>
                   <span className="day-exp-label">{day.label}</span>
-                  <span className="day-exp-count">{dayExps.length} expense{dayExps.length !== 1 ? 's' : ''}</span>
-                  {allDaySettled && <span className="day-settled-badge">✅ All settled</span>}
+                  <span className="day-exp-count">{dayExps.length} {dayExps.length !== 1 ? t('cost.expensesCountPlural') : t('cost.expensesCount')}</span>
+                  {allDaySettled && <span className="day-settled-badge">✅ {t('cost.allSettled')}</span>}
                 </div>
                 <span className="day-exp-total">
                   {primarySym}{total.toLocaleString()} <span className="day-exp-cur">{primaryCur}</span>
@@ -780,6 +786,7 @@ function DayExpenseView() {
 
 // ─── Settlement Summary ───────────────────────────────────────
 function SettlementSummary() {
+  const { t } = useLanguage();
   const { people, expenses, getSettlements, getRepaidSummary, CURRENCIES } = useCost();
 
   if (expenses.length === 0 || people.length === 0) return null;
@@ -798,7 +805,7 @@ function SettlementSummary() {
 
   return (
     <section className="section cost-section">
-      <h2 className="section-title">Settlement summary</h2>
+      <h2 className="section-title">{t('cost.settlementSummary')}</h2>
 
       {/* Who paid how much */}
       <div className="settlement-totals">
@@ -813,15 +820,15 @@ function SettlementSummary() {
 
       {/* Outstanding */}
       {outstanding.length === 0 ? (
-        <p className="cost-hint settlement-ok">✅ All settled up!</p>
+        <p className="cost-hint settlement-ok">✅ {t('cost.allSettledUp')}</p>
       ) : (
         <div className="settlement-block">
-          <h3 className="settlement-subtitle">⏳ Outstanding</h3>
+          <h3 className="settlement-subtitle">⏳ {t('cost.outstanding')}</h3>
           <div className="settlement-list">
             {outstanding.map((s, i) => (
               <div key={i} className="settlement-row animate-in">
                 <span className="settle-debtor">{getName(s.debtorId)}</span>
-                <span className="settle-arrow">owes</span>
+                <span className="settle-arrow">{t('cost.owes')}</span>
                 <span className="settle-creditor">{getName(s.creditorId)}</span>
                 <span className="settle-amount">
                   {getSymbol(s.currency)}{s.amount.toFixed(2)}
@@ -836,18 +843,18 @@ function SettlementSummary() {
       {/* Completed repayments */}
       {repaid.length > 0 && (
         <div className="settlement-block repaid-block">
-          <h3 className="settlement-subtitle">✅ Repaid</h3>
+          <h3 className="settlement-subtitle">✅ {t('cost.repaidLabel')}</h3>
           <div className="settlement-list">
             {repaid.map((r, i) => (
               <div key={i} className="settlement-row settlement-row-done animate-in">
                 <span className="settle-debtor">{getName(r.debtorId)}</span>
-                <span className="settle-arrow">repaid</span>
+                <span className="settle-arrow">{t('cost.repaidShort')}</span>
                 <span className="settle-creditor">{getName(r.creditorId)}</span>
                 <span className="settle-amount done">
                   {getSymbol(r.currency)}{r.amount.toFixed(2)}
                   <span className="settle-currency"> {r.currency}</span>
                 </span>
-                <span className="repaid-date-summary">on {r.repaidDate}</span>
+                <span className="repaid-date-summary">{t('cost.onDate')} {r.repaidDate}</span>
                 {r.repaidAttachment && (
                   <a href={r.repaidAttachment.url} target="_blank" rel="noreferrer" className="attach-link-sm">
                     📎 {r.repaidAttachment.name}

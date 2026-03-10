@@ -1,3 +1,4 @@
+import { useLanguage } from '../context/LanguageContext';
 import './ExpenseCategoryModal.css';
 
 export const EXPENSE_CATEGORIES = [
@@ -16,6 +17,7 @@ export const EXPENSE_CATEGORIES = [
 ];
 
 export default function ExpenseCategoryModal({ open, selectedId, onSelect, onClose }) {
+  const { t } = useLanguage();
   if (!open) return null;
 
   return (
@@ -25,7 +27,7 @@ export default function ExpenseCategoryModal({ open, selectedId, onSelect, onClo
           <button type="button" className="category-modal-back" onClick={onClose} aria-label="Back">
             ←
           </button>
-          <h2 className="category-modal-title">Select category</h2>
+          <h2 className="category-modal-title">{t('cost.selectCategory')}</h2>
           <button type="button" className="category-modal-close" onClick={onClose} aria-label="Close">
             ×
           </button>

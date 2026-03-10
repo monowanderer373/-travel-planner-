@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useItinerary } from '../context/ItineraryContext';
+import { useLanguage } from '../context/LanguageContext';
 import { formatHour } from '../utils/time';
 import './SummaryBlock.css';
 
 export default function SummaryBlock() {
+  const { t } = useLanguage();
   const { trip, days } = useItinerary();
   const [selectedDayId, setSelectedDayId] = useState(days[0]?.id || null);
 
@@ -13,8 +15,8 @@ export default function SummaryBlock() {
   return (
     <>
       <section className="section summary-section">
-        <h2 className="section-title">Summary — places by day</h2>
-        <p className="summary-intro">Select a day to see its schedule.</p>
+        <h2 className="section-title">{t('summary.placesByDay')}</h2>
+        <p className="summary-intro">{t('summary.selectDay')}</p>
         <div className="summary-day-tabs">
           {days.map((d) => (
             <button
@@ -30,9 +32,9 @@ export default function SummaryBlock() {
       </section>
 
       <section className="section summary-section">
-        <h2 className="section-title">{selectedDay?.label} — places to go</h2>
+        <h2 className="section-title">{selectedDay?.label} — {t('summary.placesToGo')}</h2>
         {timeline.length === 0 ? (
-          <p className="summary-empty">No activities or transport for this day yet. Add from Itinerary or Transport.</p>
+          <p className="summary-empty">{t('summary.emptyDay')}</p>
         ) : (
           <ol className="summary-list">
             {timeline.map((item) => (
@@ -42,7 +44,7 @@ export default function SummaryBlock() {
                 </span>
                 <span className="summary-item-name">
                   {item.type === 'transport' ? (
-                    <>🚆 {item.lineName || 'Transport'} ({item.duration ?? (item.endHour - item.startHour)}h)</>
+                    <>🚆 {item.lineName || t('transport.title')} ({item.duration ?? (item.endHour - item.startHour)}h)</>
                   ) : (
                     item.name
                   )}
@@ -55,11 +57,11 @@ export default function SummaryBlock() {
       </section>
 
       <section className="section summary-section">
-        <h2 className="section-title">Trip overview</h2>
+        <h2 className="section-title">{t('summary.tripOverview')}</h2>
         <div className="summary-overview">
-          <p><strong>Destination:</strong> {trip.destination || '—'}</p>
-          <p><strong>Dates:</strong> {trip.startDate && trip.endDate ? `${trip.startDate} – ${trip.endDate}` : '—'}</p>
-          <p><strong>Days:</strong> {days.length}</p>
+          <p><strong>{t('summary.destination')}:</strong> {trip.destination || t('home.dash')}</p>
+          <p><strong>{t('summary.dates')}:</strong> {trip.startDate && trip.endDate ? `${trip.startDate} – ${trip.endDate}` : t('home.dash')}</p>
+          <p><strong>{t('summary.days')}:</strong> {days.length}</p>
         </div>
       </section>
     </>
