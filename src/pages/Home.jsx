@@ -63,14 +63,17 @@ export default function Home() {
       .eq('id', effectiveTripId)
       .maybeSingle()
       .then(({ data: row, error }) => {
-        if (typeof localStorage !== 'undefined') localStorage.removeItem(PENDING_INVITE_KEY);
-        if (!error && row?.data) {
-          const data = row.data;
-          replaceItineraryState({
-            ...data,
-            shareSettings: { ...data.shareSettings, tripId: effectiveTripId },
-          });
+        if (error || !row?.data) {
+          // Keep invite token/query on failure so user can retry after auth/session settles.
+          inviteHandledRef.current = false;
+          return;
         }
+        if (typeof localStorage !== 'undefined') localStorage.removeItem(PENDING_INVITE_KEY);
+        const data = row.data;
+        replaceItineraryState({
+          ...data,
+          shareSettings: { ...data.shareSettings, tripId: effectiveTripId },
+        });
         setSearchParams((prev) => {
           const next = new URLSearchParams(prev);
           next.delete('invite');
@@ -78,12 +81,8 @@ export default function Home() {
         }, { replace: true });
       })
       .catch(() => {
-        if (typeof localStorage !== 'undefined') localStorage.removeItem(PENDING_INVITE_KEY);
-        setSearchParams((prev) => {
-          const next = new URLSearchParams(prev);
-          next.delete('invite');
-          return next;
-        }, { replace: true });
+        // Keep invite token/query on network errors so the flow can retry.
+        inviteHandledRef.current = false;
       });
   }, [effectiveTripId, user, replaceItineraryState, setActiveTripId, setSearchParams]);
   const hasTripDetails = trip.destination?.trim() && trip.startDate && trip.endDate;

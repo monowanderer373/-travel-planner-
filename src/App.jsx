@@ -37,6 +37,17 @@ function RequireAuth() {
     navigate(stored, { replace: true });
   }, [authReady, user, location.pathname, location.search, navigate]);
 
+  // Extra safety: if invite token survived OAuth in localStorage, force user back to invite URL.
+  useEffect(() => {
+    if (!authReady || !user) return;
+    const pendingInvite = typeof localStorage !== 'undefined' ? localStorage.getItem('pending_invite_token') : null;
+    if (!pendingInvite) return;
+    const params = new URLSearchParams(location.search);
+    const currentInvite = params.get('invite');
+    if (currentInvite === pendingInvite) return;
+    navigate(`/?invite=${encodeURIComponent(pendingInvite)}`, { replace: true });
+  }, [authReady, user, location.pathname, location.search, navigate]);
+
   if (!authReady) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', fontFamily: 'system-ui' }}>
