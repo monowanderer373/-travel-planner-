@@ -15,14 +15,22 @@ function hasItinerary(trip) {
 export default function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
-  const { trip } = useItinerary();
+  const { trip, shareSettings } = useItinerary();
   const itineraryReady = hasItinerary(trip);
   const pathname = location.pathname || '';
+  const search = location.search || '';
   const isCreate = pathname.endsWith('create') || pathname.endsWith('create/');
   const isSettings = pathname.endsWith('settings') || pathname.endsWith('settings/');
   const allowedWithoutItinerary = isCreate || isSettings;
+  const hasInviteQuery = new URLSearchParams(search).has('invite');
+  let hasPendingInvite = false;
+  try {
+    hasPendingInvite = !!localStorage.getItem('pending_invite_token');
+  } catch {}
+  const joiningSharedTrip = !!shareSettings?.tripId || hasInviteQuery || hasPendingInvite;
 
-  if (!allowedWithoutItinerary && !itineraryReady) {
+  // Don't redirect to /create while invite/shared-trip bootstrapping is in progress.
+  if (!allowedWithoutItinerary && !itineraryReady && !joiningSharedTrip) {
     return <Navigate to="/create" replace />;
   }
 
