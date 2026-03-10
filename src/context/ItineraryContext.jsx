@@ -25,12 +25,16 @@ const defaultTrip = {
 
 const defaultDays = [{ id: 'day-1', label: 'Day 1', timeline: [] }];
 
-/** Get trip id from URL: ?invite=TOKEN (decoded) or /join/:id, /share/:id. */
+/** Get trip id from URL (?invite=TOKEN), localStorage (pending_invite_token from before OAuth), or /join/:id, /share/:id. */
 function getTripIdFromUrl() {
   if (typeof window === 'undefined') return null;
   const params = new URLSearchParams(window.location.search);
   const invite = params.get('invite');
   if (invite) return decodeInviteToken(invite) || invite;
+  try {
+    const pending = localStorage.getItem('pending_invite_token');
+    if (pending) return decodeInviteToken(pending) || pending;
+  } catch {}
   const path = window.location.pathname || '';
   const joinMatch = path.match(/\/join\/([^/]+)/);
   if (joinMatch) return joinMatch[1];
@@ -99,6 +103,8 @@ export function ItineraryProvider({ children }) {
   const { reportSaving, reportSaved } = useSaveStatus();
   const saveTimeoutRef = useRef(null);
   const supabaseLoadedRef = useRef(false);
+  // Tracks whether shared trip data has been loaded at least once; prevents saving empty state over the creator's trip
+  const sharedTripLoadedRef = useRef(false);
 
   const updateTrip = useCallback((updates) => {
     setTrip((prev) => ({ ...prev, ...updates }));
@@ -301,8 +307,10 @@ export function ItineraryProvider({ children }) {
       supabase
         .from('shared_itineraries')
         .upsert({ id: tripId, data: payload, updated_at: new Date().toISOString() }, { onConflict: 'id' })
+        .then(() => { sharedTripLoadedRef.current = true; })
         .catch(() => {});
     }
+    sharedTripLoadedRef.current = true;
     return link;
   }, [shareSettings, trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories]);
 
@@ -323,7 +331,10 @@ export function ItineraryProvider({ children }) {
     if (Array.isArray(data.tripmates)) setTripmates(data.tripmates);
     if (data.tripCreator) setTripCreatorState((prev) => ({ ...prev, ...data.tripCreator }));
     if (typeof data.tripMemories === 'string') setTripMemories(data.tripMemories);
-    if (data.shareSettings) setShareSettings((prev) => ({ ...prev, ...data.shareSettings }));
+    if (data.shareSettings) {
+      setShareSettings((prev) => ({ ...prev, ...data.shareSettings }));
+      if (data.shareSettings.tripId) sharedTripLoadedRef.current = true;
+    }
     if (typeof data.tripmateShareLink === 'string') setTripmateShareLink(data.tripmateShareLink);
   }, []);
 
@@ -348,10 +359,21 @@ export function ItineraryProvider({ children }) {
         .eq('id', tripId)
         .maybeSingle()
         .then(({ data: row }) => {
-          if (row?.data && typeof row.data === 'object') replaceItineraryState(row.data);
+          if (row?.data && typeof row.data === 'object') {
+            replaceItineraryState(row.data);
+            sharedTripLoadedRef.current = true;
+          }
         })
         .catch(() => {});
     } else {
+      // Don't load user's own trip if there's a pending invite (it would be overwritten shortly and the save effect could corrupt the shared trip)
+      try {
+        const hasPendingInvite =
+          new URLSearchParams(window.location.search).get('invite') ||
+          localStorage.getItem('pending_invite_token') ||
+          sessionStorage.getItem('auth_return_to')?.includes('invite');
+        if (hasPendingInvite) return;
+      } catch {}
       if (supabaseLoadedRef.current === user.id) return;
       supabaseLoadedRef.current = user.id;
       supabase
@@ -406,6 +428,8 @@ export function ItineraryProvider({ children }) {
         const tripId = shareSettings.tripId;
         const updatedAt = new Date().toISOString();
         if (tripId) {
+          // Only write to shared_itineraries after we've loaded the shared trip at least once (prevents overwriting creator's data with empty state during invite processing)
+          if (!sharedTripLoadedRef.current) { reportSaved(); saveTimeoutRef.current = null; return; }
           supabase
             .from('shared_itineraries')
             .upsert({ id: tripId, data: payload, updated_at: updatedAt }, { onConflict: 'id' })
