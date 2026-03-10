@@ -11,11 +11,28 @@ export function getPublicBaseUrl() {
       if (parsed.pathname && parsed.pathname !== '/') return url;
     } catch {}
   }
-  if (typeof window !== 'undefined') {
-    const base = import.meta.env.BASE_URL || '/';
-    const path = base.replace(/^\/+|\/+$/g, '') || '';
-    const origin = window.location.origin;
-    return path ? `${origin}/${path}` : origin;
+  return getInviteBaseUrl();
+}
+
+/** Base URL for invite links; includes GitHub Pages project path (e.g. origin + "/-travel-planner-"). */
+export function getInviteBaseUrl() {
+  if (typeof window === 'undefined') return '';
+  const origin = window.location.origin;
+  if (origin.includes('github.io')) {
+    const path = (import.meta.env.BASE_URL || '/').replace(/^\/+|\/+$/g, '') || '-travel-planner-';
+    return `${origin}/${path}`.replace(/\/$/, '');
   }
-  return '';
+  const base = import.meta.env.BASE_URL || '/';
+  const path = base.replace(/^\/+|\/+$/g, '') || '';
+  return path ? `${origin}/${path}`.replace(/\/$/, '') : origin;
+}
+
+/** Decode invite token to get tripId. Supports btoa(JSON.stringify({ trip: tripId })) or raw tripId (backwards compat). */
+export function decodeInviteToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  try {
+    const decoded = JSON.parse(atob(token));
+    if (decoded && typeof decoded.trip !== 'undefined') return String(decoded.trip);
+  } catch {}
+  return token;
 }

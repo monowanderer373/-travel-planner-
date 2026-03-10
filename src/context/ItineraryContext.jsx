@@ -3,7 +3,7 @@ import { loadItinerary, saveItinerary } from '../utils/storage';
 import { useSaveStatus } from './SaveStatusContext';
 import { useAuth } from './AuthContext';
 import { supabase, hasSupabase } from '../lib/supabase';
-import { getPublicBaseUrl } from '../utils/publicUrl';
+import { getPublicBaseUrl, getInviteBaseUrl, decodeInviteToken } from '../utils/publicUrl';
 import { getTotalTravelDays, getDayLabel, getDayLabelWithCity } from '../utils/time';
 import { logTripActivity } from '../lib/tripActivity';
 
@@ -25,12 +25,12 @@ const defaultTrip = {
 
 const defaultDays = [{ id: 'day-1', label: 'Day 1', timeline: [] }];
 
-/** Get trip id from URL: ?invite= (GitHub Pages–friendly) or /join/:id, /share/:id. */
+/** Get trip id from URL: ?invite=TOKEN (decoded) or /join/:id, /share/:id. */
 function getTripIdFromUrl() {
   if (typeof window === 'undefined') return null;
   const params = new URLSearchParams(window.location.search);
   const invite = params.get('invite');
-  if (invite) return invite;
+  if (invite) return decodeInviteToken(invite) || invite;
   const path = window.location.pathname || '';
   const joinMatch = path.match(/\/join\/([^/]+)/);
   if (joinMatch) return joinMatch[1];
@@ -276,47 +276,34 @@ export function ItineraryProvider({ children }) {
   }, []);
 
   const generateTripmateLink = useCallback(() => {
-    try {
-      const tripId = shareSettings.tripId || btoa(JSON.stringify({ trip: Date.now() })).slice(0, 14);
-      if (!shareSettings.tripId) setShareSettings((prev) => ({ ...prev, tripId }));
-      let base = getPublicBaseUrl();
-      if (!base && typeof window !== 'undefined') {
-        const origin = window.location.origin;
-        let path = (import.meta.env.BASE_URL || '/').replace(/^\/+|\/+$/g, '') || '';
-        if (!path && window.location.pathname) {
-          const first = window.location.pathname.split('/').filter(Boolean)[0];
-          if (first) path = first;
-        }
-        if (!path && origin.includes('github.io')) path = '-travel-planner-';
-        base = path ? `${origin}/${path}` : origin;
-      }
-      const link = base ? `${base.replace(/\/$/, '')}/?invite=${encodeURIComponent(tripId)}` : `#invite-${tripId}`;
-      setTripmateShareLink(link);
+    const tripId = shareSettings.tripId || btoa(JSON.stringify({ trip: Date.now() })).slice(0, 14);
+    if (!shareSettings.tripId) setShareSettings((prev) => ({ ...prev, tripId }));
 
-      if (hasSupabase() && supabase) {
-        const nextShareSettings = { ...shareSettings, tripId, shareLink: shareSettings.shareLink || '', tripmateShareLink: link };
-        const payload = {
-          trip,
-          days,
-          savedPlaces,
-          savedTransports,
-          tripmates,
-          tripCreator,
-          tripMemories,
-          shareSettings: nextShareSettings,
-          tripmateShareLink: link,
-        };
-        supabase
-          .from('shared_itineraries')
-          .upsert({ id: tripId, data: payload, updated_at: new Date().toISOString() }, { onConflict: 'id' })
-          .catch(() => {});
-      }
-      return link;
-    } catch (err) {
-      const fallback = typeof window !== 'undefined' ? `${window.location.origin}${(import.meta.env.BASE_URL || '/').replace(/\/$/, '')}/?invite=link` : '#invite-error';
-      setTripmateShareLink(fallback);
-      return fallback;
+    const base = getPublicBaseUrl() || getInviteBaseUrl();
+    // Token encodes trip id; later can add inviter_id, timestamp for expiry/abuse prevention
+    const token = btoa(JSON.stringify({ trip: tripId }));
+    const link = base ? `${base.replace(/\/$/, '')}/?invite=${encodeURIComponent(token)}` : `#invite-${token}`;
+    setTripmateShareLink(link);
+
+    if (hasSupabase() && supabase) {
+      const nextShareSettings = { ...shareSettings, tripId, shareLink: shareSettings.shareLink || '', tripmateShareLink: link };
+      const payload = {
+        trip,
+        days,
+        savedPlaces,
+        savedTransports,
+        tripmates,
+        tripCreator,
+        tripMemories,
+        shareSettings: nextShareSettings,
+        tripmateShareLink: link,
+      };
+      supabase
+        .from('shared_itineraries')
+        .upsert({ id: tripId, data: payload, updated_at: new Date().toISOString() }, { onConflict: 'id' })
+        .catch(() => {});
     }
+    return link;
   }, [shareSettings, trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories]);
 
   const updateTripMemories = useCallback((text) => {

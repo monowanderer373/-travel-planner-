@@ -9,6 +9,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase, hasSupabase } from '../lib/supabase';
 import { getTotalTravelDays } from '../utils/time';
+import { decodeInviteToken } from '../utils/publicUrl';
 import './Home.css';
 
 const PENDING_INVITE_KEY = 'pending_invite_token';
@@ -22,9 +23,8 @@ export default function Home() {
   const inviteHandledRef = useRef(false);
 
   const shareId = searchParams.get('share');
-  const inviteId = searchParams.get('invite');
-  const storedInvite = typeof localStorage !== 'undefined' ? localStorage.getItem(PENDING_INVITE_KEY) : null;
-  const effectiveInviteToken = inviteId || storedInvite || null;
+  const inviteParam = searchParams.get('invite') || (typeof localStorage !== 'undefined' ? localStorage.getItem(PENDING_INVITE_KEY) : null);
+  const effectiveTripId = inviteParam ? decodeInviteToken(inviteParam) || inviteParam : null;
 
   // Legacy ?share= param (same behaviour as before)
   useEffect(() => {
@@ -52,15 +52,15 @@ export default function Home() {
       .catch(() => setSearchParams((prev) => { const n = new URLSearchParams(prev); n.delete('share'); return n; }, { replace: true }));
   }, [shareId, user, replaceItineraryState, setSearchParams]);
 
-  // Invite param ?invite=TOKEN: load shared trip once, then clear URL and localStorage
+  // Invite param ?invite=TOKEN: decode to tripId, load shared trip once, then clear URL and localStorage
   useEffect(() => {
-    if (!effectiveInviteToken || !user || !hasSupabase() || !supabase || inviteHandledRef.current) return;
+    if (!effectiveTripId || !user || !hasSupabase() || !supabase || inviteHandledRef.current) return;
     inviteHandledRef.current = true;
-    setActiveTripId(effectiveInviteToken);
+    setActiveTripId(effectiveTripId);
     supabase
       .from('shared_itineraries')
       .select('data')
-      .eq('id', effectiveInviteToken)
+      .eq('id', effectiveTripId)
       .maybeSingle()
       .then(({ data: row, error }) => {
         if (typeof localStorage !== 'undefined') localStorage.removeItem(PENDING_INVITE_KEY);
@@ -68,7 +68,7 @@ export default function Home() {
           const data = row.data;
           replaceItineraryState({
             ...data,
-            shareSettings: { ...data.shareSettings, tripId: effectiveInviteToken },
+            shareSettings: { ...data.shareSettings, tripId: effectiveTripId },
           });
         }
         setSearchParams((prev) => {
@@ -85,7 +85,7 @@ export default function Home() {
           return next;
         }, { replace: true });
       });
-  }, [effectiveInviteToken, user, replaceItineraryState, setActiveTripId, setSearchParams]);
+  }, [effectiveTripId, user, replaceItineraryState, setActiveTripId, setSearchParams]);
   const hasTripDetails = trip.destination?.trim() && trip.startDate && trip.endDate;
   const totalDays = hasTripDetails ? getTotalTravelDays(trip.startDate, trip.endDate) : days.length;
 
