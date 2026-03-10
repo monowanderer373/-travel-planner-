@@ -64,40 +64,29 @@ export default function Home() {
   useEffect(() => {
     if (!tripParam || !user || !hasSupabase() || !supabase || inviteHandledRef.current) return;
     inviteHandledRef.current = true;
-    setActiveTripId(tripParam);
-    supabase
-      .from('shared_itineraries')
-      .select('data')
-      .eq('id', tripParam)
-      .maybeSingle()
-      .then(({ data: row, error }) => {
-        if (error || !row?.data) {
-          inviteHandledRef.current = false;
-          return;
-        }
+    const candidates = getInviteCandidates(tripParam);
+
+    const tryFetchTrip = async () => {
+      for (const candidateId of candidates) {
+        setActiveTripId(candidateId);
+        const { data: row, error } = await supabase
+          .from('shared_itineraries')
+          .select('data')
+          .eq('id', candidateId)
+          .maybeSingle();
+        if (error || !row?.data) continue;
+
         const data = row.data;
-        const linkAccess = data?.shareSettings?.linkAccess || 'invited';
-        const invitedEmails = Array.isArray(data?.shareSettings?.invitedEmails) ? data.shareSettings.invitedEmails : [];
-        const normalizedUserEmail = (user?.email || '').trim().toLowerCase();
-        const normalizedInvited = invitedEmails.map((e) => String(e).trim().toLowerCase());
-        const creatorEmail = (data?.tripCreator?.email || '').trim().toLowerCase();
-        const allowed =
-          linkAccess === 'web' ||
-          normalizedInvited.length === 0 ||
-          !normalizedUserEmail ||
-          normalizedInvited.includes(normalizedUserEmail) ||
-          (creatorEmail && creatorEmail === normalizedUserEmail);
-        if (!allowed) {
-          inviteHandledRef.current = false;
-          return;
-        }
+        // Access checks are enforced at edit/save level; loading should not silently fail
+        // or users land on an empty "new trip" page.
+
         if (typeof localStorage !== 'undefined') {
           localStorage.removeItem(PENDING_TRIP_KEY);
           localStorage.removeItem(PENDING_INVITE_KEY);
         }
         replaceItineraryState({
           ...data,
-          shareSettings: { ...data.shareSettings, tripId: tripParam },
+          shareSettings: { ...data.shareSettings, tripId: candidateId },
         });
         setSearchParams((prev) => {
           const next = new URLSearchParams(prev);
@@ -105,10 +94,14 @@ export default function Home() {
           next.delete('source');
           return next;
         }, { replace: true });
-      })
-      .catch(() => {
-        inviteHandledRef.current = false;
-      });
+        return;
+      }
+      inviteHandledRef.current = false;
+    };
+
+    tryFetchTrip().catch(() => {
+      inviteHandledRef.current = false;
+    });
   }, [tripParam, user, replaceItineraryState, setActiveTripId, setSearchParams]);
 
   // Legacy invite param ?invite=TOKEN: decode to tripId, load shared trip once, then clear URL and localStorage

@@ -31,8 +31,16 @@ export function getInviteBaseUrl() {
 export function decodeInviteToken(token) {
   if (!token || typeof token !== 'string') return null;
   try {
-    const decoded = JSON.parse(atob(token));
+    const raw = atob(token);
+    const decoded = JSON.parse(raw);
     if (decoded && typeof decoded.trip !== 'undefined') return String(decoded.trip);
-  } catch {}
+  } catch {
+    // Support legacy/truncated tokens like "eyJ0cmlwIjoxNz" -> {"trip":17
+    try {
+      const raw = atob(token);
+      const m = raw.match(/"trip"\s*:\s*"?([^",}\s]+)"?/);
+      if (m?.[1]) return String(m[1]);
+    } catch {}
+  }
   return token;
 }
