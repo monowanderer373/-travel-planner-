@@ -19,7 +19,14 @@ export default function Welcome() {
   // Persist return path so it survives OAuth redirect (Google sends user back to site root, losing state)
   const returnTo = location.state?.from || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(AUTH_RETURN_KEY) : null) || '/';
   useEffect(() => {
-    if (location.state?.from) sessionStorage.setItem(AUTH_RETURN_KEY, location.state.from);
+    if (location.state?.from) {
+      sessionStorage.setItem(AUTH_RETURN_KEY, location.state.from);
+      // Keep invite token across redirects as extra safety on GitHub Pages OAuth round-trips.
+      const from = location.state.from;
+      const q = from.includes('?') ? from.slice(from.indexOf('?') + 1) : '';
+      const invite = new URLSearchParams(q).get('invite');
+      if (invite && typeof localStorage !== 'undefined') localStorage.setItem('pending_invite_token', invite);
+    }
   }, [location.state?.from]);
 
   useEffect(() => {
@@ -46,7 +53,7 @@ export default function Welcome() {
     } else {
       if (name.trim()) {
         setUser({ name: name.trim(), email: email.trim() || undefined });
-        navigate('/create', { replace: true });
+        navigate(returnTo === '/' ? '/create' : returnTo, { replace: true });
       } else {
         setMode('signup');
       }
