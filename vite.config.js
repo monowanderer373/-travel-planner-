@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import { copyFileSync } from 'fs'
 import { resolve } from 'path'
 
-// Copy index.html → 404.html so GitHub Pages serves the SPA on refresh/direct links
+// Copy index.html → 404.html so GitHub Pages serves the SPA for /join/:id and other client routes (deploy must publish full dist/ including 404.html).
 function githubPages404() {
   return {
     name: 'github-pages-404',

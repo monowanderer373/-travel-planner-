@@ -20,6 +20,8 @@ This app is a static React (Vite) SPA. After `npm run build`, deploy the `dist/`
 
 **If the share link still gives 404:** (1) Redeploy from a new push to `main` — do not only "Re-run" an old workflow. (2) Test the app root in incognito: `https://<user>.github.io/<repo-name>/` — if that 404s, check Settings → Pages and that repo name matches `base` in `vite.config.js`. (3) Copy the full share link from the app; the ID after `?share=` must be complete. (4) Hard refresh (Ctrl+Shift+R) on the app, then generate a new share link and open it in incognito.
 
+- **Shared trips (join link):** For friends opening the **join** link to see the same itinerary as you, the **deployed site must use the same Supabase** as your dev app. If `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are not set as repository secrets (so the GitHub Actions build gets them), the live site cannot read/write `shared_itineraries`. Then the friend’s app loads only from local storage and looks “separate” from yours. Add both secrets, redeploy, then generate a **new** join link and have the friend open it again.
+
 ### 2. **Netlify** (free tier)
 - [netlify.com](https://www.netlify.com) – drag-and-drop the `dist` folder or connect your Git repo.
 - **Build command:** `npm run build`  

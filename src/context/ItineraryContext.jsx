@@ -25,9 +25,45 @@ const defaultTrip = {
 
 const defaultDays = [{ id: 'day-1', label: 'Day 1', timeline: [] }];
 
+/** Get trip id from URL: ?invite= (GitHub Pages–friendly) or /join/:id, /share/:id. */
+function getTripIdFromUrl() {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  const invite = params.get('invite');
+  if (invite) return invite;
+  const path = window.location.pathname || '';
+  const joinMatch = path.match(/\/join\/([^/]+)/);
+  if (joinMatch) return joinMatch[1];
+  const shareMatch = path.match(/\/share\/([^/]+)/);
+  if (shareMatch) return shareMatch[1];
+  return null;
+}
+
 function getInitialItinerary() {
   const loaded = loadItinerary();
-  if (!loaded || !loaded.trip) return null;
+  const urlTripId = getTripIdFromUrl();
+  const defaultShare = { allowVote: false, allowEdit: false, shareLink: '', tripId: null };
+  const shareSettings = loaded?.shareSettings && typeof loaded.shareSettings === 'object'
+    ? { ...defaultShare, ...loaded.shareSettings }
+    : { ...defaultShare };
+  if (urlTripId) shareSettings.tripId = urlTripId;
+
+  if (!loaded || !loaded.trip) {
+    if (urlTripId) {
+      return {
+        trip: defaultTrip,
+        days: defaultDays,
+        savedPlaces: [],
+        savedTransports: [],
+        tripmates: [],
+        tripCreator: { name: '' },
+        tripMemories: '',
+        shareSettings,
+        tripmateShareLink: '',
+      };
+    }
+    return null;
+  }
   const trip = { ...defaultTrip, ...loaded.trip };
   if (!Array.isArray(trip.locations)) trip.locations = [];
   if (!Array.isArray(trip.cities)) trip.cities = [];
@@ -39,9 +75,7 @@ function getInitialItinerary() {
     tripmates: Array.isArray(loaded.tripmates) ? loaded.tripmates : [],
     tripCreator: loaded.tripCreator && typeof loaded.tripCreator === 'object' ? loaded.tripCreator : { name: '' },
     tripMemories: typeof loaded.tripMemories === 'string' ? loaded.tripMemories : '',
-    shareSettings: loaded.shareSettings && typeof loaded.shareSettings === 'object'
-      ? { allowVote: false, allowEdit: false, shareLink: '', tripId: null, ...loaded.shareSettings }
-      : { allowVote: false, allowEdit: false, shareLink: '', tripId: null },
+    shareSettings,
     tripmateShareLink: typeof loaded.tripmateShareLink === 'string' ? loaded.tripmateShareLink : '',
   };
 }
@@ -256,10 +290,32 @@ export function ItineraryProvider({ children }) {
       if (!path && origin.includes('github.io')) path = '-travel-planner-';
       base = path ? `${origin}/${path}` : origin;
     }
-    const link = base ? `${base.replace(/\/$/, '')}/join/${tripId}` : `#join-${tripId}`;
+    // Use ?invite= token so GitHub Pages can serve the app at root and the token is not lost (no dynamic /join/:id route)
+    const link = base ? `${base.replace(/\/$/, '')}/?invite=${tripId}` : `#invite-${tripId}`;
     setTripmateShareLink(link);
+
+    // Upsert shared_itineraries immediately so the join link works as soon as it's generated
+    if (hasSupabase() && supabase) {
+      const nextShareSettings = { ...shareSettings, tripId, shareLink: shareSettings.shareLink || '', tripmateShareLink: link };
+      const payload = {
+        trip,
+        days,
+        savedPlaces,
+        savedTransports,
+        tripmates,
+        tripCreator,
+        tripMemories,
+        shareSettings: nextShareSettings,
+        tripmateShareLink: link,
+      };
+      supabase
+        .from('shared_itineraries')
+        .upsert({ id: tripId, data: payload, updated_at: new Date().toISOString() }, { onConflict: 'id' })
+        .catch(() => {});
+    }
+
     return link;
-  }, [shareSettings.tripId]);
+  }, [shareSettings, trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories]);
 
   const updateTripMemories = useCallback((text) => {
     setTripMemories(text);

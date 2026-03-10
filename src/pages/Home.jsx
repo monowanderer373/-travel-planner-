@@ -11,15 +11,22 @@ import { supabase, hasSupabase } from '../lib/supabase';
 import { getTotalTravelDays } from '../utils/time';
 import './Home.css';
 
+const PENDING_INVITE_KEY = 'pending_invite_token';
+
 export default function Home() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { trip, days, replaceItineraryState } = useItinerary();
+  const { trip, days, replaceItineraryState, setActiveTripId } = useItinerary();
   const shareHandledRef = useRef(false);
+  const inviteHandledRef = useRef(false);
 
   const shareId = searchParams.get('share');
+  const inviteId = searchParams.get('invite');
+  const storedInvite = typeof localStorage !== 'undefined' ? localStorage.getItem(PENDING_INVITE_KEY) : null;
+  const effectiveInviteToken = inviteId || storedInvite || null;
 
+  // Legacy ?share= param (same behaviour as before)
   useEffect(() => {
     if (!shareId || !user || !hasSupabase() || !supabase || shareHandledRef.current) return;
     shareHandledRef.current = true;
@@ -36,10 +43,49 @@ export default function Home() {
             shareSettings: { ...data.shareSettings, tripId: shareId },
           });
         }
-        setSearchParams({}, { replace: true });
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('share');
+          return next;
+        }, { replace: true });
       })
-      .catch(() => setSearchParams({}, { replace: true }));
+      .catch(() => setSearchParams((prev) => { const n = new URLSearchParams(prev); n.delete('share'); return n; }, { replace: true }));
   }, [shareId, user, replaceItineraryState, setSearchParams]);
+
+  // Invite param ?invite=TOKEN: load shared trip once, then clear URL and localStorage
+  useEffect(() => {
+    if (!effectiveInviteToken || !user || !hasSupabase() || !supabase || inviteHandledRef.current) return;
+    inviteHandledRef.current = true;
+    setActiveTripId(effectiveInviteToken);
+    supabase
+      .from('shared_itineraries')
+      .select('data')
+      .eq('id', effectiveInviteToken)
+      .maybeSingle()
+      .then(({ data: row, error }) => {
+        if (typeof localStorage !== 'undefined') localStorage.removeItem(PENDING_INVITE_KEY);
+        if (!error && row?.data) {
+          const data = row.data;
+          replaceItineraryState({
+            ...data,
+            shareSettings: { ...data.shareSettings, tripId: effectiveInviteToken },
+          });
+        }
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('invite');
+          return next;
+        }, { replace: true });
+      })
+      .catch(() => {
+        if (typeof localStorage !== 'undefined') localStorage.removeItem(PENDING_INVITE_KEY);
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('invite');
+          return next;
+        }, { replace: true });
+      });
+  }, [effectiveInviteToken, user, replaceItineraryState, setActiveTripId, setSearchParams]);
   const hasTripDetails = trip.destination?.trim() && trip.startDate && trip.endDate;
   const totalDays = hasTripDetails ? getTotalTravelDays(trip.startDate, trip.endDate) : days.length;
 

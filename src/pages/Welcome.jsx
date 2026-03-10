@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import './Welcome.css';
 
+const AUTH_RETURN_KEY = 'auth_return_to';
+
 export default function Welcome() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -14,10 +16,16 @@ export default function Welcome() {
   const [email, setEmail] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  const returnTo = location.state?.from || '/';
+  // Persist return path so it survives OAuth redirect (Google sends user back to site root, losing state)
+  const returnTo = location.state?.from || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(AUTH_RETURN_KEY) : null) || '/';
+  useEffect(() => {
+    if (location.state?.from) sessionStorage.setItem(AUTH_RETURN_KEY, location.state.from);
+  }, [location.state?.from]);
 
   useEffect(() => {
-    if (user) navigate(returnTo, { replace: true });
+    if (!user) return;
+    if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(AUTH_RETURN_KEY);
+    navigate(returnTo, { replace: true });
   }, [user, navigate, returnTo]);
 
   const handleSignUp = (e) => {

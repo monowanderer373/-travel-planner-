@@ -1,5 +1,5 @@
-import { Component } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Component, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -19,9 +19,24 @@ import Settings from './pages/Settings';
 import ShareView from './pages/ShareView';
 import './App.css';
 
+const AUTH_RETURN_KEY = 'auth_return_to';
+
 function RequireAuth() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, authReady } = useAuth();
+
+  // After OAuth, Google redirects to site root (/) so Welcome never mounts. Redirect to stored join/share path if present.
+  useEffect(() => {
+    if (!authReady || !user) return;
+    const stored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(AUTH_RETURN_KEY) : null;
+    if (!stored) return;
+    const currentPath = location.pathname + location.search;
+    if (stored === currentPath) return;
+    sessionStorage.removeItem(AUTH_RETURN_KEY);
+    navigate(stored, { replace: true });
+  }, [authReady, user, location.pathname, location.search, navigate]);
+
   if (!authReady) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', fontFamily: 'system-ui' }}>
@@ -29,7 +44,11 @@ function RequireAuth() {
       </div>
     );
   }
-  if (!user) return <Navigate to="/welcome" state={{ from: location.pathname + location.search }} replace />;
+  if (!user) {
+    const invite = new URLSearchParams(location.search).get('invite');
+    if (invite && typeof localStorage !== 'undefined') localStorage.setItem('pending_invite_token', invite);
+    return <Navigate to="/welcome" state={{ from: location.pathname + location.search }} replace />;
+  }
   return <Outlet />;
 }
 
