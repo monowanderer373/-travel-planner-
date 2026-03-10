@@ -8,14 +8,13 @@ export default function ShareView() {
   const navigate = useNavigate();
   const [errorReason, setErrorReason] = useState('');
 
-  // Backwards compatibility: /join/:id and /share/:id redirect to /?invite=id so Home handles join (works on GitHub Pages)
+  // Backwards compatibility: /join/:id and /share/:id redirect to /?trip=id so Home handles join.
   useEffect(() => {
     if (shareId) {
-      navigate(`/?invite=${encodeURIComponent(shareId)}`, { replace: true });
+      navigate(`/?trip=${encodeURIComponent(shareId)}`, { replace: true });
       return;
     }
     setErrorReason('no_id');
-    setStatus('error');
   }, [shareId, navigate]);
 
   if (!shareId) {

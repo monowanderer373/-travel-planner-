@@ -1,15 +1,19 @@
 import { useState } from 'react';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import './AddTripmateButton.css';
 
 export default function AddTripmateButton() {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const {
     tripmates,
     addTripmate,
     updateTripmate,
     removeTripmate,
+    shareSettings,
+    setShareSettings,
     tripmateShareLink,
     generateTripmateLink,
     tripCreator,
@@ -17,6 +21,7 @@ export default function AddTripmateButton() {
   } = useItinerary();
   const [modalOpen, setModalOpen] = useState(false);
   const [newName, setNewName] = useState('');
+  const [inviteEmails, setInviteEmails] = useState('');
   const [creatorName, setCreatorName] = useState(tripCreator.name || '');
   const [linkGenerated, setLinkGenerated] = useState(false);
 
@@ -35,6 +40,27 @@ export default function AddTripmateButton() {
     if (!name) return;
     addTripmate({ name, email: '' });
     setNewName('');
+  };
+
+  const handleAddInvites = (e) => {
+    e.preventDefault();
+    const emails = inviteEmails
+      .split(',')
+      .map((v) => v.trim().toLowerCase())
+      .filter((v) => v && v.includes('@'));
+    if (emails.length === 0) return;
+    setShareSettings((prev) => ({
+      ...prev,
+      invitedEmails: [...new Set([...(prev.invitedEmails || []), ...emails])],
+    }));
+    setInviteEmails('');
+  };
+
+  const copyLinkWithSource = () => {
+    if (!tripmateShareLink) return;
+    const sep = tripmateShareLink.includes('?') ? '&' : '?';
+    const withSource = `${tripmateShareLink}${sep}source=copy_link`;
+    navigator.clipboard?.writeText(withSource);
   };
 
   return (
@@ -57,11 +83,55 @@ export default function AddTripmateButton() {
                 </button>
               ) : (
                 <div className="tripmate-link-box">
+                  <div className="tripmate-access-block">
+                    <h3 className="tripmate-list-title">{t('tripmate.generalAccess')}</h3>
+                    <div className="tripmate-access-row">
+                      <label className="tripmate-link-label">{t('tripmate.whoCanAccess')}</label>
+                      <select
+                        className="tripmate-access-select"
+                        value={shareSettings.linkAccess || 'invited'}
+                        onChange={(e) => setShareSettings((s) => ({ ...s, linkAccess: e.target.value }))}
+                      >
+                        <option value="invited">{t('tripmate.onlyInvited')}</option>
+                        <option value="web">{t('tripmate.anyoneWithLink')}</option>
+                      </select>
+                    </div>
+                    <div className="tripmate-access-row">
+                      <label className="tripmate-link-label">{t('tripmate.permission')}</label>
+                      <select
+                        className="tripmate-access-select"
+                        value={shareSettings.linkPermission || 'edit'}
+                        onChange={(e) => setShareSettings((s) => ({
+                          ...s,
+                          linkPermission: e.target.value,
+                          allowEdit: e.target.value === 'edit',
+                        }))}
+                      >
+                        <option value="edit">{t('tripmate.canEdit')}</option>
+                        <option value="view">{t('tripmate.canView')}</option>
+                      </select>
+                    </div>
+                  </div>
                   <label className="tripmate-link-label">{t('tripmate.shareLinkLabel')}</label>
                   <div className="tripmate-link-row">
                     <input type="text" readOnly value={tripmateShareLink} className="tripmate-link-input" />
-                    <button type="button" onClick={() => navigator.clipboard?.writeText(tripmateShareLink)}>{t('tripmate.copy')}</button>
+                    <button type="button" onClick={copyLinkWithSource}>{t('tripmate.copy')}</button>
                   </div>
+                  {(shareSettings.linkAccess || 'invited') === 'invited' && (
+                    <>
+                      <label className="tripmate-link-label">{t('tripmate.inviteByEmail')}</label>
+                      <form onSubmit={handleAddInvites} className="tripmate-add-form">
+                        <input
+                          type="text"
+                          value={inviteEmails}
+                          onChange={(e) => setInviteEmails(e.target.value)}
+                          placeholder={t('tripmate.emailPlaceholder')}
+                          className="tripmate-name-input"
+                        />
+                        <button type="submit" className="primary">{t('tripmate.addInvite')}</button>
+                      </form>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -71,7 +141,7 @@ export default function AddTripmateButton() {
                 <div className="tripmate-creator-row">
                   <span className="tripmate-avatar">{tripCreator.name.charAt(0).toUpperCase()}</span>
                   <span className="tripmate-creator-name">{tripCreator.name}</span>
-                  <button type="button" onClick={() => { setTripCreator({ name: '' }); setCreatorName(''); }}>{t('tripmate.change')}</button>
+                  <button type="button" onClick={() => { setTripCreator({ name: '', email: '' }); setCreatorName(''); }}>{t('tripmate.change')}</button>
                 </div>
               ) : (
                 <form
@@ -79,7 +149,7 @@ export default function AddTripmateButton() {
                     e.preventDefault();
                     const name = creatorName.trim();
                     if (name) {
-                      setTripCreator({ name });
+                      setTripCreator({ name, email: user?.email || '' });
                       setCreatorName('');
                     }
                   }}

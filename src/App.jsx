@@ -40,6 +40,16 @@ function RequireAuth() {
   // Extra safety: if invite token survived OAuth in localStorage, force user back to invite URL.
   useEffect(() => {
     if (!authReady || !user) return;
+    const pendingTrip = typeof localStorage !== 'undefined' ? localStorage.getItem('pending_trip_id') : null;
+    if (pendingTrip) {
+      const params = new URLSearchParams(location.search);
+      const currentTrip = params.get('trip');
+      if (currentTrip !== pendingTrip) {
+        navigate(`/?trip=${encodeURIComponent(pendingTrip)}`, { replace: true });
+        return;
+      }
+      return;
+    }
     const pendingInvite = typeof localStorage !== 'undefined' ? localStorage.getItem('pending_invite_token') : null;
     if (!pendingInvite) return;
     const params = new URLSearchParams(location.search);
@@ -56,7 +66,9 @@ function RequireAuth() {
     );
   }
   if (!user) {
+    const trip = new URLSearchParams(location.search).get('trip');
     const invite = new URLSearchParams(location.search).get('invite');
+    if (trip && typeof localStorage !== 'undefined') localStorage.setItem('pending_trip_id', trip);
     if (invite && typeof localStorage !== 'undefined') localStorage.setItem('pending_invite_token', invite);
     return <Navigate to="/welcome" state={{ from: location.pathname + location.search }} replace />;
   }

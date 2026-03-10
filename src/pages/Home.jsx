@@ -13,6 +13,7 @@ import { decodeInviteToken } from '../utils/publicUrl';
 import './Home.css';
 
 const PENDING_INVITE_KEY = 'pending_invite_token';
+const PENDING_TRIP_KEY = 'pending_trip_id';
 
 export default function Home() {
   const { t } = useLanguage();
@@ -23,6 +24,7 @@ export default function Home() {
   const inviteHandledRef = useRef(false);
 
   const shareId = searchParams.get('share');
+  const tripParam = searchParams.get('trip') || (typeof localStorage !== 'undefined' ? localStorage.getItem(PENDING_TRIP_KEY) : null);
   const inviteParam = searchParams.get('invite') || (typeof localStorage !== 'undefined' ? localStorage.getItem(PENDING_INVITE_KEY) : null);
 
   const getInviteCandidates = (token) => {
@@ -58,9 +60,60 @@ export default function Home() {
       .catch(() => setSearchParams((prev) => { const n = new URLSearchParams(prev); n.delete('share'); return n; }, { replace: true }));
   }, [shareId, user, replaceItineraryState, setSearchParams]);
 
-  // Invite param ?invite=TOKEN: decode to tripId, load shared trip once, then clear URL and localStorage
+  // Preferred trip param ?trip=ID (Notion-like stable link)
   useEffect(() => {
-    if (!inviteParam || !user || !hasSupabase() || !supabase || inviteHandledRef.current) return;
+    if (!tripParam || !user || !hasSupabase() || !supabase || inviteHandledRef.current) return;
+    inviteHandledRef.current = true;
+    setActiveTripId(tripParam);
+    supabase
+      .from('shared_itineraries')
+      .select('data')
+      .eq('id', tripParam)
+      .maybeSingle()
+      .then(({ data: row, error }) => {
+        if (error || !row?.data) {
+          inviteHandledRef.current = false;
+          return;
+        }
+        const data = row.data;
+        const linkAccess = data?.shareSettings?.linkAccess || 'invited';
+        const invitedEmails = Array.isArray(data?.shareSettings?.invitedEmails) ? data.shareSettings.invitedEmails : [];
+        const normalizedUserEmail = (user?.email || '').trim().toLowerCase();
+        const normalizedInvited = invitedEmails.map((e) => String(e).trim().toLowerCase());
+        const creatorEmail = (data?.tripCreator?.email || '').trim().toLowerCase();
+        const allowed =
+          linkAccess === 'web' ||
+          normalizedInvited.length === 0 ||
+          !normalizedUserEmail ||
+          normalizedInvited.includes(normalizedUserEmail) ||
+          (creatorEmail && creatorEmail === normalizedUserEmail);
+        if (!allowed) {
+          inviteHandledRef.current = false;
+          return;
+        }
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem(PENDING_TRIP_KEY);
+          localStorage.removeItem(PENDING_INVITE_KEY);
+        }
+        replaceItineraryState({
+          ...data,
+          shareSettings: { ...data.shareSettings, tripId: tripParam },
+        });
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('trip');
+          next.delete('source');
+          return next;
+        }, { replace: true });
+      })
+      .catch(() => {
+        inviteHandledRef.current = false;
+      });
+  }, [tripParam, user, replaceItineraryState, setActiveTripId, setSearchParams]);
+
+  // Legacy invite param ?invite=TOKEN: decode to tripId, load shared trip once, then clear URL and localStorage
+  useEffect(() => {
+    if (!inviteParam || tripParam || !user || !hasSupabase() || !supabase || inviteHandledRef.current) return;
     inviteHandledRef.current = true;
     const candidates = getInviteCandidates(inviteParam);
 
@@ -73,7 +126,10 @@ export default function Home() {
           .eq('id', candidateId)
           .maybeSingle();
         if (!error && row?.data) {
-          if (typeof localStorage !== 'undefined') localStorage.removeItem(PENDING_INVITE_KEY);
+          if (typeof localStorage !== 'undefined') {
+            localStorage.removeItem(PENDING_INVITE_KEY);
+            localStorage.removeItem(PENDING_TRIP_KEY);
+          }
           const data = row.data;
           replaceItineraryState({
             ...data,
@@ -82,6 +138,7 @@ export default function Home() {
           setSearchParams((prev) => {
             const next = new URLSearchParams(prev);
             next.delete('invite');
+            next.delete('source');
             return next;
           }, { replace: true });
           return;
@@ -94,7 +151,7 @@ export default function Home() {
     tryFetch().catch(() => {
       inviteHandledRef.current = false;
     });
-  }, [inviteParam, user, replaceItineraryState, setActiveTripId, setSearchParams]);
+  }, [inviteParam, tripParam, user, replaceItineraryState, setActiveTripId, setSearchParams]);
   const hasTripDetails = trip.destination?.trim() && trip.startDate && trip.endDate;
   const totalDays = hasTripDetails ? getTotalTravelDays(trip.startDate, trip.endDate) : days.length;
 

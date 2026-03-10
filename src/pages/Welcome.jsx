@@ -24,7 +24,9 @@ export default function Welcome() {
       // Keep invite token across redirects as extra safety on GitHub Pages OAuth round-trips.
       const from = location.state.from;
       const q = from.includes('?') ? from.slice(from.indexOf('?') + 1) : '';
+      const trip = new URLSearchParams(q).get('trip');
       const invite = new URLSearchParams(q).get('invite');
+      if (trip && typeof localStorage !== 'undefined') localStorage.setItem('pending_trip_id', trip);
       if (invite && typeof localStorage !== 'undefined') localStorage.setItem('pending_invite_token', invite);
     }
   }, [location.state?.from]);

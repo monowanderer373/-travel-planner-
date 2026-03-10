@@ -22,10 +22,11 @@ export default function Layout() {
   const isCreate = pathname.endsWith('create') || pathname.endsWith('create/');
   const isSettings = pathname.endsWith('settings') || pathname.endsWith('settings/');
   const allowedWithoutItinerary = isCreate || isSettings;
-  const hasInviteQuery = new URLSearchParams(search).has('invite');
+  const params = new URLSearchParams(search);
+  const hasInviteQuery = params.has('invite') || params.has('trip');
   let hasPendingInvite = false;
   try {
-    hasPendingInvite = !!localStorage.getItem('pending_invite_token');
+    hasPendingInvite = !!localStorage.getItem('pending_invite_token') || !!localStorage.getItem('pending_trip_id');
   } catch {}
   const joiningSharedTrip = !!shareSettings?.tripId || hasInviteQuery || hasPendingInvite;
 

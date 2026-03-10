@@ -25,13 +25,17 @@ const defaultTrip = {
 
 const defaultDays = [{ id: 'day-1', label: 'Day 1', timeline: [] }];
 
-/** Get trip id from URL (?invite=TOKEN), localStorage (pending_invite_token from before OAuth), or /join/:id, /share/:id. */
+/** Get trip id from URL (?trip=ID preferred, or ?invite=TOKEN), localStorage pending keys, or /join/:id, /share/:id. */
 function getTripIdFromUrl() {
   if (typeof window === 'undefined') return null;
   const params = new URLSearchParams(window.location.search);
+  const trip = params.get('trip');
+  if (trip) return trip;
   const invite = params.get('invite');
   if (invite) return decodeInviteToken(invite) || invite;
   try {
+    const pendingTrip = localStorage.getItem('pending_trip_id');
+    if (pendingTrip) return pendingTrip;
     const pending = localStorage.getItem('pending_invite_token');
     if (pending) return decodeInviteToken(pending) || pending;
   } catch {}
@@ -46,7 +50,15 @@ function getTripIdFromUrl() {
 function getInitialItinerary() {
   const loaded = loadItinerary();
   const urlTripId = getTripIdFromUrl();
-  const defaultShare = { allowVote: false, allowEdit: false, shareLink: '', tripId: null };
+  const defaultShare = {
+    allowVote: false,
+    allowEdit: true,
+    shareLink: '',
+    tripId: null,
+    linkAccess: 'invited', // 'invited' | 'web'
+    linkPermission: 'edit', // 'view' | 'edit'
+    invitedEmails: [],
+  };
   const shareSettings = loaded?.shareSettings && typeof loaded.shareSettings === 'object'
     ? { ...defaultShare, ...loaded.shareSettings }
     : { ...defaultShare };
@@ -98,7 +110,17 @@ export function ItineraryProvider({ children }) {
   const [tripmates, setTripmates] = useState(initial?.tripmates ?? []);
   const [tripCreator, setTripCreatorState] = useState(initial?.tripCreator ?? { name: '' });
   const [tripMemories, setTripMemories] = useState(initial?.tripMemories ?? '');
-  const [shareSettings, setShareSettings] = useState(initial?.shareSettings ?? { allowVote: false, allowEdit: false, shareLink: '', tripId: null });
+  const [shareSettings, setShareSettings] = useState(
+    initial?.shareSettings ?? {
+      allowVote: false,
+      allowEdit: true,
+      shareLink: '',
+      tripId: null,
+      linkAccess: 'invited',
+      linkPermission: 'edit',
+      invitedEmails: [],
+    }
+  );
   const [tripmateShareLink, setTripmateShareLink] = useState(initial?.tripmateShareLink ?? '');
   const { reportSaving, reportSaved } = useSaveStatus();
   const saveTimeoutRef = useRef(null);
@@ -248,7 +270,7 @@ export function ItineraryProvider({ children }) {
         tripCreator,
         tripMemories,
         shareSettings: nextShareSettings,
-        tripmateShareLink: tripmateShareLink || (base ? `${base.replace(/\/$/, '')}/join/${id}` : `#join-${id}`),
+        tripmateShareLink: tripmateShareLink || (base ? `${base.replace(/\/$/, '')}/?trip=${encodeURIComponent(id)}` : `#trip-${id}`),
       };
       supabase.from('shared_itineraries').upsert({ id, data: payload, updated_at: new Date().toISOString() }, { onConflict: 'id' }).catch(() => {});
     }
@@ -288,9 +310,8 @@ export function ItineraryProvider({ children }) {
     if (!shareSettings.tripId) setShareSettings((prev) => ({ ...prev, tripId }));
 
     const base = getPublicBaseUrl() || getInviteBaseUrl();
-    // Token encodes trip id; later can add inviter_id, timestamp for expiry/abuse prevention
-    const token = btoa(JSON.stringify({ trip: tripId }));
-    const link = base ? `${base.replace(/\/$/, '')}/?invite=${encodeURIComponent(token)}` : `#invite-${token}`;
+    // Notion-like stable id URL: canonical link points to trip id directly.
+    const link = base ? `${base.replace(/\/$/, '')}/?trip=${encodeURIComponent(tripId)}` : `#trip-${tripId}`;
     setTripmateShareLink(link);
 
     if (hasSupabase() && supabase) {
@@ -430,6 +451,11 @@ export function ItineraryProvider({ children }) {
         const tripId = shareSettings.tripId;
         const updatedAt = new Date().toISOString();
         if (tripId) {
+          const creatorEmail = (tripCreator?.email || '').trim().toLowerCase();
+          const currentEmail = (user?.email || '').trim().toLowerCase();
+          const isCreator = !!creatorEmail && creatorEmail === currentEmail;
+          const canEditByPermission = (shareSettings.linkPermission || 'edit') === 'edit';
+          if (!isCreator && !canEditByPermission) { reportSaved(); saveTimeoutRef.current = null; return; }
           // Only write to shared_itineraries after we've loaded the shared trip at least once (prevents overwriting creator's data with empty state during invite processing)
           if (!sharedTripLoadedRef.current) { reportSaved(); saveTimeoutRef.current = null; return; }
           supabase
