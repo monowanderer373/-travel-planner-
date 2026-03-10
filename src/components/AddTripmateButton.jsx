@@ -21,8 +21,12 @@ export default function AddTripmateButton() {
   const [linkGenerated, setLinkGenerated] = useState(false);
 
   const handleGenerateLink = () => {
-    generateTripmateLink();
     setLinkGenerated(true);
+    try {
+      generateTripmateLink();
+    } catch (_) {
+      // Link box already shown; context may have set a fallback
+    }
   };
 
   const handleAddLocal = (e) => {
