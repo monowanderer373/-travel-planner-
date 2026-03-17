@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { loadItinerary, saveItinerary } from '../utils/storage';
 import { useSaveStatus } from './SaveStatusContext';
 import { useAuth } from './AuthContext';
@@ -101,8 +102,25 @@ function isSupabaseUser(user) {
   return user?.id && !user.id.startsWith('user-');
 }
 
+/** Build candidate ids for shared_itineraries (links may include extra chars after copy). */
+function sharedTripIdCandidates(raw) {
+  if (!raw || typeof raw !== 'string') return [];
+  const s = raw.trim();
+  const out = new Set([s]);
+  if (s.length > 14) out.add(s.slice(0, 14));
+  return [...out].filter(Boolean);
+}
+
 export function ItineraryProvider({ children }) {
   const { user } = useAuth();
+  const location = useLocation();
+  const tripFromUrl = useMemo(() => {
+    try {
+      return new URLSearchParams(location.search).get('trip');
+    } catch {
+      return null;
+    }
+  }, [location.search]);
   const initial = getInitialItinerary();
   const [trip, setTrip] = useState(initial?.trip ?? defaultTrip);
   const [days, setDays] = useState(initial?.days ?? defaultDays);
@@ -122,6 +140,14 @@ export function ItineraryProvider({ children }) {
       invitedEmails: [],
     }
   );
+  const resolvedSharedTripId = useMemo(() => {
+    try {
+      const p = typeof localStorage !== 'undefined' ? localStorage.getItem('pending_trip_id') : null;
+      return shareSettings.tripId || tripFromUrl || p || null;
+    } catch {
+      return shareSettings.tripId || tripFromUrl;
+    }
+  }, [shareSettings.tripId, tripFromUrl, location.search]);
   const [tripmateShareLink, setTripmateShareLink] = useState(initial?.tripmateShareLink ?? '');
   const { reportSaving, reportSaved } = useSaveStatus();
   const saveTimeoutRef = useRef(null);
@@ -390,38 +416,49 @@ export function ItineraryProvider({ children }) {
       return;
     }
     if (!hasSupabase() || !supabase || !isSupabaseUser(user)) return;
-    const tripId = shareSettings.tripId;
+    const tripId = resolvedSharedTripId;
     if (tripId) {
-      if (supabaseLoadedRef.current === `shared-${tripId}`) return;
-      supabaseLoadedRef.current = `shared-${tripId}`;
-      supabase
-        .from('shared_itineraries')
-        .select('data')
-        .eq('id', tripId)
-        .maybeSingle()
-        .then(({ data: row, error }) => {
-          if (error) return;
-          if (row?.data && typeof row.data === 'object') {
-            replaceItineraryState(row.data);
-            sharedTripLoadedRef.current = true;
-            return;
-          }
-          // Stale tripId in localStorage but no cloud row → save path was skipping ALL Supabase writes
-          if (isTripIdActiveInUrl(tripId)) {
-            sharedTripLoadedRef.current = true;
-            return;
-          }
-          orphanTripRecoveryRef.current = true;
-          sharedTripLoadedRef.current = false;
-          supabaseLoadedRef.current = null;
-          setShareSettings((prev) => ({ ...prev, tripId: null }));
-          if (import.meta.env.DEV) {
-            console.warn(
-              '[Travel Planner] Removed stale trip link from this device. Your next edits will sync to your personal cloud trip (itineraries).'
-            );
-          }
-        })
-        .catch(() => {});
+      const loadKey = `shared-${tripId}`;
+      if (supabaseLoadedRef.current === loadKey) return;
+      supabaseLoadedRef.current = loadKey;
+      void (async () => {
+        const candidates = sharedTripIdCandidates(tripId);
+        for (const id of candidates) {
+          const { data: row, error } = await supabase
+            .from('shared_itineraries')
+            .select('data')
+            .eq('id', id)
+            .maybeSingle();
+          if (error || !row?.data || typeof row.data !== 'object') continue;
+          replaceItineraryState({
+            ...row.data,
+            shareSettings: { ...(row.data.shareSettings || {}), tripId: id },
+          });
+          sharedTripLoadedRef.current = true;
+          try {
+            localStorage.removeItem('pending_trip_id');
+            localStorage.removeItem('pending_invite_token');
+          } catch {}
+          return;
+        }
+        if (isTripIdActiveInUrl(tripId)) {
+          sharedTripLoadedRef.current = true;
+          return;
+        }
+        orphanTripRecoveryRef.current = true;
+        sharedTripLoadedRef.current = false;
+        supabaseLoadedRef.current = null;
+        try {
+          localStorage.removeItem('pending_trip_id');
+          localStorage.removeItem('pending_invite_token');
+        } catch {}
+        setShareSettings((prev) => ({ ...prev, tripId: null }));
+        if (import.meta.env.DEV) {
+          console.warn(
+            '[Travel Planner] Shared trip not found; cleared stale link. Check shared_itineraries in Supabase (invite links use that table, not itineraries).'
+          );
+        }
+      })();
     } else {
       // Don't load user's own trip if there's a pending invite (it would be overwritten shortly and the save effect could corrupt the shared trip)
       try {
@@ -454,7 +491,7 @@ export function ItineraryProvider({ children }) {
         })
         .catch(() => {});
     }
-  }, [user?.id, shareSettings.tripId, personalCloudPullKey, replaceItineraryState]);
+  }, [user?.id, shareSettings.tripId, resolvedSharedTripId, personalCloudPullKey, replaceItineraryState]);
 
   const shareTripIdRef = useRef(shareSettings.tripId);
   useEffect(() => {

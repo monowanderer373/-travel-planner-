@@ -47,6 +47,10 @@ export function AuthProvider({ children }) {
       if (session?.user) {
         await upsertProfile(session.user).catch(() => {});
         if (!mounted) return;
+        try {
+          sessionStorage.removeItem('oauth_pending_trip');
+          sessionStorage.removeItem('oauth_pending_invite');
+        } catch {}
         const u = mapSupabaseUser(session.user);
         setUserState(u);
       } else {
@@ -118,14 +122,26 @@ export function AuthProvider({ children }) {
   }, [user?.id]);
 
   const signInWithGoogle = useCallback(async () => {
-    if (!hasSupabase()) return;
-    // Redirect back to the same origin + base path the user is on (avoids 404 from wrong URL)
+    if (!hasSupabase() || typeof window === 'undefined') return;
     const base = import.meta.env.BASE_URL || '/';
-    const redirectTo =
-      typeof window !== 'undefined' ? `${window.location.origin}${base.startsWith('/') ? base : '/' + base}` : undefined;
+    const basePath = base.startsWith('/') ? base : `/${base}`;
+    let redirectTo = `${window.location.origin}${basePath}`.replace(/\/+$/, '');
+    if (!redirectTo.endsWith('/')) redirectTo += '/';
+    try {
+      const trip = localStorage.getItem('pending_trip_id');
+      const invite = localStorage.getItem('pending_invite_token');
+      if (trip) sessionStorage.setItem('oauth_pending_trip', trip);
+      if (invite) sessionStorage.setItem('oauth_pending_invite', invite);
+      const u = new URL(redirectTo);
+      if (trip) u.searchParams.set('trip', trip);
+      else if (invite) u.searchParams.set('invite', invite);
+      redirectTo = u.toString();
+    } catch {
+      redirectTo = `${window.location.origin}${basePath}`.replace(/\/+$/, '/');
+    }
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: redirectTo ? { redirectTo } : undefined,
+      options: { redirectTo },
     });
   }, []);
 

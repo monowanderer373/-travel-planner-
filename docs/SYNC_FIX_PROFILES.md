@@ -26,6 +26,14 @@
 若你曾点过「旅伴 / 生成链接」，浏览器会记住一个 `tripId`。若云端 **没有** 对应的 `shared_itineraries` 行（链接过期、删库、或从未成功写入），旧逻辑会 **既不写 shared 也不写 itineraries**，看起来像「完全不能同步」。  
 新版本会在检测到这种情况时 **自动去掉无效 tripId**，并保留你当前页面上的数据，让下一次保存写入 **`itineraries`**。
 
+## 好友打开旅伴链接却是空白页（已修复）
+
+- **个人行程**在表 **`itineraries`**（按 Google 账号）。**旅伴链接**读的是 **`shared_itineraries`**，不是 `itineraries`。好友登录后若仍空白，多半是 **`shared_itineraries` 里没有对应 `trip` id 那一行**（或链接里的 id 被聊天软件截断）。
+- Google 登录会回到站点根路径，**不带 `?trip=`**；旧逻辑只靠地址栏，好友会当成「个人行程」加载，看不到共享数据。现在会用 **`pending_trip_id` + 路由上的 `trip`** 一起去拉 **`shared_itineraries`**；登录回调 URL 也会尽量带上 `?trip=`。
+- 若登录时报 **redirect_uri 错误**：到 Supabase → **Authentication → URL Configuration**，在 **Redirect URLs** 增加一条通配，例如：  
+  `https://monowanderer373.github.io/-travel-planner-/**`  
+  （把域名换成你的站点。）
+
 ## 关于网址
 
 `https://xxx.github.io/-travel-planner-/itinerary` 对所有人相同，只是「行程页」路由；**数据不按 URL 区分**，而是按 **Google 账号**（个人）或 **`?trip=` 行程 id**（共享）。
