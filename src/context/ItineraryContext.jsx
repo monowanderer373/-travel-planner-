@@ -9,6 +9,7 @@ import { getTotalTravelDays, getDayLabel, getDayLabelWithCity } from '../utils/t
 import { logTripActivity } from '../lib/tripActivity';
 import { ensureProfileExists } from '../lib/ensureProfile';
 import { writeSharedItineraryRow } from '../lib/sharedItineraryWrite';
+import { itineraryPayloadCanonical } from '../lib/itineraryPayloadCompare';
 
 const ItineraryContext = createContext(null);
 
@@ -156,6 +157,9 @@ export function ItineraryProvider({ children }) {
   const supabaseLoadedRef = useRef(false);
   // Tracks whether shared trip data has been loaded at least once; prevents saving empty state over the creator's trip
   const sharedTripLoadedRef = useRef(false);
+  /** Skip Realtime apply when payload matches our in-flight or last successful shared write (stops save↔realtime loop). */
+  const pendingSharedWriteCanonicalRef = useRef(null);
+  const lastLocallyWrittenCanonicalRef = useRef(null);
   /** After clearing a stale tripId, skip cloud→local replace so new local edits are not overwritten before save. */
   const orphanTripRecoveryRef = useRef(false);
   /** Increment to pull latest personal row from cloud (e.g. after tab visible again). */
@@ -576,6 +580,8 @@ export function ItineraryProvider({ children }) {
   const shareTripIdRef = useRef(shareSettings.tripId);
   useEffect(() => {
     shareTripIdRef.current = shareSettings.tripId;
+    pendingSharedWriteCanonicalRef.current = null;
+    lastLocallyWrittenCanonicalRef.current = null;
   }, [shareSettings.tripId]);
 
   const wasHiddenForPullRef = useRef(false);
@@ -609,7 +615,17 @@ export function ItineraryProvider({ children }) {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'shared_itineraries', filter: `id=eq.${tripId}` },
         (payload) => {
-          if (payload?.new?.data) replaceItineraryState(payload.new.data);
+          const data = payload?.new?.data;
+          if (!data || typeof data !== 'object') return;
+          const inc = itineraryPayloadCanonical(data);
+          if (
+            inc &&
+            (inc === pendingSharedWriteCanonicalRef.current ||
+              inc === lastLocallyWrittenCanonicalRef.current)
+          ) {
+            return;
+          }
+          replaceItineraryState(data);
         }
       )
       .subscribe();
@@ -620,6 +636,8 @@ export function ItineraryProvider({ children }) {
 
   useEffect(() => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    const tripId = shareSettings.tripId;
+    const debounceMs = tripId ? 1000 : 500;
     reportSaving();
     saveTimeoutRef.current = setTimeout(() => {
       const payload = {
@@ -633,20 +651,34 @@ export function ItineraryProvider({ children }) {
         shareSettings,
         tripmateShareLink,
       };
+      const canon = itineraryPayloadCanonical(payload);
+      if (tripId && canon) pendingSharedWriteCanonicalRef.current = canon;
       saveItinerary(payload);
       if (hasSupabase() && supabase && isSupabaseUser(user)) {
-        const tripId = shareSettings.tripId;
         const updatedAt = new Date().toISOString();
         if (tripId) {
           const creatorEmail = (tripCreator?.email || '').trim().toLowerCase();
           const currentEmail = (user?.email || '').trim().toLowerCase();
           const isCreator = !!creatorEmail && creatorEmail === currentEmail;
           const canEditByPermission = (shareSettings.linkPermission || 'edit') === 'edit';
-          if (!isCreator && !canEditByPermission) { reportSaved(); saveTimeoutRef.current = null; return; }
-          // Only write to shared_itineraries after we've loaded the shared trip at least once (prevents overwriting creator's data with empty state during invite processing)
-          if (!sharedTripLoadedRef.current) { reportSaved(); saveTimeoutRef.current = null; return; }
+          if (!isCreator && !canEditByPermission) {
+            pendingSharedWriteCanonicalRef.current = null;
+            reportSaved();
+            saveTimeoutRef.current = null;
+            return;
+          }
+          if (!sharedTripLoadedRef.current) {
+            pendingSharedWriteCanonicalRef.current = null;
+            reportSaved();
+            saveTimeoutRef.current = null;
+            return;
+          }
           void writeSharedItineraryRow(supabase, tripId, payload).then(({ error }) => {
-            if (!error) return;
+            pendingSharedWriteCanonicalRef.current = null;
+            if (!error) {
+              lastLocallyWrittenCanonicalRef.current = canon;
+              return;
+            }
             const msg = String(error?.message || error);
             console.warn('[Travel Planner] shared save failed:', msg, error);
             if (/permission|rls|policy|42501|PGRST301/i.test(msg)) {
@@ -656,6 +688,7 @@ export function ItineraryProvider({ children }) {
             }
           });
         } else {
+          pendingSharedWriteCanonicalRef.current = null;
           void (async () => {
             try {
               const { ok } = await ensureProfileExists(supabase, user);
@@ -690,7 +723,7 @@ export function ItineraryProvider({ children }) {
       }
       reportSaved();
       saveTimeoutRef.current = null;
-    }, 500);
+    }, debounceMs);
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };

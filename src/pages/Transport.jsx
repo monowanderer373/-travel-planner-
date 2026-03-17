@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
+import { resolveDayForTimelineAdd } from '../lib/itineraryPayloadCompare';
 import './Transport.css';
 
 function extractEmbedUrl(input) {
@@ -31,6 +32,7 @@ export default function Transport() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [transportToAdd, setTransportToAdd] = useState(null);
   const [addDayId, setAddDayId] = useState(days[0]?.id || '');
+  const [addDayIndex, setAddDayIndex] = useState(0);
   const [leaveHour, setLeaveHour] = useState(9);
   const [leaveMin, setLeaveMin] = useState(0);
   const [arriveHour, setArriveHour] = useState(10);
@@ -66,6 +68,7 @@ export default function Transport() {
   const openAddToItineraryModal = (transport) => {
     setTransportToAdd(transport);
     setAddDayId(days[0]?.id || '');
+    setAddDayIndex(0);
     setLeaveHour(9);
     setLeaveMin(0);
     setArriveHour(10);
@@ -75,14 +78,16 @@ export default function Transport() {
 
   const handleAddToItinerary = () => {
     const transport = transportToAdd;
-    if (!transport || !addDayId) return;
+    if (!transport) return;
+    const day = resolveDayForTimelineAdd(days, addDayId, addDayIndex);
+    if (!day?.id) return;
     const startHour = leaveHour + leaveMin / 60;
     let endHour = arriveHour + arriveMin / 60;
     if (endHour <= startHour) endHour = startHour + (transport.durationMinutes ?? 45) / 60;
     endHour = Math.min(23 + 59/60, endHour);
     const duration = endHour - startHour;
     const durationMinutes = transport.durationMinutes ?? Math.round(duration * 60);
-    addToTimeline(addDayId, {
+    addToTimeline(day.id, {
       id: `tl-${Date.now()}`,
       type: 'transport',
       name: `${transport.lineName}: ${transport.locationA} → ${transport.locationB}`,
@@ -217,7 +222,15 @@ export default function Transport() {
               <p className="transport-modal-hint">{t('transport.modalHint')}</p>
               <label className="transport-modal-field">
                 <span>{t('transport.day')}</span>
-                <select value={addDayId} onChange={(e) => setAddDayId(e.target.value)}>
+                <select
+                  value={addDayId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setAddDayId(id);
+                    const i = days.findIndex((d) => d.id === id);
+                    if (i >= 0) setAddDayIndex(i);
+                  }}
+                >
                   {days.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
                 </select>
               </label>

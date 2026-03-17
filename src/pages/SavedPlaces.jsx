@@ -4,6 +4,7 @@ import { useLanguage } from '../context/LanguageContext';
 import PlaceCard from '../components/PlaceCard';
 import PlaceLinkInput from '../components/PlaceLinkInput';
 import VotingUI from '../components/VotingUI';
+import { resolveDayForTimelineAdd } from '../lib/itineraryPayloadCompare';
 import './SavedPlaces.css';
 
 const TIME_OPTIONS = (() => {
@@ -81,6 +82,7 @@ export default function SavedPlaces() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [addModalPlace, setAddModalPlace] = useState(null);
   const [addDayId, setAddDayId] = useState('');
+  const [addDayIndex, setAddDayIndex] = useState(0);
   const [addTimeMode, setAddTimeMode] = useState('specific');
   const [addStartHour, setAddStartHour] = useState(9);
   const [addEndHour, setAddEndHour] = useState(11);
@@ -89,17 +91,20 @@ export default function SavedPlaces() {
     if (!place || !days.length) return;
     setAddModalPlace(place);
     setAddDayId(days[0]?.id || '');
+    setAddDayIndex(0);
     setAddStartHour(9);
     setAddEndHour(11);
     setAddModalOpen(true);
   };
 
   const handleConfirmAddToTimeline = () => {
-    if (!addModalPlace || !addDayId) return;
+    if (!addModalPlace) return;
+    const day = resolveDayForTimelineAdd(days, addDayId, addDayIndex);
+    if (!day?.id) return;
     const start = addTimeMode === 'specific' ? addStartHour : addStartHour;
     const end = addTimeMode === 'specific' ? addStartHour + 1 : Math.max(addStartHour + 1, addEndHour);
     const endHour = Math.min(23, end);
-    addToTimeline(addDayId, {
+    addToTimeline(day.id, {
       id: `tl-${Date.now()}`,
       name: addModalPlace.title || 'Saved place',
       startHour: start,
@@ -156,7 +161,15 @@ export default function SavedPlaces() {
             <div className="place-modal-body">
               <label className="place-modal-field">
                 <span>{t('saved.day')}</span>
-                <select value={addDayId} onChange={(e) => setAddDayId(e.target.value)}>
+                <select
+                  value={addDayId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setAddDayId(id);
+                    const i = days.findIndex((d) => d.id === id);
+                    if (i >= 0) setAddDayIndex(i);
+                  }}
+                >
                   {days.map((d) => (
                     <option key={d.id} value={d.id}>{d.label}</option>
                   ))}
