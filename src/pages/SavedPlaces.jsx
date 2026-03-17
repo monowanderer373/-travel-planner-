@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
 import PlaceCard from '../components/PlaceCard';
@@ -76,6 +77,7 @@ const HOURS = Array.from({ length: 16 }, (_, i) => i + 8); // 8–23
 
 export default function SavedPlaces() {
   const { t } = useLanguage();
+  const location = useLocation();
   const { savedPlaces, removeSavedPlace, setVotes, updateSavedPlace, days, addToTimeline } = useItinerary();
   const maxVotes = savedPlaces.length ? Math.max(...savedPlaces.map((p) => p.votes || 0)) : 0;
 
@@ -86,6 +88,8 @@ export default function SavedPlaces() {
   const [addTimeMode, setAddTimeMode] = useState('specific');
   const [addStartHour, setAddStartHour] = useState(9);
   const [addEndHour, setAddEndHour] = useState(11);
+
+  const pasteUrl = location.state?.pasteUrl || '';
 
   const handleOpenAddModal = (place) => {
     if (!place || !days.length) return;
@@ -123,7 +127,7 @@ export default function SavedPlaces() {
         <h1>{t('saved.title')}</h1>
       </header>
 
-      <PlaceLinkInput />
+      <PlaceLinkInput initialEmbedUrl={pasteUrl} />
 
       <h2 className="saved-places-list-title">{t('saved.listTitle')}</h2>
       {savedPlaces.length === 0 ? (

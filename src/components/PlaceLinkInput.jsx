@@ -50,12 +50,12 @@ function buildPlaceFromEmbed(embedInputRaw, manualName, openTime, closeTime, ext
 
 const HOURS = Array.from({ length: 16 }, (_, i) => i + 8); // 8–23
 
-export default function PlaceLinkInput() {
+export default function PlaceLinkInput({ initialEmbedUrl = '' }) {
   const { t } = useLanguage();
   const { addSavedPlace, days, addToTimeline } = useItinerary();
   const [placeData, setPlaceData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [embedInput, setEmbedInput] = useState('');
+  const [embedInput, setEmbedInput] = useState(initialEmbedUrl || '');
   const [manualName, setManualName] = useState('');
   const [openTime, setOpenTime] = useState('09:00');
   const [closeTime, setCloseTime] = useState('18:00');
