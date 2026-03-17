@@ -1,0 +1,84 @@
+.leave-shared-trip-btn {
+  font-size: 0.9rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid var(--border-color, #ddd);
+  background: var(--bg, #fff);
+  color: var(--text-muted, #666);
+}
+
+.leave-shared-trip-btn--home {
+  margin-top: 0.75rem;
+}
+
+.leave-shared-trip-btn--settings {
+  margin-top: 0.5rem;
+  border-color: #c06060;
+  color: #a04040;
+}
+
+.leave-shared-trip-btn:hover {
+  background: var(--bg-hover, #f8f8f8);
+}
+
+.leave-shared-trip-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: 1rem;
+}
+
+.leave-shared-trip-dialog {
+  background: var(--bg, #fff);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.leave-shared-trip-dialog h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+}
+
+.leave-shared-trip-desc {
+  margin: 0 0 1.25rem 0;
+  color: var(--text-muted, #666);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.leave-shared-trip-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.leave-shared-trip-cancel {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #ccc);
+  background: var(--bg, #fff);
+  cursor: pointer;
+}
+
+.leave-shared-trip-confirm {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: none;
+  background: #a04040;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.leave-shared-trip-confirm:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}

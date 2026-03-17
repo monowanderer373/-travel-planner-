@@ -4,6 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { useItinerary } from '../context/ItineraryContext';
+import LeaveSharedTripButton from '../components/LeaveSharedTripButton';
 import { useCost } from '../context/CostContext';
 import { getAllTripData, clearAllTripData } from '../utils/storage';
 import { languageOptions } from '../i18n/translations';
@@ -112,6 +113,7 @@ export default function Settings() {
           {t('settings.signOut')}
         </button>
       </section>
+      {isCloudUser && <LeaveSharedTripButton variant="settings" />}
       <section className="section">
         <h2 className="section-title">{t('settings.theme')}</h2>
         <p className="settings-hint">{t('settings.themeHint')}</p>

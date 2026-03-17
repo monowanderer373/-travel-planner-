@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { loadItinerary, saveItinerary } from '../utils/storage';
 import { useSaveStatus } from './SaveStatusContext';
 import { useAuth } from './AuthContext';
@@ -114,6 +114,7 @@ function sharedTripIdCandidates(raw) {
 
 export function ItineraryProvider({ children }) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
   const tripFromUrl = useMemo(() => {
     try {
@@ -423,6 +424,67 @@ export function ItineraryProvider({ children }) {
     setShareSettings((prev) => ({ ...prev, tripId: tripId || null }));
   }, []);
 
+  /** Invited user leaves shared trip → load personal itinerary (or empty default). */
+  const leaveSharedTrip = useCallback(async () => {
+    if (!shareSettings.tripId) return;
+    sharedTripLoadedRef.current = false;
+    supabaseLoadedRef.current = null;
+    try {
+      localStorage.removeItem('pending_trip_id');
+      localStorage.removeItem('pending_invite_token');
+      sessionStorage.removeItem('share_join_flow');
+    } catch {}
+
+    const blankShare = {
+      allowVote: false,
+      allowEdit: true,
+      shareLink: '',
+      tripId: null,
+      linkAccess: 'invited',
+      linkPermission: 'edit',
+      invitedEmails: [],
+    };
+
+    const emptyPersonal = () => {
+      replaceItineraryState({
+        trip: { ...defaultTrip },
+        days: JSON.parse(JSON.stringify(defaultDays)),
+        savedPlaces: [],
+        savedTransports: [],
+        tripmates: [],
+        tripCreator: { name: user?.name || '', email: user?.email || '' },
+        tripMemories: '',
+        shareSettings: blankShare,
+        tripmateShareLink: '',
+      });
+    };
+
+    if (hasSupabase() && supabase && user?.id && !String(user.id).startsWith('user-')) {
+      const { data: row } = await supabase
+        .from('itineraries')
+        .select('data')
+        .eq('profile_id', user.id)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (row?.data && typeof row.data === 'object') {
+        const d = { ...row.data };
+        d.shareSettings = {
+          ...(d.shareSettings && typeof d.shareSettings === 'object' ? d.shareSettings : {}),
+          tripId: null,
+        };
+        replaceItineraryState(d);
+      } else {
+        emptyPersonal();
+      }
+      supabaseLoadedRef.current = user.id;
+    } else {
+      emptyPersonal();
+    }
+    navigate('/', { replace: true });
+  }, [shareSettings.tripId, user, replaceItineraryState, navigate]);
+
   // Load itinerary: shared trip (by tripId) or user's own (by profile_id)
   useEffect(() => {
     if (!user) {
@@ -584,7 +646,14 @@ export function ItineraryProvider({ children }) {
           // Only write to shared_itineraries after we've loaded the shared trip at least once (prevents overwriting creator's data with empty state during invite processing)
           if (!sharedTripLoadedRef.current) { reportSaved(); saveTimeoutRef.current = null; return; }
           void writeSharedItineraryRow(supabase, tripId, payload).then(({ error }) => {
-            if (error) console.warn('[Travel Planner] shared save:', error?.message || error);
+            if (!error) return;
+            const msg = String(error?.message || error);
+            console.warn('[Travel Planner] shared save failed:', msg, error);
+            if (/permission|rls|policy|42501|PGRST301/i.test(msg)) {
+              console.warn(
+                '[Travel Planner] 协作者无法写入 shared_itineraries 多半是 RLS：请在 Supabase 执行 docs/shared-itineraries-collab-rls.sql'
+              );
+            }
           });
         } else {
           void (async () => {
@@ -662,6 +731,7 @@ export function ItineraryProvider({ children }) {
     updateTripMemories,
     replaceItineraryState,
     setActiveTripId,
+    leaveSharedTrip,
     activeTripId: shareSettings.tripId,
     TRAVEL_STYLES,
   };

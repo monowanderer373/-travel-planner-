@@ -199,16 +199,18 @@ export default function AddTripmateButton() {
                 <button type="submit" className="primary">{t('tripmate.addProfile')}</button>
               </form>
               <ul className="tripmate-list">
-                {tripmates.map((t) => (
-                  <li key={t.id} className="tripmate-item">
-                    <span className="tripmate-avatar">{t.name.charAt(0).toUpperCase()}</span>
+                {tripmates.map((mate) => (
+                  <li key={mate.id} className="tripmate-item">
+                    <span className="tripmate-avatar">{mate.name.charAt(0).toUpperCase()}</span>
                     <input
                       type="text"
-                      value={t.name}
-                      onChange={(e) => updateTripmate(t.id, { name: e.target.value })}
+                      value={mate.name}
+                      onChange={(e) => updateTripmate(mate.id, { name: e.target.value })}
                       className="tripmate-item-name"
                     />
-                    <button type="button" className="tripmate-remove" onClick={() => removeTripmate(t.id)}>{t('tripmate.remove')}</button>
+                    <button type="button" className="tripmate-remove" onClick={() => removeTripmate(mate.id)}>
+                      {t('tripmate.remove')}
+                    </button>
                   </li>
                 ))}
               </ul>

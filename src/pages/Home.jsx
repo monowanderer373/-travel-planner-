@@ -2,6 +2,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import SummaryBlock from '../components/SummaryBlock';
 import AddTripmateButton from '../components/AddTripmateButton';
+import LeaveSharedTripButton from '../components/LeaveSharedTripButton';
 import ActivityFeed from '../components/ActivityFeed';
 import TripmatesBoard from '../components/TripmatesBoard';
 import { useItinerary } from '../context/ItineraryContext';
@@ -189,6 +190,7 @@ export default function Home() {
       </section>
       <SummaryBlock />
       <TripmatesBoard />
+      <LeaveSharedTripButton variant="home" />
       <ActivityFeed />
     </div>
   );
