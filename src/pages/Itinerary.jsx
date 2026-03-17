@@ -1,5 +1,7 @@
 import DayPanel from '../components/DayPanel';
 import ShareModal from '../components/ShareModal';
+import DaySummaryCard from '../components/DaySummaryCard';
+import ItineraryTipsCard from '../components/ItineraryTipsCard';
 import { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import './Itinerary.css';
@@ -19,7 +21,13 @@ export default function Itinerary() {
       <p className="page-intro">
         {t('itinerary.intro')}
       </p>
-      <DayPanel />
+      <div className="itinerary-main">
+        <DayPanel />
+        <div className="itinerary-sidebar">
+          <DaySummaryCard />
+          <ItineraryTipsCard />
+        </div>
+      </div>
       <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} />
     </div>
   );

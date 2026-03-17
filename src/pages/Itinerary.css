@@ -7,3 +7,22 @@
 .itinerary-page .day-panel {
   max-width: 100%;
 }
+
+.itinerary-main {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr);
+  gap: var(--dashboard-gap, 1.5rem);
+  align-items: flex-start;
+}
+
+.itinerary-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dashboard-gap, 1.25rem);
+}
+
+@media (max-width: 768px) {
+  .itinerary-main {
+    grid-template-columns: 1fr;
+  }
+}

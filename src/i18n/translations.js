@@ -202,6 +202,10 @@ export const translations = {
     'itinerary.intro': 'Add days and plan your schedule from 8 AM to 11 PM. Click a start time, then an end time to create a block.',
     'itinerary.days': 'Days',
     'itinerary.addDay': '+ Add day',
+    'itinerary.summary.title': 'Today at a glance',
+    'itinerary.summary.empty': 'No activities yet. Add blocks in the day list on the left.',
+    'itinerary.tips.title': 'Planning tips',
+    'itinerary.tips.body': 'Use shorter blocks for key experiences (e.g. brunch, museum) and longer blocks for travel or free time. Keep 20–30% buffer time each day so the trip stays relaxed.',
 
     'saved.title': 'Saved places',
     'saved.listTitle': 'Saved locations',
@@ -569,6 +573,10 @@ export const translations = {
     'itinerary.intro': '添加日程，从 8:00 到 23:00 规划。点击开始时间，再点击结束时间以创建时间段。',
     'itinerary.days': '日程',
     'itinerary.addDay': '+ 添加日程',
+    'itinerary.summary.title': '今日一览',
+    'itinerary.summary.empty': '今天还没有安排，可以在左侧为每一天添加时间块。',
+    'itinerary.tips.title': '规划小贴士',
+    'itinerary.tips.body': '核心体验（早午餐、博物馆等）用短时间块，移动或自由活动用较长时间块；每天预留 20–30% 机动时间，让行程更从容。',
 
     'saved.title': '收藏地点',
     'saved.listTitle': '已收藏位置',
