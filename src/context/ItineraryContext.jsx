@@ -128,6 +128,20 @@ export function ItineraryProvider({ children }) {
   const supabaseLoadedRef = useRef(false);
   // Tracks whether shared trip data has been loaded at least once; prevents saving empty state over the creator's trip
   const sharedTripLoadedRef = useRef(false);
+  /** After clearing a stale tripId, skip cloud→local replace so new local edits are not overwritten before save. */
+  const orphanTripRecoveryRef = useRef(false);
+
+  function isTripIdActiveInUrl(tid) {
+    if (!tid || typeof window === 'undefined') return false;
+    try {
+      const q = new URLSearchParams(window.location.search).get('trip');
+      if (!q) return false;
+      const decoded = decodeURIComponent(q);
+      return q === tid || decoded === tid;
+    } catch {
+      return false;
+    }
+  }
 
   const updateTrip = useCallback((updates) => {
     setTrip((prev) => ({ ...prev, ...updates }));
@@ -382,10 +396,26 @@ export function ItineraryProvider({ children }) {
         .select('data')
         .eq('id', tripId)
         .maybeSingle()
-        .then(({ data: row }) => {
+        .then(({ data: row, error }) => {
+          if (error) return;
           if (row?.data && typeof row.data === 'object') {
             replaceItineraryState(row.data);
             sharedTripLoadedRef.current = true;
+            return;
+          }
+          // Stale tripId in localStorage but no cloud row → save path was skipping ALL Supabase writes
+          if (isTripIdActiveInUrl(tripId)) {
+            sharedTripLoadedRef.current = true;
+            return;
+          }
+          orphanTripRecoveryRef.current = true;
+          sharedTripLoadedRef.current = false;
+          supabaseLoadedRef.current = null;
+          setShareSettings((prev) => ({ ...prev, tripId: null }));
+          if (import.meta.env.DEV) {
+            console.warn(
+              '[Travel Planner] Removed stale trip link from this device. Your next edits will sync to your personal cloud trip (itineraries).'
+            );
           }
         })
         .catch(() => {});
@@ -400,10 +430,16 @@ export function ItineraryProvider({ children }) {
       } catch {}
       if (supabaseLoadedRef.current === user.id) return;
       supabaseLoadedRef.current = user.id;
+      if (orphanTripRecoveryRef.current) {
+        orphanTripRecoveryRef.current = false;
+        supabaseLoadedRef.current = user.id;
+        return;
+      }
       supabase
         .from('itineraries')
         .select('data')
         .eq('profile_id', user.id)
+        .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle()
         .then(({ data: row }) => {
@@ -472,6 +508,7 @@ export function ItineraryProvider({ children }) {
                 .from('itineraries')
                 .select('id')
                 .eq('profile_id', user.id)
+                .order('updated_at', { ascending: false })
                 .limit(1)
                 .maybeSingle();
               if (selErr) throw selErr;
@@ -486,7 +523,7 @@ export function ItineraryProvider({ children }) {
                 if (insErr) throw insErr;
               }
             } catch (e) {
-              if (import.meta.env.DEV) console.error('[Itinerary cloud save]', e);
+              console.warn('[Travel Planner] Cloud save failed (check login & Supabase).', e?.message || e);
             }
           })();
         }

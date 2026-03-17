@@ -16,6 +16,11 @@
 2. 手机：**同一 Google 账号**登录同一网站 → 应能加载同一行程。
 3. 与好友协作：在应用里生成 **带 `?trip=...` 的旅伴链接** → 数据会出现在 **shared_itineraries**。
 
+## 僵尸 tripId（已修复）
+
+若你曾点过「旅伴 / 生成链接」，浏览器会记住一个 `tripId`。若云端 **没有** 对应的 `shared_itineraries` 行（链接过期、删库、或从未成功写入），旧逻辑会 **既不写 shared 也不写 itineraries**，看起来像「完全不能同步」。  
+新版本会在检测到这种情况时 **自动去掉无效 tripId**，并保留你当前页面上的数据，让下一次保存写入 **`itineraries`**。
+
 ## 关于网址
 
 `https://xxx.github.io/-travel-planner-/itinerary` 对所有人相同，只是「行程页」路由；**数据不按 URL 区分**，而是按 **Google 账号**（个人）或 **`?trip=` 行程 id**（共享）。
