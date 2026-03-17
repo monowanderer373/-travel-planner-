@@ -13,7 +13,8 @@ export default function Settings() {
   const navigate = useNavigate();
   const { t, lang, setLanguage } = useLanguage();
   const { themeId, setThemeId, themes } = useTheme();
-  const { user, signOut } = useAuth();
+  const { user, signOut, hasSupabase } = useAuth();
+  const isCloudUser = user?.id && !String(user.id).startsWith('user-');
   const { replaceItineraryState, tripCreator } = useItinerary();
   const isCreator = !!(user && tripCreator?.name && user.name === tripCreator.name);
   const { replaceCostState } = useCost();
@@ -89,7 +90,24 @@ export default function Settings() {
       </section>
       <section className="section">
         <h2 className="section-title">{t('settings.account')}</h2>
-        <p className="settings-hint">{t('settings.signedInAs')} <strong>{user?.name || t('settings.guest')}</strong>. {t('settings.dataHint')}</p>
+        <p className="settings-hint">
+          {t('settings.signedInAs')} <strong>{user?.name || t('settings.guest')}</strong>.
+          {hasSupabase() && isCloudUser && (
+            <> {t('settings.dataHintCloud')}</>
+          )}
+          {hasSupabase() && !isCloudUser && (
+            <> {t('settings.dataHintGuest')}</>
+          )}
+          {!hasSupabase() && <> {t('settings.dataHint')}</>}
+        </p>
+        {hasSupabase() && (
+          <div className="settings-sync-box">
+            <h3 className="settings-sync-title">{t('settings.cloudSyncTitle')}</h3>
+            <p className="settings-hint">{t('settings.cloudSyncUrl')}</p>
+            <p className="settings-hint">{t('settings.cloudSyncShared')}</p>
+            <p className="settings-hint">{t('settings.mapsEmbedHint')}</p>
+          </div>
+        )}
         <button type="button" className="settings-signout" onClick={handleSignOut}>
           {t('settings.signOut')}
         </button>

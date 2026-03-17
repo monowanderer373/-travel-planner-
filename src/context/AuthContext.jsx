@@ -42,12 +42,13 @@ export function AuthProvider({ children }) {
 
     const isOAuthReturn = typeof window !== 'undefined' && window.location.hash?.includes('access_token');
 
-    function applySession(session, markReady = true) {
+    async function applySession(session, markReady = true) {
       if (!mounted) return;
       if (session?.user) {
+        await upsertProfile(session.user).catch(() => {});
+        if (!mounted) return;
         const u = mapSupabaseUser(session.user);
         setUserState(u);
-        upsertProfile(session.user).catch(() => {});
       } else {
         setUserState(loadUser());
       }
@@ -56,7 +57,6 @@ export function AuthProvider({ children }) {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (isOAuthReturn && !session?.user) {
-        // Session may not be parsed from hash yet; wait and re-check before showing welcome.
         applySession(session, false);
       } else {
         applySession(session);
@@ -68,7 +68,7 @@ export function AuthProvider({ children }) {
       timeoutId = setTimeout(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
           if (mounted) {
-            if (session?.user) applySession(session);
+            if (session?.user) void applySession(session);
             else setAuthReady(true);
           }
         });
@@ -78,8 +78,7 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
       if (event === 'SIGNED_IN' && session?.user) {
-        const u = mapSupabaseUser(session.user);
-        setUserState(u);
+        setUserState(mapSupabaseUser(session.user));
         upsertProfile(session.user).catch(() => {});
       } else if (event === 'SIGNED_OUT') {
         setUserState(null);

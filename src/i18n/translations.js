@@ -84,6 +84,17 @@ export const translations = {
     'settings.signedInAs': 'Signed in as',
     'settings.guest': 'Guest',
     'settings.dataHint': 'Data is stored only in this browser.',
+    'settings.dataHintCloud':
+      'Your trip syncs to the cloud when you are signed in with Google. Use the same Google account on your phone and computer.',
+    'settings.dataHintGuest':
+      'Sign in with Google on this device so your trip can sync to the cloud (same account everywhere).',
+    'settings.cloudSyncTitle': 'How sync works',
+    'settings.cloudSyncUrl':
+      'The address …/itinerary is the same for everyone — it is just the app page. Your data is tied to your Google login, not to a unique URL.',
+    'settings.cloudSyncShared':
+      'Personal trips are stored in Supabase under itineraries. If you use Trip mates → generate link, that trip is stored under shared_itineraries (for you and invited friends).',
+    'settings.mapsEmbedHint':
+      'If a map preview shows an error, try opening the place in a new tab or re-save from Google Maps — some short links do not embed well.',
     'settings.signOut': 'Sign out',
     'settings.language': 'Language',
     'settings.languageHint': 'Switch between English and 简体中文.',
@@ -385,6 +396,17 @@ export const translations = {
     'settings.signedInAs': '当前登录',
     'settings.guest': '访客',
     'settings.dataHint': '数据仅保存在本浏览器。',
+    'settings.dataHintCloud':
+      '使用 Google 登录后，行程会同步到云端。请在手机和电脑上用同一 Google 账号登录。',
+    'settings.dataHintGuest':
+      '请在本设备用 Google 登录，行程才能同步到云端（各设备需同一账号）。',
+    'settings.cloudSyncTitle': '同步说明',
+    'settings.cloudSyncUrl':
+      '网址 …/itinerary 对所有人相同，只是应用页面。数据与你的 Google 账号绑定，而不是地址栏里的链接。',
+    'settings.cloudSyncShared':
+      '个人行程存在 Supabase 的 itineraries 表。若使用「旅伴」生成链接，该行程存在 shared_itineraries（供你与好友协作）。',
+    'settings.mapsEmbedHint':
+      '若地图预览报错，可尝试新标签页打开或从 Google Maps 重新保存地点——部分短链接无法在页面内嵌入。',
     'settings.signOut': '退出登录',
     'settings.language': '语言',
     'settings.languageHint': '在 English 与 简体中文 之间切换。',

@@ -4,6 +4,20 @@
   font-size: 0.9rem;
 }
 
+.settings-sync-box {
+  margin: 0 0 1.25rem;
+  padding: 1rem 1.1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-card);
+}
+
+.settings-sync-title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
 .settings-language-switch {
   margin-bottom: 0.5rem;
 }

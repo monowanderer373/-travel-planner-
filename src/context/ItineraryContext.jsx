@@ -6,6 +6,7 @@ import { supabase, hasSupabase } from '../lib/supabase';
 import { getPublicBaseUrl, getInviteBaseUrl, decodeInviteToken } from '../utils/publicUrl';
 import { getTotalTravelDays, getDayLabel, getDayLabelWithCity } from '../utils/time';
 import { logTripActivity } from '../lib/tripActivity';
+import { ensureProfileExists } from '../lib/ensureProfile';
 
 const ItineraryContext = createContext(null);
 
@@ -463,20 +464,31 @@ export function ItineraryProvider({ children }) {
             .upsert({ id: tripId, data: payload, updated_at: updatedAt }, { onConflict: 'id' })
             .catch(() => {});
         } else {
-          supabase
-            .from('itineraries')
-            .select('id')
-            .eq('profile_id', user.id)
-            .limit(1)
-            .maybeSingle()
-            .then(({ data: row }) => {
+          void (async () => {
+            try {
+              const { ok } = await ensureProfileExists(supabase, user);
+              if (!ok) return;
+              const { data: row, error: selErr } = await supabase
+                .from('itineraries')
+                .select('id')
+                .eq('profile_id', user.id)
+                .limit(1)
+                .maybeSingle();
+              if (selErr) throw selErr;
               const body = { data: payload, updated_at: updatedAt };
               if (row?.id) {
-                return supabase.from('itineraries').update(body).eq('id', row.id);
+                const { error: upErr } = await supabase.from('itineraries').update(body).eq('id', row.id);
+                if (upErr) throw upErr;
+              } else {
+                const { error: insErr } = await supabase
+                  .from('itineraries')
+                  .insert({ profile_id: user.id, ...body });
+                if (insErr) throw insErr;
               }
-              return supabase.from('itineraries').insert({ profile_id: user.id, ...body });
-            })
-            .catch(() => {});
+            } catch (e) {
+              if (import.meta.env.DEV) console.error('[Itinerary cloud save]', e);
+            }
+          })();
         }
       }
       reportSaved();
