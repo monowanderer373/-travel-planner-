@@ -8,6 +8,7 @@ import { getPublicBaseUrl, getInviteBaseUrl, decodeInviteToken } from '../utils/
 import { getTotalTravelDays, getDayLabel, getDayLabelWithCity } from '../utils/time';
 import { logTripActivity } from '../lib/tripActivity';
 import { ensureProfileExists } from '../lib/ensureProfile';
+import { writeSharedItineraryRow } from '../lib/sharedItineraryWrite';
 
 const ItineraryContext = createContext(null);
 
@@ -316,7 +317,9 @@ export function ItineraryProvider({ children }) {
         shareSettings: nextShareSettings,
         tripmateShareLink: tripmateShareLink || (base ? `${base.replace(/\/$/, '')}/?trip=${encodeURIComponent(id)}` : `#trip-${id}`),
       };
-      supabase.from('shared_itineraries').upsert({ id, data: payload, updated_at: new Date().toISOString() }, { onConflict: 'id' }).catch(() => {});
+      void writeSharedItineraryRow(supabase, id, payload).then(({ error }) => {
+        if (error && import.meta.env.DEV) console.warn('[generateShareLink]', error);
+      });
     }
     return link;
   }, [trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, shareSettings, tripmateShareLink]);
@@ -383,18 +386,13 @@ export function ItineraryProvider({ children }) {
       sharedTripLoadedRef.current = true;
       return { ok: false, link, error: 'no_supabase' };
     }
-    try {
-      const { error } = await supabase
-        .from('shared_itineraries')
-        .upsert({ id: tripId, data: payload, updated_at: new Date().toISOString() }, { onConflict: 'id' });
-      if (error) throw error;
-      sharedTripLoadedRef.current = true;
-      return { ok: true, link };
-    } catch (e) {
-      console.error('[generateTripmateLink]', e);
-      sharedTripLoadedRef.current = true;
-      return { ok: false, link, error: e?.message || String(e) };
+    const { error } = await writeSharedItineraryRow(supabase, tripId, payload);
+    sharedTripLoadedRef.current = true;
+    if (error) {
+      console.error('[generateTripmateLink]', error?.message || error, error?.details, error?.hint);
+      return { ok: false, link, error: error?.message || String(error) };
     }
+    return { ok: true, link };
   }, [shareSettings, trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories]);
 
   const updateTripMemories = useCallback((text) => {
@@ -581,10 +579,9 @@ export function ItineraryProvider({ children }) {
           if (!isCreator && !canEditByPermission) { reportSaved(); saveTimeoutRef.current = null; return; }
           // Only write to shared_itineraries after we've loaded the shared trip at least once (prevents overwriting creator's data with empty state during invite processing)
           if (!sharedTripLoadedRef.current) { reportSaved(); saveTimeoutRef.current = null; return; }
-          supabase
-            .from('shared_itineraries')
-            .upsert({ id: tripId, data: payload, updated_at: updatedAt }, { onConflict: 'id' })
-            .catch(() => {});
+          void writeSharedItineraryRow(supabase, tripId, payload).then(({ error }) => {
+            if (error) console.warn('[Travel Planner] shared save:', error?.message || error);
+          });
         } else {
           void (async () => {
             try {
