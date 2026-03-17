@@ -450,6 +450,10 @@ export function ItineraryProvider({ children }) {
           });
           sharedTripLoadedRef.current = true;
           try {
+            const d = row.data;
+            const cr = (d?.tripCreator?.email || '').trim().toLowerCase();
+            const ue = (user?.email || '').trim().toLowerCase();
+            if (!cr || !ue || cr !== ue) sessionStorage.setItem('share_join_flow', id);
             localStorage.removeItem('pending_trip_id');
             localStorage.removeItem('pending_invite_token');
           } catch {}

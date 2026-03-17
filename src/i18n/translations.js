@@ -36,6 +36,38 @@ export const translations = {
     'welcome.googleNoteNoConfig': 'Add Supabase and Google OAuth to enable Google sign-in. Until then, data is stored only in your browser.',
     'welcome.googleUseName': 'Sign in with Google (use name above when not configured)',
     'welcome.back': '← Back',
+    'welcome.joinTitle': 'Join this shared trip',
+    'welcome.joinDesc':
+      'Sign in with Google so your edits sync with everyone. Guest sign-up is disabled for invite links.',
+    'welcome.joinNoGuest': 'Only Google sign-in (and future OAuth) works for shared trips.',
+
+    'joinShared.title': 'Set how others see you',
+    'joinShared.desc': 'Choose your display name for this trip. You can update bio and avatar in Profile (top right).',
+    'joinShared.displayName': 'Display name',
+    'joinShared.namePh': 'Your name on this trip',
+    'joinShared.bioOptional': 'Short bio (optional)',
+    'joinShared.bioPh': 'e.g. Love coffee & museums',
+    'joinShared.join': 'Join trip',
+
+    'sharedGuest.banner':
+      'You are browsing as a guest. Your edits are not synced to the cloud for others.',
+    'sharedGuest.googleOnly': 'Use Welcome → Sign in with Google to collaborate for real.',
+
+    'profile.title': 'My profile',
+    'profile.loading': 'Loading…',
+    'profile.email': 'Login email',
+    'profile.displayName': 'Display name',
+    'profile.bio': 'Bio',
+    'profile.bioPh': 'Tell others about yourself',
+    'profile.avatarUrl': 'Avatar image URL',
+    'profile.save': 'Save',
+    'profile.saving': 'Saving…',
+    'profile.saved': 'Saved.',
+    'profile.error': 'Could not save.',
+
+    'tripmates.email': 'Email',
+    'tripmates.bio': 'Bio',
+    'tripmates.recentActivity': 'Recent activity',
 
     // Home
     'home.title': 'Plan your trip',
@@ -354,6 +386,36 @@ export const translations = {
     'welcome.googleNoteNoConfig': '配置 Supabase 与 Google OAuth 后可启用 Google 登录。在此之前数据仅保存在本机。',
     'welcome.googleUseName': '使用 Google 登录（未配置时请在上方填写姓名）',
     'welcome.back': '← 返回',
+    'welcome.joinTitle': '加入此共享行程',
+    'welcome.joinDesc': '请使用 Google 登录，这样你的修改才能与其他人同步。通过分享链接进入时不能使用访客注册。',
+    'welcome.joinNoGuest': '共享行程仅支持 Google（及后续其他第三方）登录。',
+
+    'joinShared.title': '设置旅伴资料',
+    'joinShared.desc': '填写在本行程中显示的名字。简介与头像可在右上角「我的资料」中修改。',
+    'joinShared.displayName': '显示名称',
+    'joinShared.namePh': '在本行程中的名字',
+    'joinShared.bioOptional': '一句话简介（选填）',
+    'joinShared.bioPh': '如：喜欢咖啡和博物馆',
+    'joinShared.join': '加入行程',
+
+    'sharedGuest.banner': '你当前为访客身份，修改不会同步到云端，其他人看不到。',
+    'sharedGuest.googleOnly': '请到欢迎页使用 Google 登录，才能真实协作。',
+
+    'profile.title': '我的资料',
+    'profile.loading': '加载中…',
+    'profile.email': '登录邮箱',
+    'profile.displayName': '显示名称',
+    'profile.bio': '自我介绍',
+    'profile.bioPh': '向大家介绍一下自己',
+    'profile.avatarUrl': '头像图片链接',
+    'profile.save': '保存',
+    'profile.saving': '保存中…',
+    'profile.saved': '已保存。',
+    'profile.error': '保存失败。',
+
+    'tripmates.email': '邮箱',
+    'tripmates.bio': '简介',
+    'tripmates.recentActivity': '近期动态',
 
     'home.title': '规划行程',
     'home.shareItinerary': '分享行程',

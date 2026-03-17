@@ -20,6 +20,8 @@ async function upsertProfile(sbUser) {
     id: sbUser.id,
     name: sbUser.user_metadata?.full_name || sbUser.user_metadata?.name || sbUser.email || null,
     email: sbUser.email || null,
+    bio: sbUser.user_metadata?.bio ?? null,
+    avatar_url: sbUser.user_metadata?.avatar_url ?? null,
     updated_at: new Date().toISOString(),
   };
   await supabase

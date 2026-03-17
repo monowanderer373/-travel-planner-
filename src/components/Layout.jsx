@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useItinerary } from '../context/ItineraryContext';
+import { useAuth } from '../context/AuthContext';
 import TopBar from './TopBar';
+import JoinSharedTripModal from './JoinSharedTripModal';
+import SharedTripGuestBanner from './SharedTripGuestBanner';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
 import SaveIndicator from './SaveIndicator';
@@ -14,8 +17,10 @@ function hasItinerary(trip) {
 
 export default function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showJoinShared, setShowJoinShared] = useState(false);
   const location = useLocation();
-  const { trip, shareSettings } = useItinerary();
+  const { user } = useAuth();
+  const { trip, shareSettings, tripmates, tripCreator } = useItinerary();
   const itineraryReady = hasItinerary(trip);
   const pathname = location.pathname || '';
   const search = location.search || '';
@@ -30,6 +35,27 @@ export default function Layout() {
   } catch {}
   const joiningSharedTrip = !!shareSettings?.tripId || hasInviteQuery || hasPendingInvite;
 
+  useEffect(() => {
+    try {
+      const j = sessionStorage.getItem('share_join_flow');
+      if (!j || shareSettings.tripId !== j || !user?.id || String(user.id).startsWith('user-')) {
+        setShowJoinShared(false);
+        return;
+      }
+      const isCreator =
+        tripCreator?.email &&
+        user?.email &&
+        String(tripCreator.email).trim().toLowerCase() === String(user.email).trim().toLowerCase();
+      const member = tripmates.some((m) => m.userId && m.userId === user.id);
+      setShowJoinShared(!isCreator && !member);
+    } catch {
+      setShowJoinShared(false);
+    }
+  }, [shareSettings.tripId, user?.id, user?.email, tripmates, tripCreator?.email]);
+
+  const isGuestOnShared =
+    !!shareSettings?.tripId && user?.id && String(user.id).startsWith('user-');
+
   // Don't redirect to /create while invite/shared-trip bootstrapping is in progress.
   if (!allowedWithoutItinerary && !itineraryReady && !joiningSharedTrip) {
     return <Navigate to="/create" replace />;
@@ -37,6 +63,8 @@ export default function Layout() {
 
   return (
     <div className="app-layout">
+      {isGuestOnShared && <SharedTripGuestBanner />}
+      {showJoinShared && <JoinSharedTripModal onDone={() => setShowJoinShared(false)} />}
       <header className="layout-topbar">
         <TopBar onMenuClick={() => setMobileMenuOpen((o) => !o)} menuOpen={mobileMenuOpen} />
       </header>

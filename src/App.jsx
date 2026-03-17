@@ -16,6 +16,7 @@ import Transport from './pages/Transport';
 import TripJournal from './pages/TripJournal';
 import Cost from './pages/Cost';
 import Settings from './pages/Settings';
+import Profile from './pages/Profile';
 import ShareView from './pages/ShareView';
 import './App.css';
 
@@ -118,6 +119,7 @@ export default function App() {
                 <Route path="journal" element={<TripJournal />} />
                 <Route path="cost" element={<Cost />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="profile" element={<Profile />} />
               </Route>
               <Route path="/share/:shareId" element={<ShareView />} />
               <Route path="/join/:joinId" element={<ShareView />} />

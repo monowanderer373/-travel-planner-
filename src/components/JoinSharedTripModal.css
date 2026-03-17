@@ -1,0 +1,45 @@
+.join-shared-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(30, 28, 35, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.join-shared-modal {
+  background: var(--bg-card);
+  border-radius: 14px;
+  padding: 1.5rem;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: var(--shadow-lg);
+}
+.join-shared-modal h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.2rem;
+}
+.join-shared-desc {
+  margin: 0 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+.join-shared-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+  font-size: 0.9rem;
+}
+.join-shared-label input,
+.join-shared-label textarea {
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  font-size: 1rem;
+}
+.join-shared-submit {
+  width: 100%;
+  margin-top: 0.5rem;
+}

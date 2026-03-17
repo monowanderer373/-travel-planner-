@@ -88,6 +88,13 @@ export default function Home() {
           ...data,
           shareSettings: { ...data.shareSettings, tripId: candidateId },
         });
+        try {
+          const cr = (data?.tripCreator?.email || '').trim().toLowerCase();
+          const ue = (user?.email || '').trim().toLowerCase();
+          if (!cr || !ue || cr !== ue) {
+            sessionStorage.setItem('share_join_flow', candidateId);
+          }
+        } catch {}
         setSearchParams((prev) => {
           const next = new URLSearchParams(prev);
           next.delete('trip');
@@ -128,6 +135,11 @@ export default function Home() {
             ...data,
             shareSettings: { ...data.shareSettings, tripId: candidateId },
           });
+          try {
+            const cr = (data?.tripCreator?.email || '').trim().toLowerCase();
+            const ue = (user?.email || '').trim().toLowerCase();
+            if (!cr || !ue || cr !== ue) sessionStorage.setItem('share_join_flow', candidateId);
+          } catch {}
           setSearchParams((prev) => {
             const next = new URLSearchParams(prev);
             next.delete('invite');

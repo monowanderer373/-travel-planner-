@@ -26,7 +26,10 @@ export default function TopBar({ onMenuClick, menuOpen }) {
         </Link>
       </div>
       <div className="topbar-actions">
-        <NavLink to="/" className={({ isActive }) => `topbar-link ${isActive ? 'topbar-link-active' : ''}`}>
+        <NavLink
+          to="/profile"
+          className={({ isActive }) => `topbar-link ${isActive ? 'topbar-link-active' : ''}`}
+        >
           {displayName}
         </NavLink>
         <NavLink

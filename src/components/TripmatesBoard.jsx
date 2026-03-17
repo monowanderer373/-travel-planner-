@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase, hasSupabase } from '../lib/supabase';
@@ -13,17 +13,40 @@ const ACTION_LABELS = {
 
 export default function TripmatesBoard() {
   const { tripCreator, tripmates, shareSettings } = useItinerary();
-  const { lang } = useLanguage();
+  const { lang, t } = useLanguage();
   const [activities, setActivities] = useState([]);
-  const [selectedName, setSelectedName] = useState(null);
+  const [selectedKey, setSelectedKey] = useState(null);
   const tripId = shareSettings?.tripId;
   const isZh = lang === 'zh-CN';
 
-  const members = [
-    ...(tripCreator?.name ? [{ name: tripCreator.name, isCreator: true }] : []),
-    ...tripmates.map((t) => ({ name: t.name, isCreator: false })),
-  ];
-  const uniqueNames = [...new Set(members.map((m) => m.name).filter(Boolean))];
+  const members = useMemo(() => {
+    const list = [];
+    if (tripCreator?.name?.trim()) {
+      list.push({
+        key: 'creator',
+        name: tripCreator.name.trim(),
+        email: (tripCreator.email || '').trim(),
+        bio: (tripCreator.bio || '').trim(),
+        avatarUrl: (tripCreator.avatarUrl || tripCreator.photoURL || '').trim(),
+        isCreator: true,
+      });
+    }
+    tripmates.forEach((tm, i) => {
+      const name = (tm.name || '').trim();
+      if (!name) return;
+      list.push({
+        key: tm.userId ? `u-${tm.userId}` : `t-${tm.id || i}`,
+        name,
+        email: (tm.email || '').trim(),
+        bio: (tm.bio || '').trim(),
+        avatarUrl: (tm.avatarUrl || '').trim(),
+        isCreator: false,
+      });
+    });
+    return list;
+  }, [tripCreator, tripmates]);
+
+  const selectedMember = selectedKey ? members.find((m) => m.key === selectedKey) : null;
 
   useEffect(() => {
     if (!tripId || !hasSupabase() || !supabase) {
@@ -64,25 +87,31 @@ export default function TripmatesBoard() {
     }
   };
 
-  const selectedActivities = selectedName ? activities.filter((a) => a.user_name === selectedName) : [];
+  const selectedActivities = selectedMember
+    ? activities.filter((a) => a.user_name === selectedMember.name)
+    : [];
 
-  if (uniqueNames.length === 0) return null;
+  if (members.length === 0) return null;
 
   return (
     <section className="section tripmates-board-section">
       <h2 className="section-title">{isZh ? '旅伴' : 'Tripmates'}</h2>
       <p className="tripmates-board-count">
-        {isZh ? `共 ${uniqueNames.length} 人` : `${uniqueNames.length} member${uniqueNames.length !== 1 ? 's' : ''}`}
+        {isZh ? `共 ${members.length} 人` : `${members.length} member${members.length !== 1 ? 's' : ''}`}
       </p>
       <ul className="tripmates-board-list">
-        {members.filter((m) => m.name).map((m, i) => (
-          <li key={m.name + i} className="tripmates-board-item">
+        {members.map((m) => (
+          <li key={m.key} className="tripmates-board-item">
             <button
               type="button"
               className="tripmates-board-member-btn"
-              onClick={() => setSelectedName(m.name)}
+              onClick={() => setSelectedKey(m.key)}
             >
-              <span className="tripmates-board-avatar">{m.name.charAt(0).toUpperCase()}</span>
+              {m.avatarUrl ? (
+                <img className="tripmates-board-avatar-img" src={m.avatarUrl} alt="" />
+              ) : (
+                <span className="tripmates-board-avatar">{m.name.charAt(0).toUpperCase()}</span>
+              )}
               <span className="tripmates-board-name">{m.name}</span>
               {m.isCreator && <span className="tripmates-board-badge">{isZh ? '创建者' : 'Creator'}</span>}
             </button>
@@ -90,17 +119,40 @@ export default function TripmatesBoard() {
         ))}
       </ul>
 
-      {selectedName && (
-        <div className="tripmates-board-backdrop" onClick={() => setSelectedName(null)}>
+      {selectedMember && (
+        <div className="tripmates-board-backdrop" onClick={() => setSelectedKey(null)}>
           <div className="tripmates-board-modal" onClick={(e) => e.stopPropagation()}>
             <div className="tripmates-board-modal-header">
-              <h3>{selectedName}</h3>
-              <button type="button" className="tripmates-board-modal-close" onClick={() => setSelectedName(null)}>
+              <div className="tripmates-board-modal-profile-row">
+                {selectedMember.avatarUrl ? (
+                  <img
+                    className="tripmates-board-modal-avatar"
+                    src={selectedMember.avatarUrl}
+                    alt=""
+                  />
+                ) : (
+                  <span className="tripmates-board-modal-avatar-fallback">
+                    {selectedMember.name.charAt(0).toUpperCase()}
+                  </span>
+                )}
+                <h3>{selectedMember.name}</h3>
+              </div>
+              <button type="button" className="tripmates-board-modal-close" onClick={() => setSelectedKey(null)}>
                 ×
               </button>
             </div>
             <div className="tripmates-board-modal-body">
-              <h4 className="tripmates-board-modal-subtitle">{isZh ? '近期动态' : 'Recent activity'}</h4>
+              {selectedMember.email && (
+                <p className="tripmates-board-modal-field">
+                  <strong>{t('tripmates.email')}</strong> {selectedMember.email}
+                </p>
+              )}
+              {selectedMember.bio && (
+                <p className="tripmates-board-modal-field tripmates-board-modal-bio">
+                  <strong>{t('tripmates.bio')}</strong> {selectedMember.bio}
+                </p>
+              )}
+              <h4 className="tripmates-board-modal-subtitle">{t('tripmates.recentActivity')}</h4>
               {selectedActivities.length === 0 ? (
                 <p className="tripmates-board-modal-empty">{isZh ? '暂无记录' : 'No activity yet.'}</p>
               ) : (

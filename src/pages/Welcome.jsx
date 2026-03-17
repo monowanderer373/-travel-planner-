@@ -16,8 +16,18 @@ export default function Welcome() {
   const [email, setEmail] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  // Persist return path so it survives OAuth redirect (Google sends user back to site root, losing state)
   const returnTo = location.state?.from || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(AUTH_RETURN_KEY) : null) || '/';
+  const mustUseGoogle =
+    hasSupabase() &&
+    (() => {
+      try {
+        if (typeof localStorage !== 'undefined') {
+          if (localStorage.getItem('pending_trip_id') || localStorage.getItem('pending_invite_token')) return true;
+        }
+      } catch {}
+      const rt = returnTo || '';
+      return rt.includes('trip=') || rt.includes('invite=') || rt.includes('share=');
+    })();
   useEffect(() => {
     if (location.state?.from) {
       sessionStorage.setItem(AUTH_RETURN_KEY, location.state.from);
@@ -65,7 +75,17 @@ export default function Welcome() {
   return (
     <div className="welcome-page">
       <div className="welcome-card">
-        {mode === 'welcome' && (
+        {mode === 'welcome' && mustUseGoogle && (
+          <>
+            <h1 className="welcome-title">{t('welcome.joinTitle')}</h1>
+            <p className="welcome-tagline">{t('welcome.joinDesc')}</p>
+            <button type="button" className="primary welcome-google-btn" onClick={handleSignInWithGoogle} disabled={googleLoading}>
+              {googleLoading ? t('welcome.googleRedirecting') : t('welcome.googleSignIn')}
+            </button>
+            <p className="welcome-google-note">{t('welcome.joinNoGuest')}</p>
+          </>
+        )}
+        {mode === 'welcome' && !mustUseGoogle && (
           <>
             <h1 className="welcome-title">{t('welcome.title')}</h1>
             <p className="welcome-tagline">{t('welcome.tagline')}</p>
@@ -90,7 +110,7 @@ export default function Welcome() {
           </>
         )}
 
-        {(mode === 'signup' || mode === 'signin') && (
+        {(mode === 'signup' || mode === 'signin') && !mustUseGoogle && (
           <>
             <h1 className="welcome-title">{mode === 'signup' ? t('welcome.signUp') : t('welcome.signIn')}</h1>
             <form onSubmit={handleSignUp} className="welcome-form">

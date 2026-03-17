@@ -74,7 +74,14 @@ export default function AddTripmateButton() {
         {t('tripmate.addBtn')}
       </button>
       {modalOpen && (
-        <div className="tripmate-modal-backdrop" onClick={() => setModalOpen(false)}>
+        <div
+          className="tripmate-modal-backdrop"
+          onClick={() => {
+            setModalOpen(false);
+            setLinkGenerated(false);
+            setCloudMsg(null);
+          }}
+        >
           <div className="tripmate-modal" onClick={(e) => e.stopPropagation()}>
             <div className="tripmate-modal-header">
               <h2>{t('tripmate.title')}</h2>
