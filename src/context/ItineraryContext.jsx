@@ -130,6 +130,9 @@ export function ItineraryProvider({ children }) {
   const sharedTripLoadedRef = useRef(false);
   /** After clearing a stale tripId, skip cloud→local replace so new local edits are not overwritten before save. */
   const orphanTripRecoveryRef = useRef(false);
+  /** Increment to pull latest personal row from cloud (e.g. after tab visible again). */
+  const [personalCloudPullKey, setPersonalCloudPullKey] = useState(0);
+  const lastHiddenAtRef = useRef(0);
 
   function isTripIdActiveInUrl(tid) {
     if (!tid || typeof window === 'undefined') return false;
@@ -443,11 +446,41 @@ export function ItineraryProvider({ children }) {
         .limit(1)
         .maybeSingle()
         .then(({ data: row }) => {
-          if (row?.data && typeof row.data === 'object') replaceItineraryState(row.data);
+          if (!row?.data || typeof row.data !== 'object') return;
+          // Old rows often still had tripId in JSON → next effect run would load shared_itineraries and overwrite this with empty/stale data (breaks phone sync).
+          const d = { ...row.data };
+          d.shareSettings = { ...(d.shareSettings && typeof d.shareSettings === 'object' ? d.shareSettings : {}), tripId: null };
+          replaceItineraryState(d);
         })
         .catch(() => {});
     }
-  }, [user?.id, shareSettings.tripId, replaceItineraryState]);
+  }, [user?.id, shareSettings.tripId, personalCloudPullKey, replaceItineraryState]);
+
+  const shareTripIdRef = useRef(shareSettings.tripId);
+  useEffect(() => {
+    shareTripIdRef.current = shareSettings.tripId;
+  }, [shareSettings.tripId]);
+
+  const wasHiddenForPullRef = useRef(false);
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const onVis = () => {
+      if (document.visibilityState === 'hidden') {
+        lastHiddenAtRef.current = Date.now();
+        wasHiddenForPullRef.current = true;
+        return;
+      }
+      if (document.visibilityState !== 'visible' || !wasHiddenForPullRef.current) return;
+      if (Date.now() - lastHiddenAtRef.current < 12000) return;
+      wasHiddenForPullRef.current = false;
+      if (!shareTripIdRef.current) {
+        supabaseLoadedRef.current = null;
+        setPersonalCloudPullKey((k) => k + 1);
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, []);
 
   // Realtime: when in a shared trip, subscribe so all participants see updates
   useEffect(() => {
@@ -512,7 +545,11 @@ export function ItineraryProvider({ children }) {
                 .limit(1)
                 .maybeSingle();
               if (selErr) throw selErr;
-              const body = { data: payload, updated_at: updatedAt };
+              const personalPayload = {
+                ...payload,
+                shareSettings: { ...shareSettings, tripId: null },
+              };
+              const body = { data: personalPayload, updated_at: updatedAt };
               if (row?.id) {
                 const { error: upErr } = await supabase.from('itineraries').update(body).eq('id', row.id);
                 if (upErr) throw upErr;

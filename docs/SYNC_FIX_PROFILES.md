@@ -16,6 +16,11 @@
 2. 手机：**同一 Google 账号**登录同一网站 → 应能加载同一行程。
 3. 与好友协作：在应用里生成 **带 `?trip=...` 的旅伴链接** → 数据会出现在 **shared_itineraries**。
 
+## 手机与电脑不同步（已修复）
+
+从 **`itineraries` 读出的 JSON** 里若仍带有旧的 **`shareSettings.tripId`**，应用会立刻再去拉 **`shared_itineraries`**，用空或旧数据**覆盖**刚加载的个人行程，手机上就像「永远不同步」。  
+修复后：个人云数据会 **强制去掉 tripId 再写入界面**，且保存到 **`itineraries` 时不再把 tripId 写进 JSON**。离开页面超过约 12 秒再回来时，会自动重新拉一次个人行程。
+
 ## 僵尸 tripId（已修复）
 
 若你曾点过「旅伴 / 生成链接」，浏览器会记住一个 `tripId`。若云端 **没有** 对应的 `shared_itineraries` 行（链接过期、删库、或从未成功写入），旧逻辑会 **既不写 shared 也不写 itineraries**，看起来像「完全不能同步」。  
