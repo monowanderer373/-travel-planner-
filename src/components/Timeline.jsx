@@ -16,6 +16,7 @@ function slotToTime(slot) {
 export default function Timeline({ day }) {
   const { updateDayTimeline, updateTimelineItem, removeFromTimeline } = useItinerary();
   const [selecting, setSelecting] = useState(null);
+  const [editingIndex, setEditingIndex] = useState(null);
 
   const timeline = day.timeline || [];
 
@@ -84,6 +85,8 @@ export default function Timeline({ day }) {
               : isTransport && item.duration
                 ? `${item.duration}h`
                 : null;
+            const mapUrl = (item.mapUrl || '').trim();
+            const isEditing = editingIndex === index;
 
             return (
               <div
@@ -102,13 +105,38 @@ export default function Timeline({ day }) {
                     </>
                   ) : (
                     <>
-                      <input
-                        type="text"
-                        className="timeline-block-name-input"
-                        value={item.name}
-                        onChange={(e) => updateTimelineItem(day.id, index, { name: e.target.value })}
-                        placeholder="Activity name"
-                      />
+                      <div className="timeline-block-name-row">
+                        {mapUrl && !isEditing ? (
+                          <a
+                            className="timeline-block-name-link"
+                            href={mapUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Open in Google Maps"
+                          >
+                            {item.name}
+                          </a>
+                        ) : (
+                          <input
+                            type="text"
+                            className="timeline-block-name-input"
+                            value={item.name}
+                            onChange={(e) => updateTimelineItem(day.id, index, { name: e.target.value })}
+                            onBlur={() => setEditingIndex(null)}
+                            placeholder="Activity name"
+                            autoFocus={isEditing}
+                          />
+                        )}
+                        <button
+                          type="button"
+                          className="timeline-block-edit"
+                          onClick={() => setEditingIndex((cur) => (cur === index ? null : index))}
+                          aria-label="Edit name"
+                          title="Edit name"
+                        >
+                          ✎
+                        </button>
+                      </div>
                       <span className="timeline-block-time">
                         {formatHour(item.startHour)} – {formatHour(item.endHour)}
                       </span>

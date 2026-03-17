@@ -123,6 +123,7 @@ export default function PlaceLinkInput() {
     addToTimeline(day.id, {
       id: `tl-${Date.now()}`,
       name: placeData.title,
+      mapUrl: placeData.embedUrl || '',
       startHour: start,
       endHour: endHour,
       duration: endHour - start,

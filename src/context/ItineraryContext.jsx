@@ -237,6 +237,8 @@ export function ItineraryProvider({ children }) {
     );
   }, []);
 
+  const norm = (s) => String(s || '').trim().toLowerCase();
+
   const addToTimeline = useCallback((dayId, item) => {
     setDays((prev) =>
       prev.map((d) =>
@@ -286,6 +288,46 @@ export function ItineraryProvider({ children }) {
       prev.map((p) => (p.id === placeId ? { ...p, ...updates } : p))
     );
   }, []);
+
+  /**
+   * Backfill mapUrl for legacy timeline items:
+   * - old items only stored `name`
+   * - saved places store `embedUrl`
+   * When names match (case-insensitive), fill `mapUrl` so the itinerary name becomes clickable.
+   */
+  useEffect(() => {
+    if (!Array.isArray(savedPlaces) || savedPlaces.length === 0) return;
+    setDays((prev) => {
+      let changed = false;
+      const placeByName = new Map();
+      for (const p of savedPlaces) {
+        const key = norm(p?.title || p?.name);
+        const url = (p?.embedUrl || '').trim();
+        if (key && url && !placeByName.has(key)) placeByName.set(key, url);
+      }
+      if (placeByName.size === 0) return prev;
+
+      const next = prev.map((day) => {
+        const tl = Array.isArray(day.timeline) ? day.timeline : [];
+        let dayChanged = false;
+        const nextTl = tl.map((item) => {
+          if (!item || typeof item !== 'object') return item;
+          if (item.type === 'transport') return item;
+          const existing = (item.mapUrl || '').trim();
+          if (existing) return item;
+          const key = norm(item.name);
+          const url = key ? placeByName.get(key) : null;
+          if (!url) return item;
+          dayChanged = true;
+          return { ...item, mapUrl: url };
+        });
+        if (!dayChanged) return day;
+        changed = true;
+        return { ...day, timeline: nextTl };
+      });
+      return changed ? next : prev;
+    });
+  }, [savedPlaces]);
 
   const setVotes = useCallback((placeId, votes) => {
     setSavedPlaces((prev) =>

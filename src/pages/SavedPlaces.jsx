@@ -107,6 +107,7 @@ export default function SavedPlaces() {
     addToTimeline(day.id, {
       id: `tl-${Date.now()}`,
       name: addModalPlace.title || 'Saved place',
+      mapUrl: addModalPlace.embedUrl || '',
       startHour: start,
       endHour: endHour,
       duration: endHour - start,
