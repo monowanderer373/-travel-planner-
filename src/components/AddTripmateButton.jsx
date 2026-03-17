@@ -24,13 +24,18 @@ export default function AddTripmateButton() {
   const [inviteEmails, setInviteEmails] = useState('');
   const [creatorName, setCreatorName] = useState(tripCreator.name || '');
   const [linkGenerated, setLinkGenerated] = useState(false);
+  const [cloudMsg, setCloudMsg] = useState(null);
 
-  const handleGenerateLink = () => {
+  const handleGenerateLink = async () => {
     setLinkGenerated(true);
+    setCloudMsg(null);
     try {
-      generateTripmateLink();
-    } catch (_) {
-      // Link box already shown; context may have set a fallback
+      const res = await generateTripmateLink();
+      if (res?.ok) setCloudMsg('ok');
+      else if (res?.error === 'no_supabase') setCloudMsg('no_keys');
+      else setCloudMsg('err');
+    } catch {
+      setCloudMsg('err');
     }
   };
 
@@ -83,6 +88,15 @@ export default function AddTripmateButton() {
                 </button>
               ) : (
                 <div className="tripmate-link-box">
+                  {cloudMsg === 'ok' && (
+                    <p className="tripmate-cloud-ok" role="status">{t('tripmate.cloudSaved')}</p>
+                  )}
+                  {cloudMsg === 'no_keys' && (
+                    <p className="tripmate-cloud-warn" role="alert">{t('tripmate.cloudNoKeys')}</p>
+                  )}
+                  {cloudMsg === 'err' && (
+                    <p className="tripmate-cloud-err" role="alert">{t('tripmate.cloudFailed')}</p>
+                  )}
                   <div className="tripmate-access-block">
                     <h3 className="tripmate-list-title">{t('tripmate.generalAccess')}</h3>
                     <div className="tripmate-access-row">

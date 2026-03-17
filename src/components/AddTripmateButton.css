@@ -36,6 +36,30 @@
   animation: slideUp 0.3s ease;
 }
 
+.tripmate-cloud-ok {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  background: rgba(46, 160, 120, 0.15);
+  color: var(--accent-secondary, #2a8f6f);
+  font-size: 0.88rem;
+}
+.tripmate-cloud-warn,
+.tripmate-cloud-err {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  font-size: 0.88rem;
+}
+.tripmate-cloud-warn {
+  background: rgba(200, 150, 60, 0.2);
+  color: #8a5a00;
+}
+.tripmate-cloud-err {
+  background: rgba(200, 80, 80, 0.15);
+  color: #a03030;
+}
+
 .tripmate-modal-header {
   display: flex;
   justify-content: space-between;

@@ -347,38 +347,54 @@ export function ItineraryProvider({ children }) {
     setTripmates((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const generateTripmateLink = useCallback(() => {
-    // Normalize existing tripId in case older data stored an invite token instead of raw id.
-    const normalizedExistingTripId = shareSettings.tripId ? (decodeInviteToken(shareSettings.tripId) || shareSettings.tripId) : null;
-    const tripId = normalizedExistingTripId || btoa(JSON.stringify({ trip: Date.now() })).slice(0, 14);
-    if (!shareSettings.tripId) setShareSettings((prev) => ({ ...prev, tripId }));
+  const generateTripmateLink = useCallback(async () => {
+    /** Row id for shared_itineraries — must match URL ?trip= exactly. Never use decodeInviteToken here:
+     * strings like eyJ0cmlwIjoxNz parse as {"trip":17 → id "17" while the link still shows wrong id → empty table / broken join. */
+    const newRowId = () => btoa(JSON.stringify({ trip: Date.now() })).slice(0, 14);
+    const ex = shareSettings.tripId;
+    const exs = ex != null ? String(ex).trim() : '';
+    const looksOpaque =
+      exs.length >= 10 &&
+      exs.length <= 24 &&
+      /[a-zA-Z]/.test(exs) &&
+      !/^\d+$/.test(exs);
+    const tripId = looksOpaque ? exs.slice(0, 14) : newRowId();
+
+    setShareSettings((prev) => ({ ...prev, tripId }));
 
     const base = getPublicBaseUrl() || getInviteBaseUrl();
-    // Notion-like stable id URL: canonical link points to trip id directly.
     const link = base ? `${base.replace(/\/$/, '')}/?trip=${encodeURIComponent(tripId)}` : `#trip-${tripId}`;
     setTripmateShareLink(link);
 
-    if (hasSupabase() && supabase) {
-      const nextShareSettings = { ...shareSettings, tripId, shareLink: shareSettings.shareLink || '', tripmateShareLink: link };
-      const payload = {
-        trip,
-        days,
-        savedPlaces,
-        savedTransports,
-        tripmates,
-        tripCreator,
-        tripMemories,
-        shareSettings: nextShareSettings,
-        tripmateShareLink: link,
-      };
-      supabase
-        .from('shared_itineraries')
-        .upsert({ id: tripId, data: payload, updated_at: new Date().toISOString() }, { onConflict: 'id' })
-        .then(() => { sharedTripLoadedRef.current = true; })
-        .catch(() => {});
+    const nextShareSettings = { ...shareSettings, tripId, shareLink: shareSettings.shareLink || '', tripmateShareLink: link };
+    const payload = {
+      trip,
+      days,
+      savedPlaces,
+      savedTransports,
+      tripmates,
+      tripCreator,
+      tripMemories,
+      shareSettings: nextShareSettings,
+      tripmateShareLink: link,
+    };
+
+    if (!hasSupabase() || !supabase) {
+      sharedTripLoadedRef.current = true;
+      return { ok: false, link, error: 'no_supabase' };
     }
-    sharedTripLoadedRef.current = true;
-    return link;
+    try {
+      const { error } = await supabase
+        .from('shared_itineraries')
+        .upsert({ id: tripId, data: payload, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+      if (error) throw error;
+      sharedTripLoadedRef.current = true;
+      return { ok: true, link };
+    } catch (e) {
+      console.error('[generateTripmateLink]', e);
+      sharedTripLoadedRef.current = true;
+      return { ok: false, link, error: e?.message || String(e) };
+    }
   }, [shareSettings, trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories]);
 
   const updateTripMemories = useCallback((text) => {

@@ -26,6 +26,11 @@
 若你曾点过「旅伴 / 生成链接」，浏览器会记住一个 `tripId`。若云端 **没有** 对应的 `shared_itineraries` 行（链接过期、删库、或从未成功写入），旧逻辑会 **既不写 shared 也不写 itineraries**，看起来像「完全不能同步」。  
 新版本会在检测到这种情况时 **自动去掉无效 tripId**，并保留你当前页面上的数据，让下一次保存写入 **`itineraries`**。
 
+## 点了「生成分享链接」但 shared_itineraries 仍是空的（已修复）
+
+旧逻辑用 `decodeInviteToken` 处理 `tripId`，会把类似 `eyJ0cmlwIjoxNz` 的片段误当成 Base64 JSON，解析成数字 id（如 `"17"`），**写入数据库的 id 与链接里 `?trip=` 不一致**，甚至写入失败，表里看起来像「从没成功过」。  
+现在：**行 id 固定为 14 位不透明字符串**（与链接完全一致），并 **await upsert**；弹窗会提示「已写入云端」或「未配置 Supabase / 写入失败」。
+
 ## 好友打开旅伴链接却是空白页（已修复）
 
 - **个人行程**在表 **`itineraries`**（按 Google 账号）。**旅伴链接**读的是 **`shared_itineraries`**，不是 `itineraries`。好友登录后若仍空白，多半是 **`shared_itineraries` 里没有对应 `trip` id 那一行**（或链接里的 id 被聊天软件截断）。
