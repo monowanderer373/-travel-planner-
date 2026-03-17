@@ -1,15 +1,19 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
-import SummaryBlock from '../components/SummaryBlock';
 import AddTripmateButton from '../components/AddTripmateButton';
 import LeaveSharedTripButton from '../components/LeaveSharedTripButton';
 import ActivityFeed from '../components/ActivityFeed';
 import TripmatesBoard from '../components/TripmatesBoard';
+import DashboardHero from '../components/DashboardHero';
+import SmartPasteBar from '../components/SmartPasteBar';
+import TodayAgendaCard from '../components/TodayAgendaCard';
+import UnplannedSavesCard from '../components/UnplannedSavesCard';
+import BudgetSnapshotCard from '../components/BudgetSnapshotCard';
+import DashboardCard from '../components/DashboardCard';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase, hasSupabase } from '../lib/supabase';
-import { getTotalTravelDays } from '../utils/time';
 import { decodeInviteToken } from '../utils/publicUrl';
 import './Home.css';
 
@@ -78,9 +82,6 @@ export default function Home() {
         if (error || !row?.data) continue;
 
         const data = row.data;
-        // Access checks are enforced at edit/save level; loading should not silently fail
-        // or users land on an empty "new trip" page.
-
         if (typeof localStorage !== 'undefined') {
           localStorage.removeItem(PENDING_TRIP_KEY);
           localStorage.removeItem(PENDING_INVITE_KEY);
@@ -112,7 +113,7 @@ export default function Home() {
     });
   }, [tripParam, user, replaceItineraryState, setActiveTripId, setSearchParams]);
 
-  // Legacy invite param ?invite=TOKEN: decode to tripId, load shared trip once, then clear URL and localStorage
+  // Legacy invite param ?invite=TOKEN
   useEffect(() => {
     if (!inviteParam || tripParam || !user || !hasSupabase() || !supabase || inviteHandledRef.current) return;
     inviteHandledRef.current = true;
@@ -150,7 +151,6 @@ export default function Home() {
           return;
         }
       }
-      // Keep invite token/query on failure so user can retry after auth/session settles.
       inviteHandledRef.current = false;
     };
 
@@ -158,12 +158,12 @@ export default function Home() {
       inviteHandledRef.current = false;
     });
   }, [inviteParam, tripParam, user, replaceItineraryState, setActiveTripId, setSearchParams]);
+
   const hasTripDetails = trip.destination?.trim() && trip.startDate && trip.endDate;
-  const totalDays = hasTripDetails ? getTotalTravelDays(trip.startDate, trip.endDate) : days.length;
 
   return (
     <div className="page home-page">
-      <header className="page-header">
+      <header className="page-header home-dashboard-header">
         <h1>{t('home.title')}</h1>
         <div className="page-header-actions">
           <AddTripmateButton />
@@ -174,24 +174,20 @@ export default function Home() {
           {t('home.validationHint')}
         </p>
       )}
-      <section className="section home-trip-summary">
-        <div className="home-trip-summary-header">
-          <h2 className="section-title">{t('home.tripDetails')}</h2>
-          <Link to="/create" className="home-edit-trip">{t('home.editTrip')}</Link>
-        </div>
-        <div className="summary-overview home-trip-overview">
-          <p><strong>{t('home.destination')}:</strong> {trip.destination || t('home.dash')}</p>
-          <p><strong>{t('home.dates')}:</strong> {trip.startDate && trip.endDate ? `${trip.startDate} – ${trip.endDate}` : t('home.dash')}</p>
-          <p><strong>{t('home.totalDays')}:</strong> {totalDays}</p>
-          {trip.locations?.length > 0 && (
-            <p><strong>{t('home.locations')}:</strong> {trip.locations.join(', ')}</p>
-          )}
-        </div>
-      </section>
-      <SummaryBlock />
-      <TripmatesBoard />
+      <DashboardHero />
+      <SmartPasteBar />
+      <div className="home-dashboard">
+        <TodayAgendaCard />
+        <UnplannedSavesCard />
+        <BudgetSnapshotCard />
+        <DashboardCard titleKey="home.tripmates.title">
+          <TripmatesBoard />
+        </DashboardCard>
+        <DashboardCard titleKey="home.activity.title" actionLabel="home.activity.viewAll" actionTo="/itinerary">
+          <ActivityFeed />
+        </DashboardCard>
+      </div>
       <LeaveSharedTripButton variant="home" />
-      <ActivityFeed />
     </div>
   );
 }

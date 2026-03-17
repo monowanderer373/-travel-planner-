@@ -1,0 +1,40 @@
+.dashboard-card {
+  background: var(--bg-card);
+  border-radius: var(--card-radius-lg, 16px);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  animation: sectionIn 0.4s ease;
+}
+
+.dashboard-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem 0.5rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.dashboard-card-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dashboard-card-action {
+  font-size: 0.9rem;
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.dashboard-card-action:hover {
+  text-decoration: underline;
+}
+
+.dashboard-card-body {
+  padding: 1rem 1.25rem 1.25rem;
+}

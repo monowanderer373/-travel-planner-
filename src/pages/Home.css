@@ -59,12 +59,30 @@
   margin-top: 0.5rem;
 }
 
-.home-page .section {
-  animation-delay: 0.05s;
+/* Dashboard grid: single column on mobile, two columns on desktop */
+.home-dashboard {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--dashboard-gap, 1.25rem);
+  margin-top: var(--dashboard-gap, 1.25rem);
 }
 
-.home-page .section:nth-child(3) { animation-delay: 0.1s; }
-.home-page .section:nth-child(4) { animation-delay: 0.15s; }
-.home-page .section:nth-child(5) { animation-delay: 0.2s; }
-.home-page .section:nth-child(6) { animation-delay: 0.25s; }
-.home-page .section:nth-child(7) { animation-delay: 0.3s; }
+@media (min-width: 720px) {
+  .home-dashboard {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.home-dashboard .dashboard-card {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Avoid duplicate titles when TripmatesBoard / ActivityFeed are wrapped in DashboardCard */
+.home-dashboard .dashboard-card-body .section-title {
+  display: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}

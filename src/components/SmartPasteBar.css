@@ -1,0 +1,34 @@
+.smart-paste-bar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+  width: 100%;
+  max-width: 560px;
+}
+
+.smart-paste-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.6rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-card);
+  font-size: 0.95rem;
+}
+
+.smart-paste-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(184, 146, 176, 0.2);
+}
+
+.smart-paste-btn {
+  flex-shrink: 0;
+  padding: 0.6rem 1.25rem;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+[data-theme="doodle"] .smart-paste-input:focus {
+  box-shadow: 0 0 0 3px rgba(200, 120, 224, 0.25);
+}

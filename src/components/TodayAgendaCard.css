@@ -1,0 +1,43 @@
+.today-agenda-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.today-agenda-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.today-agenda-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.today-agenda-item:last-child {
+  border-bottom: none;
+}
+
+.today-agenda-time {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  min-width: 5.5rem;
+}
+
+.today-agenda-name {
+  font-weight: 500;
+  color: var(--text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.today-agenda-transport .today-agenda-name {
+  color: var(--accent-secondary);
+}

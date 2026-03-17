@@ -1,0 +1,63 @@
+.unplanned-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.unplanned-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+@media (min-width: 480px) {
+  .unplanned-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.unplanned-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 10px;
+  padding: 0.5rem;
+  transition: background 0.2s;
+}
+
+.unplanned-item:hover {
+  background: var(--pastel-lavender);
+}
+
+.unplanned-thumb {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--pastel-sand);
+}
+
+.unplanned-thumb-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-primary);
+  background: var(--pastel-lavender) !important;
+}
+
+.unplanned-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}

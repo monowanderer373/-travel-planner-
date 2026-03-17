@@ -35,6 +35,11 @@
   --shadow-md: 0 4px 12px rgba(45, 42, 50, 0.08);
   --shadow-lg: 0 8px 24px rgba(45, 42, 50, 0.1);
 
+  /* Dashboard (Phase 1) */
+  --hero-gradient: linear-gradient(135deg, var(--pastel-lavender) 0%, var(--pastel-peach) 100%);
+  --card-radius-lg: 16px;
+  --dashboard-gap: 1.25rem;
+
   font-family: 'Outfit', 'DM Sans', system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -219,6 +224,8 @@ input::placeholder, textarea::placeholder {
   --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.45);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.55);
+
+  --hero-gradient: linear-gradient(135deg, rgba(100, 80, 160, 0.4) 0%, rgba(140, 80, 180, 0.35) 100%);
 
   color: var(--text-primary);
   background-color: var(--bg-main);

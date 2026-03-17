@@ -1,0 +1,22 @@
+.budget-snapshot-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.budget-snapshot-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.budget-snapshot-total {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.budget-snapshot-count {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
