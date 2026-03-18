@@ -4,6 +4,13 @@
   font-size: 0.95rem;
 }
 
+[data-theme="voyage-light"] .itinerary-page .page-header,
+[data-theme="voyage-dark"] .itinerary-page .page-header,
+[data-theme="voyage-light"] .itinerary-page .page-intro,
+[data-theme="voyage-dark"] .itinerary-page .page-intro {
+  display: none;
+}
+
 .itinerary-page .day-panel {
   max-width: 100%;
 }

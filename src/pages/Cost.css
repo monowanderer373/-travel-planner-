@@ -72,6 +72,21 @@
   padding: 0.2rem 0.3rem;
 }
 
+.person-name-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  font-weight: 600;
+  padding: 0.2rem 0.3rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.person-name-btn:hover {
+  text-decoration: underline;
+}
+
 .person-name-input:focus {
   border-bottom: 1px solid var(--accent-primary);
   box-shadow: none;
@@ -425,6 +440,59 @@
   font-weight: 500;
 }
 
+.ef-split-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.ef-split-mode {
+  display: inline-flex;
+  gap: 0.4rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  padding: 0.2rem;
+}
+
+.ef-split-mode button {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.86rem;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ef-split-mode .toggle-active {
+  background: var(--pastel-lavender);
+  border: 1px solid var(--accent-primary);
+  color: var(--accent-primary);
+  font-weight: 700;
+}
+
+.itemized-remaining {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  margin: 0.15rem 0 0.6rem;
+}
+
+.traveller-payment-save {
+  margin-left: auto;
+  font-size: 0.82rem;
+  padding: 0.35rem 0.65rem;
+  background: var(--pastel-mint);
+  border-color: var(--accent-secondary);
+  color: var(--accent-secondary);
+  font-weight: 600;
+}
+
+.traveller-payment-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Rate section */
 .ef-rate-field {
   flex: 2;
@@ -436,6 +504,120 @@
   align-items: center;
   gap: 0.6rem;
   flex-wrap: wrap;
+}
+
+.rate-manual input {
+  width: 140px;
+  font-size: 0.88rem;
+}
+
+.itemized-box {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-soft);
+  background: rgba(141, 125, 246, 0.06);
+}
+
+.itemized-tax-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 0.6rem;
+}
+
+.itemized-tax-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.itemized-tax-row input {
+  width: 120px;
+}
+
+.itemized-tax-total {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  margin-left: auto;
+}
+
+.itemized-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+.itemized-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 0.8fr;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.itemized-sub {
+  grid-column: 2 / 4;
+  margin-top: -0.15rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.itemized-mode-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.itemized-mode-label {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.itemized-mode-toggle {
+  display: inline-flex;
+  gap: 0.4rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  padding: 0.2rem;
+}
+
+.itemized-mode-toggle button {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.86rem;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.itemized-mode-toggle .toggle-active {
+  background: var(--pastel-lavender);
+  border: 1px solid var(--accent-primary);
+  color: var(--accent-primary);
+  font-weight: 700;
+}
+
+.itemized-name {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.itemized-total {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.itemized-hint {
+  margin-top: 0.6rem;
 }
 
 .rate-fetch-btn {
@@ -787,6 +969,21 @@
   border: 1px solid var(--border-soft);
   transition: background 0.2s;
   min-height: 40px;
+}
+
+.itemized-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.itemized-inline input {
+  width: 120px;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.5rem;
 }
 
 .split-row-open {

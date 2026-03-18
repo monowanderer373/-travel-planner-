@@ -92,6 +92,41 @@
   word-break: break-word;
 }
 
+.tripmates-pay-card {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.75rem;
+  border: 1px solid var(--border-soft, #e5e7eb);
+  border-radius: 12px;
+  background: var(--bg, #fff);
+  margin-bottom: 0.75rem;
+}
+
+.tripmates-pay-qr img {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft, #e5e7eb);
+  background: #fff;
+}
+
+.tripmates-pay-fields .tripmates-board-modal-field {
+  margin-bottom: 0.5rem;
+}
+
+@media (max-width: 520px) {
+  .tripmates-pay-card {
+    grid-template-columns: 1fr;
+  }
+  .tripmates-pay-qr img {
+    width: 140px;
+    height: 140px;
+  }
+}
+
 .tripmates-board-modal-bio {
   white-space: pre-wrap;
 }

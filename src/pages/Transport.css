@@ -1,3 +1,20 @@
+.transport-page .transport-section {
+  padding: 1rem 1.25rem;
+  background: var(--bg-card);
+  border-radius: var(--card-radius-lg, 16px);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--dashboard-gap, 1.25rem);
+}
+
+.transport-page .transport-section.transport-loaded {
+  background: var(--bg-card);
+}
+
+.transport-page .transport-section .section-title {
+  margin-top: 0;
+}
+
 .transport-hint {
   margin: 0 0 1rem;
   font-size: 0.88rem;
@@ -42,7 +59,7 @@
 
 .transport-embed-wrap {
   margin-bottom: 0.75rem;
-  border-radius: 10px;
+  border-radius: var(--card-radius-lg, 16px);
   overflow: hidden;
   border: 1px solid var(--border-soft);
 }
@@ -69,14 +86,20 @@
 .transport-saved-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--dashboard-gap, 1rem);
 }
 
 .transport-saved-card {
   border: 1px solid var(--border-soft);
-  border-radius: 12px;
+  border-radius: var(--card-radius-lg, 16px);
   overflow: hidden;
   background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s;
+}
+
+.transport-saved-card:hover {
+  box-shadow: var(--shadow-md);
 }
 
 .transport-saved-embed {
@@ -122,7 +145,7 @@
 
 .transport-modal {
   background: var(--bg-card);
-  border-radius: 14px;
+  border-radius: var(--card-radius-lg, 16px);
   max-width: 380px;
   width: 90%;
   box-shadow: var(--shadow-lg);
@@ -259,4 +282,70 @@
   .transport-loaded-actions button {
     width: 100%;
   }
+}
+
+/* ===== Voyage transport (Saved-style) ===== */
+[data-theme="voyage-light"] .transport-page.voyage-transport,
+[data-theme="voyage-dark"] .transport-page.voyage-transport {
+  max-width: 1200px;
+}
+
+.voyage-transport-hero .voyage-transport-hint {
+  margin: 0.65rem 0 0;
+  color: var(--text-secondary);
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.voyage-route-media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.transport-mode-row {
+  margin-bottom: 0.75rem;
+}
+
+.transport-mode-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.transport-mode-field select {
+  border-radius: 14px;
+}
+
+.transport-loaded {
+  margin-top: 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 14px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="voyage-dark"] .transport-loaded {
+  background: rgba(18, 19, 27, 0.55);
+}
+
+.transport-time-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 720px) {
+  .transport-time-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.transport-time-row {
+  display: flex;
+  gap: 0.5rem;
 }

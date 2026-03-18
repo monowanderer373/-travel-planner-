@@ -82,6 +82,8 @@ export function CostProvider({ children }) {
     accountHolder: '',
     accountNumber: '',
     notes: '',
+    saved: false,
+    savedAt: null,
   });
 
   const addPerson = useCallback((name) => {
@@ -180,8 +182,9 @@ export function CostProvider({ children }) {
         if (!debts[split.personId]) debts[split.personId] = {};
         if (!debts[split.personId][payer]) debts[split.personId][payer] = {};
         const cur = split.repayCurrency || expense.paidCurrency;
-        debts[split.personId][payer][cur] =
-          (debts[split.personId][payer][cur] || 0) + (split.convertedAmount ?? split.amount);
+        const add = split.convertedAmount ?? split.amount;
+        if (add == null || Number.isNaN(add)) continue;
+        debts[split.personId][payer][cur] = (debts[split.personId][payer][cur] || 0) + add;
       }
     }
     const settlements = [];
@@ -201,11 +204,13 @@ export function CostProvider({ children }) {
     for (const expense of expenses) {
       for (const split of expense.splits || []) {
         if (!split.repaid) continue;
+        const amount = split.convertedAmount ?? split.amount;
+        if (amount == null || Number.isNaN(amount)) continue;
         repaid.push({
           debtorId: split.personId,
           creditorId: expense.payerId,
           currency: split.repayCurrency || expense.paidCurrency,
-          amount: split.convertedAmount ?? split.amount,
+          amount,
           repaidDate: split.repaidDate,
           repaidAttachment: split.repaidAttachment,
           description: expense.description,

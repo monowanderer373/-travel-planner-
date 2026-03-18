@@ -1,0 +1,495 @@
+.voyage-plan {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr) 340px;
+  gap: 1.15rem;
+  align-items: start;
+}
+
+/* Medium screens: hide map, keep day rail on left */
+@media (max-width: 1100px) {
+  .voyage-plan {
+    grid-template-columns: 140px minmax(0, 1fr);
+  }
+  .voyage-plan-map {
+    display: none;
+  }
+}
+
+.voyage-plan-days {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  position: sticky;
+  top: 72px;
+  z-index: auto;
+  width: 140px;
+  flex: 0 0 140px;
+}
+
+.voyage-day-tab {
+  text-align: left;
+  padding: 0.65rem 0.7rem;
+  border-radius: 14px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: var(--shadow-sm);
+  font-weight: 800;
+  color: var(--text-secondary);
+  width: 100%;
+}
+
+[data-theme="voyage-dark"] .voyage-day-tab {
+  background: rgba(18, 19, 27, 0.82);
+}
+
+.voyage-day-tab:hover {
+  transform: none;
+  background: rgba(141, 125, 246, 0.10);
+}
+
+.voyage-day-tab-active {
+  color: var(--text-primary);
+  background: rgba(141, 125, 246, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(141, 125, 246, 0.25), var(--shadow-sm);
+}
+
+[data-theme="voyage-dark"] .voyage-day-tab-active {
+  background: rgba(158, 123, 255, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(158, 123, 255, 0.30), var(--shadow-sm);
+}
+
+.voyage-plan-main {
+  background: transparent;
+}
+
+/* Small screens: tabs move to top (horizontal) */
+@media (max-width: 860px) {
+  .voyage-plan {
+    grid-template-columns: 1fr;
+    gap: 0.9rem;
+  }
+  .voyage-plan-days {
+    position: sticky;
+    top: 56px; /* topbar height */
+    flex-direction: row;
+    gap: 0.55rem;
+    overflow-x: auto;
+    padding: 0.35rem 0.15rem;
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border-soft);
+    border-radius: 16px;
+    z-index: 20;
+    width: auto;
+    flex: 1 1 auto;
+  }
+  [data-theme="voyage-dark"] .voyage-plan-days {
+    background: rgba(18, 19, 27, 0.75);
+  }
+  .voyage-day-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    width: auto;
+  }
+}
+
+@media (max-width: 1100px) {
+  .voyage-plan-title {
+    font-size: 1.15rem;
+  }
+}
+
+.voyage-plan-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 0.85rem 0;
+}
+
+.voyage-plan-title {
+  font-size: 1.35rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.voyage-plan-tools {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.voyage-pill {
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-sm);
+  font-weight: 800;
+  color: var(--text-secondary);
+}
+
+[data-theme="voyage-dark"] .voyage-pill {
+  background: rgba(18, 19, 27, 0.55);
+}
+
+.voyage-plan-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.voyage-plan-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.voyage-plan-card {
+  text-align: left;
+  border-radius: 16px;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.70);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  position: relative;
+}
+
+[data-theme="voyage-dark"] .voyage-plan-card {
+  background: rgba(18, 19, 27, 0.65);
+}
+
+.voyage-plan-card:hover {
+  transform: none;
+  background: rgba(141, 125, 246, 0.10);
+}
+
+.voyage-plan-card-active {
+  background: rgba(141, 125, 246, 0.16);
+  border-color: rgba(141, 125, 246, 0.30);
+}
+
+[data-theme="voyage-dark"] .voyage-plan-card-active {
+  background: rgba(158, 123, 255, 0.22);
+  border-color: rgba(158, 123, 255, 0.35);
+}
+
+.voyage-plan-card-transport {
+  background: rgba(43, 212, 179, 0.10);
+}
+
+.voyage-plan-card-transport:hover {
+  background: rgba(43, 212, 179, 0.14);
+}
+
+.voyage-plan-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.voyage-plan-time {
+  font-size: 0.78rem;
+  font-weight: 900;
+  color: var(--text-secondary);
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(141, 125, 246, 0.10);
+  border: 1px solid rgba(141, 125, 246, 0.18);
+}
+
+.voyage-source-badge {
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: var(--text-secondary);
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--border-soft);
+}
+
+[data-theme="voyage-dark"] .voyage-source-badge {
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.voyage-source-badge-maps {
+  box-shadow: inset 0 0 0 1px rgba(141, 125, 246, 0.18);
+}
+
+.voyage-source-badge-link {
+  opacity: 0.9;
+}
+
+.voyage-plan-card-mid {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.voyage-plan-card-actions {
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.55rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.voyage-icon-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+[data-theme="voyage-dark"] .voyage-icon-btn {
+  background: rgba(18, 19, 27, 0.55);
+}
+
+.voyage-drag-hint {
+  color: var(--text-muted);
+  font-weight: 900;
+  letter-spacing: -0.08em;
+}
+
+.voyage-time-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.voyage-time-modal {
+  width: min(420px, 92vw);
+  border-radius: 18px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-main);
+  box-shadow: var(--shadow-lg);
+  padding: 1rem 1.1rem;
+}
+
+.voyage-time-title {
+  font-weight: 950;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+}
+
+.voyage-time-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.voyage-time-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 850;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.voyage-time-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+}
+
+.voyage-plan-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-theme="voyage-dark"] .voyage-plan-thumb {
+  background: rgba(18, 19, 27, 0.55);
+}
+
+.voyage-plan-thumb-img {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  display: block;
+}
+
+.voyage-plan-thumb-fallback {
+  font-weight: 950;
+  color: var(--accent-primary);
+}
+
+.voyage-plan-text {
+  min-width: 0;
+}
+
+.voyage-plan-name {
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.voyage-plan-sub {
+  margin-top: 0.2rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+  opacity: 0.78;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voyage-plan-x {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--text-muted);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="voyage-dark"] .voyage-plan-x {
+  background: rgba(18, 19, 27, 0.55);
+}
+
+.voyage-plan-x:hover {
+  background: rgba(255, 179, 179, 0.18);
+  color: var(--text-primary);
+  transform: none;
+}
+
+.voyage-plan-map {
+  position: sticky;
+  top: 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.voyage-map-frame {
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: var(--shadow-sm);
+  height: 260px;
+}
+
+[data-theme="voyage-dark"] .voyage-map-frame {
+  background: rgba(18, 19, 27, 0.55);
+}
+
+.voyage-map-iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.voyage-map-placeholder {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.voyage-map-placeholder-pin {
+  font-size: 1.5rem;
+}
+
+.voyage-map-details {
+  border-radius: 18px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: var(--shadow-sm);
+  padding: 0.85rem 0.95rem;
+}
+
+[data-theme="voyage-dark"] .voyage-map-details {
+  background: rgba(18, 19, 27, 0.55);
+}
+
+.voyage-map-details-title {
+  font-weight: 900;
+  color: var(--text-primary);
+  margin-bottom: 0.35rem;
+}
+
+.voyage-map-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  font-weight: 900;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: rgba(141, 125, 246, 0.10);
+  border: 1px solid rgba(141, 125, 246, 0.16);
+  margin-bottom: 0.55rem;
+}
+
+.voyage-map-details-desc {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.voyage-map-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  padding: 0.55rem 0.85rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-soft));
+  color: #fff;
+  font-weight: 900;
+}
+
+.voyage-map-btn:hover {
+  filter: brightness(1.05);
+  color: #fff;
+}
+
+.voyage-empty {
+  border-radius: 18px;
+  border: 1px dashed rgba(141, 125, 246, 0.35);
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.45);
+  color: var(--text-secondary);
+}
+
+[data-theme="voyage-dark"] .voyage-empty {
+  background: rgba(18, 19, 27, 0.45);
+}
+

@@ -20,3 +20,18 @@
   font-size: 0.85rem;
   color: var(--text-muted);
 }
+
+/* ===== Voyage: bigger total + muted caption ===== */
+[data-theme="voyage-light"] .budget-snapshot-total,
+[data-theme="voyage-dark"] .budget-snapshot-total {
+  font-size: 1.55rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+[data-theme="voyage-light"] .budget-snapshot-count,
+[data-theme="voyage-dark"] .budget-snapshot-count {
+  font-weight: 700;
+  color: var(--text-secondary);
+  opacity: 0.75;
+}

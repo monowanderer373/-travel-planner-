@@ -63,3 +63,59 @@
   white-space: nowrap;
   max-width: 100%;
 }
+
+/* ===== Voyage: horizontal carousel like mock ===== */
+[data-theme="voyage-light"] .unplanned-grid,
+[data-theme="voyage-dark"] .unplanned-grid {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+[data-theme="voyage-light"] .unplanned-grid::-webkit-scrollbar,
+[data-theme="voyage-dark"] .unplanned-grid::-webkit-scrollbar {
+  height: 8px;
+}
+
+[data-theme="voyage-light"] .unplanned-grid::-webkit-scrollbar-thumb,
+[data-theme="voyage-dark"] .unplanned-grid::-webkit-scrollbar-thumb {
+  background: rgba(120, 110, 200, 0.18);
+  border-radius: 999px;
+}
+
+[data-theme="voyage-light"] .unplanned-item,
+[data-theme="voyage-dark"] .unplanned-item {
+  flex: 0 0 148px;
+  scroll-snap-align: start;
+  align-items: flex-start;
+  padding: 0.6rem;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="voyage-dark"] .unplanned-item {
+  background: rgba(18, 19, 27, 0.55);
+}
+
+[data-theme="voyage-light"] .unplanned-item:hover,
+[data-theme="voyage-dark"] .unplanned-item:hover {
+  background: rgba(141, 125, 246, 0.10);
+}
+
+[data-theme="voyage-light"] .unplanned-thumb,
+[data-theme="voyage-dark"] .unplanned-thumb {
+  aspect-ratio: 4 / 3;
+  border-radius: 12px;
+}
+
+[data-theme="voyage-light"] .unplanned-label,
+[data-theme="voyage-dark"] .unplanned-label {
+  text-align: left;
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: var(--text-primary);
+}

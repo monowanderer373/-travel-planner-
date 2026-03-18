@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
+import { formatHour } from '../utils/time';
 import PlaceCard from '../components/PlaceCard';
 import PlaceLinkInput from '../components/PlaceLinkInput';
 import VotingUI from '../components/VotingUI';
@@ -78,7 +80,9 @@ const HOURS = Array.from({ length: 16 }, (_, i) => i + 8); // 8–23
 export default function SavedPlaces() {
   const { t } = useLanguage();
   const location = useLocation();
-  const { savedPlaces, removeSavedPlace, setVotes, updateSavedPlace, days, addToTimeline } = useItinerary();
+  const { themeId } = useTheme();
+  const isVoyage = themeId === 'voyage-light' || themeId === 'voyage-dark';
+  const { savedPlaces, removeSavedPlace, setVotes, updateSavedPlace, addSavedPlace, days, addToTimeline } = useItinerary();
   const maxVotes = savedPlaces.length ? Math.max(...savedPlaces.map((p) => p.votes || 0)) : 0;
 
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -90,28 +94,129 @@ export default function SavedPlaces() {
   const [addEndHour, setAddEndHour] = useState(11);
 
   const pasteUrl = location.state?.pasteUrl || '';
+  const [importOpen, setImportOpen] = useState(false);
+  const [quickPaste, setQuickPaste] = useState(pasteUrl || '');
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all'); // all | food | cafe | museums | shopping | maps | instagram | xhs | blog | link
+  const [collectionFilter, setCollectionFilter] = useState(''); // exact match (case-insensitive)
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [bulkDayId, setBulkDayId] = useState('');
+  const [bulkStart, setBulkStart] = useState(9);
+  const [bulkCollection, setBulkCollection] = useState('');
 
-  const handleOpenAddModal = (place) => {
+  useEffect(() => {
+    if (!isVoyage) return;
+    if (pasteUrl && String(pasteUrl).trim()) {
+      setImportOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const getSource = (place) => {
+    const raw = String(place?.embedUrl || '').trim();
+    if (!raw) return { key: 'link', label: 'Link' };
+    let host = '';
+    try {
+      host = new URL(raw).hostname.toLowerCase();
+    } catch {
+      host = raw.toLowerCase();
+    }
+    const isMaps =
+      host.includes('google.') ||
+      host.includes('g.co') ||
+      host.includes('goo.gl') ||
+      host.includes('maps') ||
+      raw.toLowerCase().includes('maps');
+    if (isMaps) return { key: 'maps', label: 'Google Maps' };
+    if (host.includes('instagram.com')) return { key: 'instagram', label: 'Instagram' };
+    if (host.includes('xiaohongshu.com') || host.includes('xhslink.com')) return { key: 'xhs', label: '小红书' };
+    if (host.includes('notion.so') || host.includes('medium.com') || host.includes('substack.com'))
+      return { key: 'blog', label: 'Blog' };
+    return { key: 'link', label: 'Link' };
+  };
+
+  const norm = (s) => String(s || '').trim().toLowerCase();
+
+  const filteredPlaces = useMemo(() => {
+    const q = norm(search);
+    const matchesText = (p) => {
+      if (!q) return true;
+      return (
+        norm(p?.title).includes(q) ||
+        norm(p?.name).includes(q) ||
+        norm(p?.category).includes(q) ||
+        norm(p?.extraNote).includes(q)
+      );
+    };
+    const matchesFilter = (p) => {
+      if (filter === 'all') return true;
+      const src = getSource(p).key;
+      if (['maps', 'instagram', 'xhs', 'blog', 'link'].includes(filter)) return src === filter;
+      const cat = norm(p?.category);
+      if (filter === 'food') return cat.includes('food') || cat.includes('restaurant');
+      if (filter === 'cafe') return cat.includes('cafe') || cat.includes('coffee');
+      if (filter === 'museums') return cat.includes('museum') || cat.includes('culture');
+      if (filter === 'shopping') return cat.includes('shop') || cat.includes('shopping');
+      return true;
+    };
+    const matchesCollection = (p) => {
+      if (!collectionFilter) return true;
+      return norm(p?.collection) === norm(collectionFilter);
+    };
+    return (savedPlaces || []).filter((p) => matchesText(p) && matchesFilter(p) && matchesCollection(p));
+  }, [savedPlaces, search, filter, collectionFilter]);
+
+  const collections = useMemo(() => {
+    const set = new Set();
+    (savedPlaces || []).forEach((p) => {
+      const c = String(p?.collection || '').trim();
+      if (c) set.add(c);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [savedPlaces]);
+
+  const openPlanModal = (place, dayIdx = 0) => {
     if (!place || !days.length) return;
     setAddModalPlace(place);
-    setAddDayId(days[0]?.id || '');
-    setAddDayIndex(0);
+    const idx = Math.max(0, Math.min(dayIdx, days.length - 1));
+    setAddDayId(days[idx]?.id || days[0]?.id || '');
+    setAddDayIndex(idx);
     setAddStartHour(9);
     setAddEndHour(11);
     setAddModalOpen(true);
   };
 
+  const toggleSelected = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const allFilteredSelected = filteredPlaces.length > 0 && filteredPlaces.every((p) => selectedIds.has(p.id));
+
+  const TIME_OPTS = useMemo(() => {
+    const out = [];
+    for (let h = 8; h <= 23; h += 0.5) out.push(h);
+    return out;
+  }, []);
+
   const handleConfirmAddToTimeline = () => {
     if (!addModalPlace) return;
     const day = resolveDayForTimelineAdd(days, addDayId, addDayIndex);
     if (!day?.id) return;
+    const src = getSource(addModalPlace).key;
     const start = addTimeMode === 'specific' ? addStartHour : addStartHour;
     const end = addTimeMode === 'specific' ? addStartHour + 1 : Math.max(addStartHour + 1, addEndHour);
     const endHour = Math.min(23, end);
     addToTimeline(day.id, {
       id: `tl-${Date.now()}`,
       name: addModalPlace.title || 'Saved place',
-      mapUrl: addModalPlace.embedUrl || '',
+      mapUrl: src === 'maps' ? (addModalPlace.embedUrl || '') : '',
       startHour: start,
       endHour: endHour,
       duration: endHour - start,
@@ -120,6 +225,313 @@ export default function SavedPlaces() {
     setAddModalOpen(false);
     setAddModalPlace(null);
   };
+
+  if (isVoyage) {
+    return (
+      <div className="page saved-places-page voyage-saved">
+        <header className="voyage-saved-hero">
+          <div className="voyage-saved-hero-bg" aria-hidden="true" />
+          <div className="voyage-saved-hero-content">
+            <div className="voyage-saved-title">Explore & Discover</div>
+            <form
+              className="voyage-saved-paste"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const url = (quickPaste || '').trim();
+                if (!url) return;
+                setImportOpen(true);
+              }}
+            >
+              <input
+                type="url"
+                value={quickPaste}
+                onChange={(e) => setQuickPaste(e.target.value)}
+                placeholder="Paste a link from Google Maps / Instagram / 小红书 / Blog"
+                className="voyage-saved-paste-input"
+              />
+              <button type="submit" className="primary voyage-saved-paste-btn">
+                Add
+              </button>
+            </form>
+            <div className="voyage-saved-search-row">
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="voyage-saved-search"
+                placeholder="Search saved items…"
+              />
+              <select className="voyage-saved-filter" value={filter} onChange={(e) => setFilter(e.target.value)}>
+                <option value="all">All</option>
+                <option value="maps">Google Maps</option>
+                <option value="instagram">Instagram</option>
+                <option value="xhs">小红书</option>
+                <option value="blog">Blog</option>
+                <option value="link">Link</option>
+              </select>
+              <select
+                className="voyage-saved-filter"
+                value={collectionFilter}
+                onChange={(e) => setCollectionFilter(e.target.value)}
+                title="Collection"
+              >
+                <option value="">All collections</option>
+                {collections.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div className="voyage-saved-chips">
+              <button type="button" className={`voyage-chip ${filter === 'all' ? 'voyage-chip-active' : ''}`} onClick={() => setFilter('all')}>All</button>
+              <button type="button" className={`voyage-chip ${filter === 'food' ? 'voyage-chip-active' : ''}`} onClick={() => setFilter('food')}>Food</button>
+              <button type="button" className={`voyage-chip ${filter === 'cafe' ? 'voyage-chip-active' : ''}`} onClick={() => setFilter('cafe')}>Cafe</button>
+              <button type="button" className={`voyage-chip ${filter === 'museums' ? 'voyage-chip-active' : ''}`} onClick={() => setFilter('museums')}>Museums</button>
+              <button type="button" className={`voyage-chip ${filter === 'shopping' ? 'voyage-chip-active' : ''}`} onClick={() => setFilter('shopping')}>Shopping</button>
+            </div>
+          </div>
+        </header>
+
+        {selectedIds.size > 0 && (
+          <div className="voyage-bulkbar">
+            <div className="voyage-bulkbar-left">
+              <strong>{selectedIds.size}</strong> selected
+              <button type="button" className="voyage-bulk-link" onClick={clearSelection}>Clear</button>
+              <button
+                type="button"
+                className="voyage-bulk-link"
+                onClick={() => {
+                  if (allFilteredSelected) clearSelection();
+                  else setSelectedIds(new Set(filteredPlaces.map((p) => p.id)));
+                }}
+              >
+                {allFilteredSelected ? 'Unselect all' : 'Select all (filtered)'}
+              </button>
+            </div>
+            <div className="voyage-bulkbar-right">
+              <select className="voyage-bulk-select" value={bulkDayId} onChange={(e) => setBulkDayId(e.target.value)}>
+                <option value="">Add to day…</option>
+                {days.map((d) => (
+                  <option key={d.id} value={d.id}>{d.label}</option>
+                ))}
+              </select>
+              <select className="voyage-bulk-select" value={bulkStart} onChange={(e) => setBulkStart(Number(e.target.value))}>
+                {TIME_OPTS.map((h) => (
+                  <option key={h} value={h}>{formatHour(h)}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="voyage-bulk-btn"
+                disabled={!bulkDayId}
+                onClick={() => {
+                  const day = days.find((d) => d.id === bulkDayId) || days[0];
+                  if (!day) return;
+                  const picks = filteredPlaces.filter((p) => selectedIds.has(p.id));
+                  let cursor = bulkStart;
+                  picks.forEach((p) => {
+                    const src = getSource(p).key;
+                    const start = Math.min(23, cursor);
+                    const end = Math.min(23.5, start + 1);
+                    cursor = end;
+                    addToTimeline(day.id, {
+                      id: `tl-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                      name: p.title || p.name || 'Saved item',
+                      mapUrl: src === 'maps' ? (p.embedUrl || '') : '',
+                      startHour: start,
+                      endHour: end,
+                      duration: end - start,
+                      notes: p.extraNote || '',
+                    });
+                  });
+                  clearSelection();
+                }}
+              >
+                Add
+              </button>
+
+              <select className="voyage-bulk-select" value={bulkCollection} onChange={(e) => setBulkCollection(e.target.value)}>
+                <option value="">Move to collection…</option>
+                {collections.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="voyage-bulk-btn"
+                disabled={!bulkCollection}
+                onClick={() => {
+                  const picks = filteredPlaces.filter((p) => selectedIds.has(p.id));
+                  picks.forEach((p) => updateSavedPlace(p.id, { collection: bulkCollection }));
+                  clearSelection();
+                }}
+              >
+                Move
+              </button>
+            </div>
+          </div>
+        )}
+
+        {filteredPlaces.length === 0 ? (
+          <div className="empty-state">
+            <p>{savedPlaces.length === 0 ? t('saved.empty') : 'No matches. Try a different filter or search.'}</p>
+          </div>
+        ) : (
+          <div className="voyage-board" role="list">
+            {filteredPlaces.map((place) => {
+              const title = place.title || place.name || t('saved.placeName');
+              const cover = place.photoUrl || '';
+              const src = getSource(place);
+              const votes = Number(place.votes || 0);
+              return (
+                <article key={place.id} className="voyage-card" role="listitem">
+                  <div className="voyage-card-media" style={cover ? { backgroundImage: `url(${cover})` } : undefined}>
+                    {!cover && <div className="voyage-card-media-fallback">{title.charAt(0).toUpperCase()}</div>}
+                    <span className={`voyage-badge voyage-badge-${src.key}`}>{src.label}</span>
+                    {votes > 0 && <span className="voyage-votes">▲ {votes}</span>}
+                    <label className="voyage-select">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(place.id)}
+                        onChange={() => toggleSelected(place.id)}
+                      />
+                      <span>Select</span>
+                    </label>
+                  </div>
+                  <div className="voyage-card-body">
+                    <div className="voyage-card-title">{title}</div>
+                    {place.category && <div className="voyage-card-tags"><span className="voyage-tag">{place.category}</span></div>}
+                    <div className="voyage-card-actions">
+                      <button type="button" className="voyage-btn" onClick={() => openPlanModal(place, 0)}>
+                        Plan it
+                      </button>
+                      {days?.[0] && (
+                        <button type="button" className="voyage-btn voyage-btn-mini" onClick={() => openPlanModal(place, 0)}>
+                          {days[0].label}
+                        </button>
+                      )}
+                      {days?.[1] && (
+                        <button type="button" className="voyage-btn voyage-btn-mini" onClick={() => openPlanModal(place, 1)}>
+                          {days[1].label}
+                        </button>
+                      )}
+                      {place.embedUrl && (
+                        <a className="voyage-btn voyage-btn-ghost" href={place.embedUrl} target="_blank" rel="noreferrer">
+                          Open
+                        </a>
+                      )}
+                      <button type="button" className="voyage-btn voyage-btn-danger" onClick={() => removeSavedPlace(place.id)}>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+
+        {importOpen && (
+          <div className="voyage-import-backdrop" onClick={() => setImportOpen(false)}>
+            <div className="voyage-import-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="voyage-import-header">
+                <div className="voyage-import-title">Import link</div>
+                <button type="button" className="voyage-import-close" onClick={() => setImportOpen(false)} aria-label="Close">×</button>
+              </div>
+              {getSource({ embedUrl: quickPaste }).key === 'maps' ? (
+                <PlaceLinkInput initialEmbedUrl={quickPaste} />
+              ) : (
+                <VoyageLinkImport
+                  initialUrl={quickPaste}
+                  detectSource={getSource}
+                  onSave={(payload) => {
+                    addSavedPlace(payload);
+                    setQuickPaste('');
+                    setImportOpen(false);
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {addModalOpen && addModalPlace && (
+          <div className="place-modal-backdrop" onClick={() => setAddModalOpen(false)}>
+            <div className="place-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="place-modal-header">
+                <h3>{t('saved.addToTimeline')}</h3>
+                <button type="button" className="place-modal-close" onClick={() => setAddModalOpen(false)}>×</button>
+              </div>
+              <div className="place-modal-body">
+                <label className="place-modal-field">
+                  <span>{t('saved.day')}</span>
+                  <select
+                    value={addDayId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setAddDayId(id);
+                      const i = days.findIndex((d) => d.id === id);
+                      if (i >= 0) setAddDayIndex(i);
+                    }}
+                  >
+                    {days.map((d) => (
+                      <option key={d.id} value={d.id}>{d.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <div className="place-modal-time-mode">
+                  <span>{t('saved.time')}</span>
+                  <label className="place-modal-radio">
+                    <input type="radio" checked={addTimeMode === 'specific'} onChange={() => setAddTimeMode('specific')} />
+                    {t('saved.specificHour')}
+                  </label>
+                  <label className="place-modal-radio">
+                    <input type="radio" checked={addTimeMode === 'range'} onChange={() => setAddTimeMode('range')} />
+                    {t('saved.betweenHours')}
+                  </label>
+                </div>
+                {addTimeMode === 'specific' ? (
+                  <label className="place-modal-field">
+                    <span>{t('saved.hour')}</span>
+                    <select value={addStartHour} onChange={(e) => setAddStartHour(Number(e.target.value))}>
+                      {HOURS.map((h) => (
+                        <option key={h} value={h}>{h === 12 ? '12:00' : h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`}</option>
+                      ))}
+                    </select>
+                    <span className="place-modal-time-hint">→ 1 hour slot (e.g. 9:00–10:00)</span>
+                  </label>
+                ) : (
+                  <div className="place-modal-range">
+                    <label className="place-modal-field">
+                      <span>{t('saved.start')}</span>
+                      <select value={addStartHour} onChange={(e) => { const v = Number(e.target.value); setAddStartHour(v); if (addEndHour <= v) setAddEndHour(v + 1); }}>
+                        {HOURS.map((h) => (
+                          <option key={h} value={h}>{h === 12 ? '12:00' : h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="place-modal-field">
+                      <span>{t('saved.end')}</span>
+                      <select value={addEndHour} onChange={(e) => setAddEndHour(Number(e.target.value))}>
+                        {HOURS.filter((h) => h > addStartHour).map((h) => (
+                          <option key={h} value={h}>{h === 12 ? '12:00' : h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                )}
+              </div>
+              <div className="place-modal-footer">
+                <button type="button" onClick={() => setAddModalOpen(false)}>{t('saved.cancel')}</button>
+                <button type="button" className="primary" onClick={handleConfirmAddToTimeline}>
+                  {t('saved.addToTimeline')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="page saved-places-page">
@@ -231,6 +643,92 @@ export default function SavedPlaces() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function VoyageLinkImport({ initialUrl, detectSource, onSave }) {
+  const [url, setUrl] = useState(initialUrl || '');
+  const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('');
+  const [collection, setCollection] = useState('');
+  const [coverUrl, setCoverUrl] = useState('');
+  const [note, setNote] = useState('');
+
+  useEffect(() => {
+    setUrl(initialUrl || '');
+  }, [initialUrl]);
+
+  const src = detectSource({ embedUrl: url });
+
+  const suggestTitle = () => {
+    try {
+      const u = new URL(url);
+      const host = u.hostname.replace(/^www\./, '');
+      return host ? `Link from ${host}` : 'Saved link';
+    } catch {
+      return 'Saved link';
+    }
+  };
+
+  const handleSave = () => {
+    const u = (url || '').trim();
+    if (!u) return;
+    const payload = {
+      id: `place-${Date.now()}`,
+      title: (title || '').trim() || suggestTitle(),
+      hours: '—',
+      rating: null,
+      category:
+        (category || '').trim() ||
+        (src.key === 'instagram' ? 'Instagram' : src.key === 'xhs' ? '小红书' : src.key === 'blog' ? 'Blog' : 'Link'),
+      collection: (collection || '').trim() || '',
+      photoUrl: (coverUrl || '').trim() || null,
+      reviews: [],
+      embedUrl: u,
+      extraNote: (note || '').trim(),
+    };
+    onSave?.(payload);
+  };
+
+  return (
+    <div className="voyage-link-import">
+      <div className="voyage-link-import-row">
+        <span className={`voyage-badge voyage-badge-${src.key}`}>{src.label}</span>
+      </div>
+      <label className="voyage-link-field">
+        <span>Link</span>
+        <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" />
+      </label>
+      <label className="voyage-link-field">
+        <span>Title</span>
+        <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={suggestTitle()} />
+      </label>
+      <div className="voyage-link-import-split">
+        <label className="voyage-link-field">
+          <span>Category (optional)</span>
+          <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Food / Cafe / Shopping…" />
+        </label>
+        <label className="voyage-link-field">
+          <span>Collection (optional)</span>
+          <input type="text" value={collection} onChange={(e) => setCollection(e.target.value)} placeholder="e.g. Osaka list / Food spots" />
+        </label>
+      </div>
+      <div className="voyage-link-import-split">
+        <label className="voyage-link-field">
+          <span>Cover image URL (optional)</span>
+          <input type="url" value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} placeholder="https://…" />
+        </label>
+        <label className="voyage-link-field">
+          <span>Note (optional)</span>
+          <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Why you saved this?" />
+        </label>
+      </div>
+      <div className="voyage-link-import-actions">
+        <button type="button" className="primary" onClick={handleSave}>
+          Save link
+        </button>
+      </div>
     </div>
   );
 }

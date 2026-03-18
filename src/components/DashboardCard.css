@@ -38,3 +38,42 @@
 .dashboard-card-body {
   padding: 1rem 1.25rem 1.25rem;
 }
+
+/* ===== Voyage: lighter header, glassy card ===== */
+[data-theme="voyage-light"] .dashboard-card,
+[data-theme="voyage-dark"] .dashboard-card {
+  backdrop-filter: blur(10px);
+}
+
+[data-theme="voyage-light"] .dashboard-card-header,
+[data-theme="voyage-dark"] .dashboard-card-header {
+  padding: 0.95rem 1.1rem 0.65rem;
+  border-bottom: none;
+}
+
+[data-theme="voyage-light"] .dashboard-card-title,
+[data-theme="voyage-dark"] .dashboard-card-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text-secondary);
+  text-transform: none;
+}
+
+[data-theme="voyage-light"] .dashboard-card-action,
+[data-theme="voyage-dark"] .dashboard-card-action {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+[data-theme="voyage-light"] .dashboard-card-action:hover,
+[data-theme="voyage-dark"] .dashboard-card-action:hover {
+  color: var(--accent-primary);
+  text-decoration: none;
+}
+
+[data-theme="voyage-light"] .dashboard-card-body,
+[data-theme="voyage-dark"] .dashboard-card-body {
+  padding: 0.9rem 1.1rem 1.05rem;
+}

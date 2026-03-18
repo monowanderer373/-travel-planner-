@@ -13,6 +13,7 @@ import DashboardCard from '../components/DashboardCard';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { supabase, hasSupabase } from '../lib/supabase';
 import { decodeInviteToken } from '../utils/publicUrl';
 import './Home.css';
@@ -23,6 +24,8 @@ const PENDING_TRIP_KEY = 'pending_trip_id';
 export default function Home() {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const { themeId } = useTheme();
+  const isVoyage = themeId === 'voyage-light' || themeId === 'voyage-dark';
   const [searchParams, setSearchParams] = useSearchParams();
   const { trip, days, replaceItineraryState, setActiveTripId } = useItinerary();
   const shareHandledRef = useRef(false);
@@ -175,7 +178,7 @@ export default function Home() {
         </p>
       )}
       <DashboardHero />
-      <SmartPasteBar />
+      {!isVoyage && <SmartPasteBar />}
       <div className="home-dashboard">
         <TodayAgendaCard />
         <UnplannedSavesCard />

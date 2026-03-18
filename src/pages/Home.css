@@ -3,6 +3,11 @@
   margin: 0 auto;
 }
 
+[data-theme="voyage-light"] .page,
+[data-theme="voyage-dark"] .page {
+  max-width: 1200px;
+}
+
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -10,6 +15,11 @@
   flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 1.5rem;
+}
+
+[data-theme="voyage-light"] .home-dashboard-header,
+[data-theme="voyage-dark"] .home-dashboard-header {
+  display: none;
 }
 
 .page-header h1 {

@@ -1,7 +1,9 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCost, fetchRate } from '../context/CostContext';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import ExpenseCategoryModal, { EXPENSE_CATEGORIES } from '../components/ExpenseCategoryModal';
 import './Cost.css';
 
@@ -14,12 +16,54 @@ function useSymbol(code) {
 // ─── People Manager ───────────────────────────────────────────
 function PeopleManager() {
   const { t } = useLanguage();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const { people, addPerson, updatePerson, removePerson } = useCost();
   const { tripmates, tripCreator } = useItinerary();
   const [nameInput, setNameInput] = useState('');
 
+  const creatorEmail = String(tripCreator?.email || '').trim().toLowerCase();
+  const currentEmail = String(user?.email || '').trim().toLowerCase();
+  const creatorId = String(tripCreator?.id || tripCreator?.userId || '').trim();
+  const currentId = String(user?.id || '').trim();
+  const isCreator =
+    (!!creatorId && !!currentId && creatorId === currentId) ||
+    (!!creatorEmail && !!currentEmail && creatorEmail === currentEmail);
+
+  const openMemberProfile = (name) => {
+    const n = (name || '').trim();
+    if (!n) return;
+    navigate(`/group?member=${encodeURIComponent(n)}`);
+  };
+
+  // Auto-add newly joined tripmates into Cost → Travellers (creator only).
+  useEffect(() => {
+    if (!isCreator) return;
+    const norm = (s) => String(s || '').trim().toLowerCase();
+    const existing = new Set(people.map((p) => norm(p.name)));
+    const candidates = [];
+
+    const creatorName2 = (tripCreator?.name || '').trim();
+    if (creatorName2) candidates.push(creatorName2);
+    (tripmates || []).forEach((tm) => {
+      const n = (tm?.name || '').trim();
+      if (n) candidates.push(n);
+    });
+
+    const toAdd = [];
+    for (const n of candidates) {
+      const k = norm(n);
+      if (!k || existing.has(k)) continue;
+      existing.add(k);
+      toAdd.push(n);
+    }
+
+    toAdd.forEach((n) => addPerson(n));
+  }, [isCreator, people, tripmates, tripCreator?.name, addPerson]);
+
   const handleAdd = (e) => {
     e.preventDefault();
+    if (!isCreator) return;
     const name = nameInput.trim();
     if (!name) return;
     addPerson(name);
@@ -33,14 +77,17 @@ function PeopleManager() {
   const canAddAll = people.length === 0 && (tripmatesToAdd.length > 0 || creatorNotInPeople);
 
   const addTripmatesAsTravellers = () => {
+    if (!isCreator) return;
     tripmatesToAdd.forEach((t) => addPerson(t.name));
   };
 
   const addCreatorAsTraveller = () => {
+    if (!isCreator) return;
     if (creatorName) addPerson(creatorName);
   };
 
   const addTripMatesAndCreatorAsTravellers = () => {
+    if (!isCreator) return;
     if (creatorNotInPeople && creatorName) addPerson(creatorName);
     tripmatesToAdd.forEach((t) => addPerson(t.name));
   };
@@ -50,12 +97,15 @@ function PeopleManager() {
       <h2 className="section-title">
         {t('cost.travellers')} <span className="count-badge">{people.length}</span>
       </h2>
+      {!isCreator && (
+        <p className="cost-hint">{t('cost.creatorOnlyTravellers')}</p>
+      )}
       {canAddAll && (
         <div className="cost-tripmates-row cost-prefill-banner">
           <p className="cost-hint">
             {t('cost.addTripmatesHint')}
           </p>
-          <button type="button" className="primary" onClick={addTripMatesAndCreatorAsTravellers}>
+          <button type="button" className="primary" onClick={addTripMatesAndCreatorAsTravellers} disabled={!isCreator}>
             {t('cost.addTripmatesAndCreator')}
           </button>
         </div>
@@ -65,7 +115,7 @@ function PeopleManager() {
           <p className="cost-hint">
             {t('cost.tripmatesFromTrip')} {tripmates.map((m) => m.name).join(', ')}.
           </p>
-          <button type="button" className="primary" onClick={addTripmatesAsTravellers}>
+          <button type="button" className="primary" onClick={addTripmatesAsTravellers} disabled={!isCreator}>
             {t('cost.addTripmatesAsTravellers')}
           </button>
         </div>
@@ -73,7 +123,7 @@ function PeopleManager() {
       {!canAddAll && creatorNotInPeople && (
         <div className="cost-tripmates-row">
           <p className="cost-hint">{t('cost.creatorNotInTravellers')}</p>
-          <button type="button" className="primary" onClick={addCreatorAsTraveller}>
+          <button type="button" className="primary" onClick={addCreatorAsTraveller} disabled={!isCreator}>
             {t('cost.addCreatorAsTraveller', { name: creatorName })}
           </button>
         </div>
@@ -82,17 +132,26 @@ function PeopleManager() {
         {people.map((p) => (
           <div key={p.id} className="person-chip animate-in">
             <span className="person-avatar">{p.name.charAt(0).toUpperCase()}</span>
-            <input
-              type="text"
-              value={p.name}
-              onChange={(e) => updatePerson(p.id, e.target.value)}
-              className="person-name-input"
-            />
-            <button type="button" className="person-remove" onClick={() => removePerson(p.id)}>×</button>
+            {isCreator ? (
+              <input
+                type="text"
+                value={p.name}
+                onChange={(e) => updatePerson(p.id, e.target.value)}
+                className="person-name-input"
+              />
+            ) : (
+              <button type="button" className="person-name-btn" onClick={() => openMemberProfile(p.name)}>
+                {p.name}
+              </button>
+            )}
+            {isCreator && (
+              <button type="button" className="person-remove" onClick={() => removePerson(p.id)}>×</button>
+            )}
           </div>
         ))}
       </div>
-      <form onSubmit={handleAdd} className="add-person-form">
+      {isCreator && (
+        <form onSubmit={handleAdd} className="add-person-form">
         <input
           type="text"
           placeholder={t('cost.addTravellerPlaceholder')}
@@ -101,7 +160,8 @@ function PeopleManager() {
           maxLength={30}
         />
         <button type="submit" className="primary">{t('cost.add')}</button>
-      </form>
+        </form>
+      )}
     </section>
   );
 }
@@ -119,7 +179,12 @@ function TravellerPaymentDetails() {
     accountHolder: '',
     accountNumber: '',
     notes: '',
+    saved: false,
+    savedAt: null,
   });
+
+  const unsavedPeople = people.filter((p) => !(p.paymentInfo || defaultPayment()).saved);
+  if (unsavedPeople.length === 0) return null;
 
   return (
     <section className="section cost-section">
@@ -128,13 +193,22 @@ function TravellerPaymentDetails() {
         {t('cost.paymentHint')}
       </p>
       <div className="traveller-payment-grid">
-        {people.map((p) => {
+        {unsavedPeople.map((p) => {
           const pay = p.paymentInfo || defaultPayment();
+          const canSave = !!(pay.qrCode || pay.bankName || pay.accountHolder || pay.accountNumber || pay.notes);
           return (
             <div key={p.id} className="traveller-payment-card animate-in">
               <div className="traveller-payment-header">
                 <span className="person-avatar">{p.name.charAt(0).toUpperCase()}</span>
                 <span className="traveller-payment-name">{p.name}</span>
+                <button
+                  type="button"
+                  className="traveller-payment-save"
+                  disabled={!canSave}
+                  onClick={() => updatePersonPayment(p.id, { ...(p.paymentInfo || defaultPayment()), saved: true, savedAt: new Date().toISOString() })}
+                >
+                  {t('cost.savePayment')}
+                </button>
               </div>
               <div className="traveller-payment-body">
                 <label className="payment-field">
@@ -146,7 +220,7 @@ function TravellerPaymentDetails() {
                         <button
                           type="button"
                           className="qr-remove"
-                          onClick={() => updatePersonPayment(p.id, { qrCode: null })}
+                          onClick={() => updatePersonPayment(p.id, { qrCode: null, saved: false, savedAt: null })}
                         >
                           {t('cost.remove')}
                         </button>
@@ -160,7 +234,7 @@ function TravellerPaymentDetails() {
                             const file = e.target.files?.[0];
                             if (!file) return;
                             const url = URL.createObjectURL(file);
-                            updatePersonPayment(p.id, { qrCode: url });
+                            updatePersonPayment(p.id, { qrCode: url, saved: false, savedAt: null });
                           }}
                           style={{ display: 'none' }}
                         />
@@ -175,7 +249,7 @@ function TravellerPaymentDetails() {
                     type="text"
                     placeholder="e.g. Maybank, CIMB"
                     value={pay.bankName}
-                    onChange={(e) => updatePersonPayment(p.id, { bankName: e.target.value })}
+                    onChange={(e) => updatePersonPayment(p.id, { bankName: e.target.value, saved: false, savedAt: null })}
                   />
                 </label>
                 <label className="payment-field">
@@ -184,7 +258,7 @@ function TravellerPaymentDetails() {
                     type="text"
                     placeholder={t('cost.nameOnAccount')}
                     value={pay.accountHolder}
-                    onChange={(e) => updatePersonPayment(p.id, { accountHolder: e.target.value })}
+                    onChange={(e) => updatePersonPayment(p.id, { accountHolder: e.target.value, saved: false, savedAt: null })}
                   />
                 </label>
                 <label className="payment-field">
@@ -193,7 +267,7 @@ function TravellerPaymentDetails() {
                     type="text"
                     placeholder={t('cost.accountOrCard')}
                     value={pay.accountNumber}
-                    onChange={(e) => updatePersonPayment(p.id, { accountNumber: e.target.value })}
+                    onChange={(e) => updatePersonPayment(p.id, { accountNumber: e.target.value, saved: false, savedAt: null })}
                   />
                 </label>
                 <label className="payment-field">
@@ -202,7 +276,7 @@ function TravellerPaymentDetails() {
                     type="text"
                     placeholder={t('cost.optional')}
                     value={pay.notes}
-                    onChange={(e) => updatePersonPayment(p.id, { notes: e.target.value })}
+                    onChange={(e) => updatePersonPayment(p.id, { notes: e.target.value, saved: false, savedAt: null })}
                   />
                 </label>
               </div>
@@ -233,6 +307,14 @@ function blankForm(people) {
     repayCurrency: 'MYR',
     useCustomDate: false,
     customDate: new Date().toISOString().slice(0, 10),
+    rateMode: 'auto', // 'auto' | 'manual'
+    manualRate: '',
+    splitMode: 'equal', // 'equal' | 'itemized'
+    itemizedInputMode: 'pretax', // 'pretax' | 'total'
+    itemized: {}, // { [personId]: string } base amount (pre-tax)
+    serviceTaxPct: '5',
+    salesTaxPct: '8',
+    tipsPct: '0',
     receipt: null,
   };
 }
@@ -260,6 +342,17 @@ function AddExpenseForm() {
         : [...f.splitPersonIds, id],
     }));
 
+  const totalTaxPct = useMemo(() => {
+    const s = parseFloat(form.serviceTaxPct || '0');
+    const x = parseFloat(form.salesTaxPct || '0');
+    const tip = parseFloat(form.tipsPct || '0');
+    const pct =
+      (Number.isFinite(s) ? s : 0) +
+      (Number.isFinite(x) ? x : 0) +
+      (Number.isFinite(tip) ? tip : 0);
+    return Math.max(0, pct);
+  }, [form.serviceTaxPct, form.salesTaxPct, form.tipsPct]);
+
   const getDateForDay = useCallback(() => {
     if (form.useCustomDate) return form.customDate || 'latest';
     if (!trip.startDate) return 'latest';
@@ -285,9 +378,58 @@ function AddExpenseForm() {
     if (result) {
       setCachedRate(form.paidCurrency, form.repayCurrency, date, result);
       setRateInfo(result);
+      set('rateMode', 'auto');
     } else {
       setRateError(t('cost.rateError'));
     }
+  };
+
+  const effectiveRate = useMemo(() => {
+    if (form.paidCurrency === form.repayCurrency) return 1;
+    if (form.rateMode === 'manual') {
+      const v = parseFloat(form.manualRate || '');
+      return Number.isFinite(v) && v > 0 ? v : null;
+    }
+    return rateInfo?.rate ?? null;
+  }, [form.paidCurrency, form.repayCurrency, form.rateMode, form.manualRate, rateInfo]);
+
+  const setItemized = (personId, val) =>
+    setForm((f) => ({ ...f, itemized: { ...(f.itemized || {}), [personId]: val } }));
+
+  const calcItemizedSplits = (amt, rate) => {
+    const selected = form.splitPersonIds;
+    const pct = totalTaxPct / 100;
+    return selected.map((pid) => {
+      const rawStr = (form.itemized || {})[pid];
+      const raw = rawStr != null && rawStr !== '' ? parseFloat(rawStr) : null;
+      const valid = raw != null && Number.isFinite(raw);
+      const base =
+        valid
+          ? (form.itemizedInputMode === 'total'
+              ? parseFloat((raw / (1 + pct)).toFixed(4))
+              : raw)
+          : null;
+      const taxAmount = base != null ? parseFloat((base * pct).toFixed(4)) : null;
+      const total =
+        base != null
+          ? parseFloat((base + (taxAmount || 0)).toFixed(4))
+          : null;
+      return {
+        personId: pid,
+        baseAmount: base != null && Number.isFinite(base) ? base : null,
+        taxAmount,
+        amount: total,
+        repayCurrency: form.repayCurrency,
+        convertedAmount: rate && total != null ? parseFloat((total * rate).toFixed(4)) : null,
+        rate,
+        rateSource: form.rateMode === 'manual' ? 'manual' : (rateInfo?.source || null),
+        rateDate: form.rateMode === 'manual' ? getDateForDay() : (rateInfo?.date || null),
+        repaid: false,
+        repaidAt: null,
+        repaidDate: null,
+        repaidAttachment: null,
+      };
+    });
   };
 
   const handleReceiptChange = (e) => {
@@ -299,10 +441,6 @@ function AddExpenseForm() {
   const handleSubmit = (e) => {
     e.preventDefault();
     setFormError('');
-    if (!form.description?.trim()) {
-      setFormError(t('cost.enterDescription'));
-      return;
-    }
     if (!form.amount || parseFloat(form.amount) <= 0) {
       setFormError(t('cost.enterValidAmount'));
       return;
@@ -317,22 +455,33 @@ function AddExpenseForm() {
     }
 
     const amt = parseFloat(form.amount);
-    const rate = rateInfo?.rate ?? null;
-    const perPerson = amt / form.splitPersonIds.length;
-
-    const splits = form.splitPersonIds.map((pid) => ({
-      personId: pid,
-      amount: perPerson,
-      repayCurrency: form.repayCurrency,
-      convertedAmount: rate ? parseFloat((perPerson * rate).toFixed(4)) : null,
-      rate,
-      rateSource: rateInfo?.source || null,
-      rateDate: rateInfo?.date || null,
-      repaid: false,
-      repaidAt: null,
-      repaidDate: null,
-      repaidAttachment: null,
-    }));
+    const rate = effectiveRate;
+    let splits = [];
+    if (form.splitMode === 'itemized') {
+      // Require payer to at least fill their own base amount (others can be blank).
+      const payerStr = (form.itemized || {})[form.payerId];
+      const payerVal = payerStr != null && payerStr !== '' ? parseFloat(payerStr) : null;
+      if (!(payerVal != null && Number.isFinite(payerVal) && payerVal >= 0)) {
+        setFormError(t('cost.itemizedNeedPayer'));
+        return;
+      }
+      splits = calcItemizedSplits(amt, rate);
+    } else {
+      const perPerson = amt / form.splitPersonIds.length;
+      splits = form.splitPersonIds.map((pid) => ({
+        personId: pid,
+        amount: perPerson,
+        repayCurrency: form.repayCurrency,
+        convertedAmount: rate ? parseFloat((perPerson * rate).toFixed(4)) : null,
+        rate,
+        rateSource: form.rateMode === 'manual' ? 'manual' : (rateInfo?.source || null),
+        rateDate: form.rateMode === 'manual' ? getDateForDay() : (rateInfo?.date || null),
+        repaid: false,
+        repaidAt: null,
+        repaidDate: null,
+        repaidAttachment: null,
+      }));
+    }
 
     addExpense({
       category: form.category,
@@ -345,6 +494,13 @@ function AddExpenseForm() {
       repayCurrency: form.repayCurrency,
       splits,
       date: getDateForDay(),
+      customDateUsed: !!form.useCustomDate,
+      splitMode: form.splitMode,
+      itemizedInputMode: form.splitMode === 'itemized' ? form.itemizedInputMode : null,
+      serviceTaxPct: form.splitMode === 'itemized' ? parseFloat(form.serviceTaxPct || '0') : null,
+      salesTaxPct: form.splitMode === 'itemized' ? parseFloat(form.salesTaxPct || '0') : null,
+      tipsPct: form.splitMode === 'itemized' ? parseFloat(form.tipsPct || '0') : null,
+      taxPctTotal: form.splitMode === 'itemized' ? totalTaxPct : null,
       receipt: form.receipt,
     });
 
@@ -475,7 +631,25 @@ function AddExpenseForm() {
 
         {/* Split among */}
         <div className="ef-row ef-row-col">
-          <span className="ef-label">{t('cost.splitAmong')}</span>
+          <div className="ef-split-head">
+            <span className="ef-label">{t('cost.splitAmong')}</span>
+            <div className="ef-split-mode">
+              <button
+                type="button"
+                className={form.splitMode === 'equal' ? 'toggle-active' : ''}
+                onClick={() => set('splitMode', 'equal')}
+              >
+                {t('cost.splitEqual')}
+              </button>
+              <button
+                type="button"
+                className={form.splitMode === 'itemized' ? 'toggle-active' : ''}
+                onClick={() => set('splitMode', 'itemized')}
+              >
+                {t('cost.splitItemized')}
+              </button>
+            </div>
+          </div>
           <div className="split-people">
             {people.map((p) => (
               <label key={p.id} className={`split-chip ${form.splitPersonIds.includes(p.id) ? 'split-chip-active' : ''}`}>
@@ -485,10 +659,132 @@ function AddExpenseForm() {
               </label>
             ))}
           </div>
-          {form.splitPersonIds.length > 0 && form.amount && (
+          {form.splitMode === 'equal' && form.splitPersonIds.length > 0 && form.amount && (
             <p className="split-preview">
               {paidSym}{(parseFloat(form.amount || 0) / form.splitPersonIds.length).toFixed(2)} {t('cost.perPerson')}
             </p>
+          )}
+          {form.splitMode === 'itemized' && form.splitPersonIds.length > 0 && (
+            <div className="itemized-box animate-in">
+              <div className="itemized-mode-row">
+                <span className="itemized-mode-label">{t('cost.itemizedMode')}</span>
+                <div className="itemized-mode-toggle">
+                  <button
+                    type="button"
+                    className={form.itemizedInputMode === 'pretax' ? 'toggle-active' : ''}
+                    onClick={() => set('itemizedInputMode', 'pretax')}
+                  >
+                    {t('cost.modePreTax')}
+                  </button>
+                  <button
+                    type="button"
+                    className={form.itemizedInputMode === 'total' ? 'toggle-active' : ''}
+                    onClick={() => set('itemizedInputMode', 'total')}
+                  >
+                    {t('cost.modeAfterTax')}
+                  </button>
+                </div>
+              </div>
+              <div className="itemized-tax-row">
+                <label>
+                  <span>{t('cost.serviceTax')}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={form.serviceTaxPct}
+                    onChange={(e) => set('serviceTaxPct', e.target.value)}
+                  />
+                </label>
+                <label>
+                  <span>{t('cost.salesTax')}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={form.salesTaxPct}
+                    onChange={(e) => set('salesTaxPct', e.target.value)}
+                  />
+                </label>
+                <label>
+                  <span>{t('cost.tips')}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={form.tipsPct}
+                    onChange={(e) => set('tipsPct', e.target.value)}
+                  />
+                </label>
+                <span className="itemized-tax-total">
+                  {t('cost.taxTotal', { pct: totalTaxPct.toFixed(0) })}
+                </span>
+              </div>
+              <div className="itemized-remaining">
+                {(() => {
+                  const pct = totalTaxPct / 100;
+                  const totalAmt = parseFloat(form.amount || 0);
+                  const baseTotal = pct > 0 ? parseFloat((totalAmt / (1 + pct)).toFixed(2)) : parseFloat(totalAmt.toFixed(2));
+                  const targetTotal = parseFloat(totalAmt.toFixed(2));
+                  const sumRaw = form.splitPersonIds.reduce((s, pid) => {
+                    const v = (form.itemized || {})[pid];
+                    const n = v != null && v !== '' ? parseFloat(v) : null;
+                    return s + (n != null && Number.isFinite(n) ? n : 0);
+                  }, 0);
+                  const remaining =
+                    form.itemizedInputMode === 'total'
+                      ? parseFloat((targetTotal - sumRaw).toFixed(2))
+                      : parseFloat((baseTotal - sumRaw).toFixed(2));
+                  if (!form.amount) return null;
+                  return (
+                    <span>
+                      {form.itemizedInputMode === 'total' ? t('cost.remainingTotalToFill') : t('cost.remainingBaseToFill')}{' '}
+                      <strong>{paidSym}{Math.max(0, remaining).toFixed(2)}</strong>
+                    </span>
+                  );
+                })()}
+              </div>
+              <div className="itemized-grid">
+                {form.splitPersonIds.map((pid) => {
+                  const p = people.find((x) => x.id === pid);
+                  const rawStr = (form.itemized || {})[pid] ?? '';
+                  const raw = rawStr !== '' ? parseFloat(rawStr) : null;
+                  const pct = totalTaxPct / 100;
+                  const computedTotal =
+                    raw != null && Number.isFinite(raw)
+                      ? (form.itemizedInputMode === 'total'
+                          ? raw.toFixed(2)
+                          : (raw * (1 + pct)).toFixed(2))
+                      : '';
+                  const computedBase =
+                    raw != null && Number.isFinite(raw)
+                      ? (form.itemizedInputMode === 'total'
+                          ? (raw / (1 + pct)).toFixed(2)
+                          : raw.toFixed(2))
+                      : '';
+                  return (
+                    <label key={pid} className="itemized-row">
+                      <span className="itemized-name">{p?.name || '?'}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        placeholder={form.itemizedInputMode === 'total' ? t('cost.totalAmountPh') : t('cost.baseAmountPh')}
+                        value={rawStr}
+                        onChange={(e) => setItemized(pid, e.target.value)}
+                      />
+                      <span className="itemized-total">
+                        {computedTotal !== '' ? `${paidSym}${computedTotal}` : '—'}
+                      </span>
+                      <span className="itemized-sub">
+                        {computedBase !== '' ? `${t('cost.baseShort')} ${paidSym}${computedBase}` : ''}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="cost-hint itemized-hint">{t('cost.itemizedHint')}</p>
+            </div>
           )}
         </div>
 
@@ -506,6 +802,16 @@ function AddExpenseForm() {
               <button type="button" onClick={handleFetchRate} disabled={rateLoading} className="rate-fetch-btn">
                 {rateLoading ? t('cost.fetching') : `🔄 ${t('cost.getRate')}`}
               </button>
+              <label className="rate-manual">
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder={t('cost.manualRatePh')}
+                  value={form.manualRate}
+                  onChange={(e) => { set('manualRate', e.target.value); set('rateMode', 'manual'); }}
+                />
+              </label>
               {rateInfo && (
                 <span className="rate-badge">
                   1 {form.paidCurrency} = {rateInfo.rate.toFixed(4)} {form.repayCurrency}
@@ -518,10 +824,10 @@ function AddExpenseForm() {
         </div>
 
         {/* Conversion preview */}
-        {rateInfo && form.amount && form.splitPersonIds.length > 0 && (
+        {effectiveRate && form.amount && form.splitPersonIds.length > 0 && form.splitMode === 'equal' && (
           <div className="conversion-preview animate-in">
             <span>{t('cost.eachDebtorOwes')}</span>
-            <strong>{repaySym}{(parseFloat(form.amount) / form.splitPersonIds.length * rateInfo.rate).toFixed(2)}</strong>
+            <strong>{repaySym}{(parseFloat(form.amount) / form.splitPersonIds.length * effectiveRate).toFixed(2)}</strong>
             <span>({form.repayCurrency})</span>
           </div>
         )}
@@ -557,7 +863,7 @@ function AddExpenseForm() {
 // ─── Split Repay Row ──────────────────────────────────────────
 function SplitRepayRow({ exp, splitIndex }) {
   const { t } = useLanguage();
-  const { markSplitRepaid, unmarkSplitRepaid, people, CURRENCIES } = useCost();
+  const { markSplitRepaid, unmarkSplitRepaid, updateExpense, people, CURRENCIES } = useCost();
   const split = exp.splits[splitIndex];
   const person = people.find((p) => p.id === split.personId);
   const isPayer = split.personId === exp.payerId;
@@ -573,7 +879,37 @@ function SplitRepayRow({ exp, splitIndex }) {
   const amountLabel =
     split.convertedAmount != null
       ? `${repaySym}${split.convertedAmount.toFixed(2)} ${split.repayCurrency}`
-      : `${paidSym}${split.amount.toFixed(2)} ${exp.paidCurrency}`;
+      : split.amount != null
+        ? `${paidSym}${split.amount.toFixed(2)} ${exp.paidCurrency}`
+        : `—`;
+
+  const canMarkRepaid = split.amount != null || split.convertedAmount != null;
+
+  const itemizedPct = (() => {
+    const pct = parseFloat(exp.taxPctTotal ?? exp.serviceTaxPct ?? '0');
+    return Number.isFinite(pct) ? Math.max(0, pct) : 0;
+  })();
+
+  const handleSetItemizedAmount = (val) => {
+    const pct = itemizedPct / 100;
+    const raw = val === '' ? null : parseFloat(val);
+    const base =
+      raw != null && Number.isFinite(raw)
+        ? (exp.itemizedInputMode === 'total'
+            ? parseFloat((raw / (1 + pct)).toFixed(4))
+            : raw)
+        : null;
+    const taxAmount = base != null && Number.isFinite(base) ? parseFloat((base * pct).toFixed(4)) : null;
+    const total = base != null && Number.isFinite(base) ? parseFloat((base + (taxAmount || 0)).toFixed(4)) : null;
+    const rate = split.rate ?? null;
+    const converted = rate && total != null ? parseFloat((total * rate).toFixed(4)) : null;
+    const nextSplits = exp.splits.map((s, i) =>
+      i === splitIndex
+        ? { ...s, baseAmount: base, taxAmount, amount: total, convertedAmount: converted }
+        : s
+    );
+    updateExpense(exp.id, { splits: nextSplits });
+  };
 
   const handleFile = (e) => {
     const file = e.target.files[0];
@@ -594,7 +930,9 @@ function SplitRepayRow({ exp, splitIndex }) {
         <span className="split-person-avatar">{person?.name.charAt(0).toUpperCase() || '?'}</span>
         <span className="split-person-name">{person?.name || '?'}</span>
         <span className="payer-chip">{t('cost.payer')}</span>
-        <span className="split-amount-label payer-amount">{paidSym}{split.amount.toFixed(2)} {exp.paidCurrency}</span>
+        <span className="split-amount-label payer-amount">
+          {split.amount != null ? `${paidSym}${split.amount.toFixed(2)} ${exp.paidCurrency}` : '—'}
+        </span>
       </div>
     );
   }
@@ -624,8 +962,25 @@ function SplitRepayRow({ exp, splitIndex }) {
       <span className="split-person-avatar">{person?.name.charAt(0).toUpperCase() || '?'}</span>
       <span className="split-person-name">{person?.name || '?'}</span>
       <span className="split-amount-label">{amountLabel}</span>
+      {exp.splitMode === 'itemized' && (
+        <label className="itemized-inline">
+          <span>{exp.itemizedInputMode === 'total' ? t('cost.yourTotal') : t('cost.yourBase')}</span>
+          <input
+            type="number"
+            min="0"
+            step="any"
+            value={
+              exp.itemizedInputMode === 'total'
+                ? (split.amount != null ? split.amount : '')
+                : (split.baseAmount != null ? split.baseAmount : '')
+            }
+            placeholder={exp.itemizedInputMode === 'total' ? t('cost.totalAmountPh') : t('cost.baseAmountPh')}
+            onChange={(e) => handleSetItemizedAmount(e.target.value)}
+          />
+        </label>
+      )}
       {!showForm ? (
-        <button type="button" className="mark-repaid-btn" onClick={() => setShowForm(true)}>
+        <button type="button" className="mark-repaid-btn" onClick={() => setShowForm(true)} disabled={!canMarkRepaid}>
           {t('cost.markRepaid')}
         </button>
       ) : (
@@ -655,6 +1010,12 @@ function ExpenseCard({ exp }) {
   const payer = people.find((p) => p.id === exp.payerId);
   const paidSym = CURRENCIES.find((c) => c.code === exp.paidCurrency)?.symbol || '';
   const rateInfo = exp.splits?.[0];
+  const pctTotal = parseFloat(exp.taxPctTotal ?? 0) || 0;
+  const baseTotal = pctTotal > 0 ? (exp.amount / (1 + pctTotal / 100)) : exp.amount;
+  const sumBase = (exp.splits || []).reduce((s, sp) => s + (Number.isFinite(sp.baseAmount) ? sp.baseAmount : 0), 0);
+  const remainingBase = Math.max(0, parseFloat((baseTotal - sumBase).toFixed(2)));
+  const sumTotal = (exp.splits || []).reduce((s, sp) => s + (Number.isFinite(sp.amount) ? sp.amount : 0), 0);
+  const remainingTotal = Math.max(0, parseFloat((exp.amount - sumTotal).toFixed(2)));
 
   const allRepaid = exp.splits?.length > 0 &&
     exp.splits.filter((s) => s.personId !== exp.payerId).every((s) => s.repaid);
@@ -664,7 +1025,7 @@ function ExpenseCard({ exp }) {
       <div className="expense-card-header" onClick={() => setExpanded((v) => !v)}>
         <div className="expense-card-left">
           <span className="expense-collapse-icon">{expanded ? '▾' : '▸'}</span>
-          <span className="expense-desc-v2">{exp.description}</span>
+          <span className="expense-desc-v2">{exp.description?.trim() ? exp.description : t('cost.untitledExpense')}</span>
           {exp.category && (
             <span className="tag tag-category" title={EXPENSE_CATEGORIES.find((c) => c.id === exp.category)?.label}>
               {EXPENSE_CATEGORIES.find((c) => c.id === exp.category)?.icon || '📄'}
@@ -684,6 +1045,14 @@ function ExpenseCard({ exp }) {
           <div className="expense-meta-row">
             <span>{t('cost.paidByLabel')} <strong>{payer?.name || '?'}</strong></span>
             <span>· {exp.date}</span>
+            {exp.splitMode === 'itemized' && (exp.itemizedInputMode === 'total' ? remainingTotal > 0.009 : remainingBase > 0.009) && (
+              <span className="rate-source-small">
+                · {(exp.itemizedInputMode === 'total' ? t('cost.remainingTotalToFill') : t('cost.remainingBaseToFill'))}{' '}
+                <strong>
+                  {paidSym}{(exp.itemizedInputMode === 'total' ? remainingTotal : remainingBase).toFixed(2)}
+                </strong>
+              </span>
+            )}
             {rateInfo?.rate && (
               <span className="rate-source-small">· Rate 1 {exp.paidCurrency} = {rateInfo.rate.toFixed(4)} {exp.repayCurrency} ({rateInfo.rateSource})</span>
             )}
@@ -713,7 +1082,7 @@ function ExpenseCard({ exp }) {
 function DayExpenseView() {
   const { t } = useLanguage();
   const { expenses, CURRENCIES } = useCost();
-  const { days } = useItinerary();
+  const { days, trip } = useItinerary();
   const [collapsedDays, setCollapsedDays] = useState({});
   const [categoryFilter, setCategoryFilter] = useState('all');
 
@@ -721,6 +1090,33 @@ function DayExpenseView() {
 
   const toggleDay = (dayId) =>
     setCollapsedDays((prev) => ({ ...prev, [dayId]: !prev[dayId] }));
+
+  const dayDateMap = useMemo(() => {
+    const map = {};
+    if (!trip?.startDate) return map;
+    for (let i = 0; i < days.length; i++) {
+      const d = new Date(trip.startDate);
+      d.setDate(d.getDate() + i);
+      map[days[i].id] = d.toISOString().slice(0, 10);
+    }
+    return map;
+  }, [trip?.startDate, days]);
+
+  const customGroups = useMemo(() => {
+    const byDate = {};
+    for (const e of expenses) {
+      if (categoryFilter !== 'all' && (e.category || 'other') !== categoryFilter) continue;
+      const isCustom = !!e.customDateUsed;
+      if (!isCustom) continue;
+      const date = e.date || '';
+      const matchesDay = Object.values(dayDateMap).includes(date);
+      if (matchesDay) continue;
+      if (!byDate[date]) byDate[date] = [];
+      byDate[date].push(e);
+    }
+    const entries = Object.entries(byDate).sort((a, b) => (a[0] < b[0] ? 1 : -1));
+    return entries;
+  }, [expenses, categoryFilter, dayDateMap]);
 
   return (
     <section className="section cost-section">
@@ -743,7 +1139,15 @@ function DayExpenseView() {
       <div className="day-expense-list">
         {days.map((day) => {
           const dayExps = expenses.filter(
-            (e) => e.dayTag === day.id && (categoryFilter === 'all' || (e.category || 'other') === categoryFilter)
+            (e) => {
+              if (categoryFilter !== 'all' && (e.category || 'other') !== categoryFilter) return false;
+              // If it is a custom date expense, only show under Day if the date matches itinerary day date.
+              if (e.customDateUsed) {
+                const shouldMatch = dayDateMap[day.id];
+                return shouldMatch && e.date === shouldMatch;
+              }
+              return e.dayTag === day.id;
+            }
           );
           if (dayExps.length === 0) return null;
 
@@ -779,6 +1183,43 @@ function DayExpenseView() {
             </div>
           );
         })}
+
+        {customGroups.length > 0 && (
+          <div className="custom-date-groups">
+            {customGroups.map(([date, exps]) => {
+              const dayId = `custom:${date}`;
+              const collapsed = !!collapsedDays[dayId];
+              const total = exps.reduce((s, e) => s + (e.amount || 0), 0);
+              const primaryCur = exps[0]?.paidCurrency || '';
+              const primarySym = CURRENCIES.find((c) => c.code === primaryCur)?.symbol || '';
+              const allSettled = exps.every((e) =>
+                e.splits?.filter((s) => s.personId !== e.payerId).every((s) => s.repaid)
+              );
+              return (
+                <div key={dayId} className={`day-exp-card ${allSettled ? 'day-exp-card-settled' : ''}`}>
+                  <div className="day-exp-header" onClick={() => toggleDay(dayId)}>
+                    <div className="day-exp-header-left">
+                      <span className="day-collapse-icon">{collapsed ? '▸' : '▾'}</span>
+                      <span className="day-exp-label">{t('cost.customDateGroup', { date })}</span>
+                      <span className="day-exp-count">{exps.length} {exps.length !== 1 ? t('cost.expensesCountPlural') : t('cost.expensesCount')}</span>
+                      {allSettled && <span className="day-settled-badge">✅ {t('cost.allSettled')}</span>}
+                    </div>
+                    <span className="day-exp-total">
+                      {primarySym}{total.toLocaleString()} <span className="day-exp-cur">{primaryCur}</span>
+                    </span>
+                  </div>
+                  {!collapsed && (
+                    <div className="day-exp-body animate-in">
+                      {exps.map((exp) => (
+                        <ExpenseCard key={exp.id} exp={exp} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );

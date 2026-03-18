@@ -5,11 +5,15 @@ import DaySummaryCard from '../components/DaySummaryCard';
 import ItineraryTipsCard from '../components/ItineraryTipsCard';
 import { useLanguage } from '../context/LanguageContext';
 import { useItinerary } from '../context/ItineraryContext';
+import { useTheme } from '../context/ThemeContext';
+import VoyagePlan from '../components/VoyagePlan';
 import './Itinerary.css';
 
 export default function Itinerary() {
   const { t } = useLanguage();
   const { days } = useItinerary();
+  const { themeId } = useTheme();
+  const isVoyage = themeId === 'voyage-light' || themeId === 'voyage-dark';
   const [shareOpen, setShareOpen] = useState(false);
   const [selectedDayId, setSelectedDayId] = useState(() => (days[0]?.id ?? null));
 
@@ -33,13 +37,17 @@ export default function Itinerary() {
       <p className="page-intro">
         {t('itinerary.intro')}
       </p>
-      <div className="itinerary-main">
-        <DayPanel selectedDayId={selectedDayId} onSelectDay={setSelectedDayId} />
-        <div className="itinerary-sidebar">
-          <DaySummaryCard selectedDay={selectedDay} />
-          <ItineraryTipsCard />
+      {isVoyage ? (
+        <VoyagePlan days={days} />
+      ) : (
+        <div className="itinerary-main">
+          <DayPanel selectedDayId={selectedDayId} onSelectDay={setSelectedDayId} />
+          <div className="itinerary-sidebar">
+            <DaySummaryCard selectedDay={selectedDay} />
+            <ItineraryTipsCard />
+          </div>
         </div>
-      </div>
+      )}
       <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} />
     </div>
   );

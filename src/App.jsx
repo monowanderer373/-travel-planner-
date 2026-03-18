@@ -18,6 +18,7 @@ import Cost from './pages/Cost';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
 import ShareView from './pages/ShareView';
+import Group from './pages/Group';
 import './App.css';
 
 const AUTH_RETURN_KEY = 'auth_return_to';
@@ -118,6 +119,7 @@ export default function App() {
                 <Route path="transport" element={<Transport />} />
                 <Route path="journal" element={<TripJournal />} />
                 <Route path="cost" element={<Cost />} />
+                <Route path="group" element={<Group />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="profile" element={<Profile />} />
               </Route>

@@ -121,6 +121,30 @@
   }
 }
 
+/* ===== Voyage layout: top nav on desktop, no sidebar/bottom nav ===== */
+[data-theme="voyage-light"] .topbar,
+[data-theme="voyage-dark"] .topbar {
+  display: flex;
+}
+
+@media (min-width: 769px) {
+  [data-theme="voyage-light"] .sidebar-wrap,
+  [data-theme="voyage-dark"] .sidebar-wrap {
+    display: none;
+  }
+  [data-theme="voyage-light"] .main-content,
+  [data-theme="voyage-dark"] .main-content {
+    padding: 1.25rem 1.75rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+}
+
+[data-theme="voyage-light"] .bottom-nav-wrap,
+[data-theme="voyage-dark"] .bottom-nav-wrap {
+  display: none !important;
+}
+
 .main-content {
   flex: 1;
   padding: 1.5rem 2rem;

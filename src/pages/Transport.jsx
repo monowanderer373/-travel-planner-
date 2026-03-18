@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
 import { resolveDayForTimelineAdd } from '../lib/itineraryPayloadCompare';
+import { useTheme } from '../context/ThemeContext';
 import './Transport.css';
 
 function extractEmbedUrl(input) {
@@ -21,6 +22,8 @@ const MINUTES = [0, 15, 30, 45];
 
 export default function Transport() {
   const { t } = useLanguage();
+  const { themeId } = useTheme();
+  const isVoyage = themeId === 'voyage-light' || themeId === 'voyage-dark';
   const { days, addToTimeline, savedTransports, addSavedTransport, removeSavedTransport } = useItinerary();
   const [embedInput, setEmbedInput] = useState('');
   const [locationA, setLocationA] = useState('');
@@ -37,6 +40,8 @@ export default function Transport() {
   const [leaveMin, setLeaveMin] = useState(0);
   const [arriveHour, setArriveHour] = useState(10);
   const [arriveMin, setArriveMin] = useState(0);
+  const [mode, setMode] = useState('train'); // train | bus | car | flight | walk | ferry
+  const [importOpen, setImportOpen] = useState(false);
 
   const canLoad = !!extractEmbedUrl(embedInput) || (locationA && locationB);
 
@@ -51,6 +56,7 @@ export default function Transport() {
       locationB: locationB.trim() || t('transport.locationB'),
       durationMinutes: useManualDuration ? durationMinutes : 45,
       lineName: lineName.trim() || t('transport.defaultLineName'),
+      mode,
     });
   };
 
@@ -63,6 +69,7 @@ export default function Transport() {
     setLocationB('');
     setDurationMinutes(45);
     setLineName('');
+    setMode('train');
   };
 
   const openAddToItineraryModal = (transport) => {
@@ -109,6 +116,213 @@ export default function Transport() {
     const extracted = extractEmbedUrl(raw);
     setEmbedInput(raw.includes('<iframe') && extracted ? extracted : raw);
   };
+
+  const MODE_LABELS = useMemo(() => ({
+    train: 'Train',
+    bus: 'Bus',
+    car: 'Car',
+    flight: 'Flight',
+    walk: 'Walk',
+    ferry: 'Ferry',
+  }), []);
+
+  const MODE_ICONS = useMemo(() => ({
+    train: '🚆',
+    bus: '🚌',
+    car: '🚗',
+    flight: '✈️',
+    walk: '🚶',
+    ferry: '⛴️',
+  }), []);
+
+  if (isVoyage) {
+    const list = Array.isArray(savedTransports) ? savedTransports : [];
+    return (
+      <div className="page transport-page voyage-transport">
+        <header className="voyage-saved-hero voyage-transport-hero">
+          <div className="voyage-saved-hero-bg" aria-hidden="true" />
+          <div className="voyage-saved-hero-content">
+            <div className="voyage-saved-title">Routes & Transport</div>
+            <div className="voyage-transport-hero-actions">
+              <button type="button" className="primary voyage-saved-paste-btn" onClick={() => setImportOpen(true)}>
+                Add route
+              </button>
+            </div>
+            <p className="voyage-transport-hint">
+              Save routes for train, bus, car, flight, and more. Then add them into your itinerary timeline.
+            </p>
+          </div>
+        </header>
+
+        {list.length === 0 ? (
+          <div className="empty-state">
+            <p>No routes yet. Click “Add route”.</p>
+          </div>
+        ) : (
+          <div className="voyage-board" role="list">
+            {list.map((r) => {
+              const m = r.mode || 'train';
+              const icon = MODE_ICONS[m] || '🚆';
+              const badge = MODE_LABELS[m] || 'Train';
+              const title = `${r.lineName || badge}: ${r.locationA} → ${r.locationB}`;
+              return (
+                <article key={r.id} className="voyage-card voyage-route-card" role="listitem">
+                  <div className="voyage-card-media voyage-route-media">
+                    <div className="voyage-card-media-fallback">{icon}</div>
+                    <span className="voyage-badge">{badge}</span>
+                  </div>
+                  <div className="voyage-card-body">
+                    <div className="voyage-card-title">{title}</div>
+                    <div className="voyage-card-tags">
+                      <span className="voyage-tag">{(r.durationMinutes || 0) ? `${r.durationMinutes} min` : 'Duration'}</span>
+                      {r.embedUrl && <span className="voyage-tag">Link</span>}
+                    </div>
+                    <div className="voyage-card-actions">
+                      <button type="button" className="voyage-btn" onClick={() => openAddToItineraryModal(r)}>
+                        Plan it
+                      </button>
+                      {r.embedUrl && (
+                        <a className="voyage-btn voyage-btn-ghost" href={r.embedUrl} target="_blank" rel="noreferrer">
+                          Open
+                        </a>
+                      )}
+                      <button type="button" className="voyage-btn voyage-btn-danger" onClick={() => removeSavedTransport(r.id)}>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+
+        {importOpen && (
+          <div className="voyage-import-backdrop" onClick={() => setImportOpen(false)}>
+            <div className="voyage-import-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="voyage-import-header">
+                <div className="voyage-import-title">Add a route</div>
+                <button type="button" className="voyage-import-close" onClick={() => setImportOpen(false)} aria-label="Close">×</button>
+              </div>
+
+              <section className="section transport-section">
+                <div className="transport-mode-row">
+                  <label className="transport-mode-field">
+                    <span>Mode</span>
+                    <select value={mode} onChange={(e) => setMode(e.target.value)}>
+                      {Object.keys(MODE_LABELS).map((k) => (
+                        <option key={k} value={k}>{MODE_LABELS[k]}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                {/* Reuse existing form UI */}
+                <form onSubmit={handleLoadRoute} className="transport-form">
+                  <label className="transport-field transport-field-wide">
+                    <span>{t('transport.embedLabel')}</span>
+                    <textarea
+                      value={embedInput}
+                      onChange={handleEmbedChange}
+                      placeholder={t('transport.embedPlaceholder')}
+                      rows={3}
+                    />
+                  </label>
+                  <div className="transport-split">
+                    <label className="transport-field">
+                      <span>{t('transport.locationA')}</span>
+                      <input value={locationA} onChange={(e) => setLocationA(e.target.value)} />
+                    </label>
+                    <label className="transport-field">
+                      <span>{t('transport.locationB')}</span>
+                      <input value={locationB} onChange={(e) => setLocationB(e.target.value)} />
+                    </label>
+                  </div>
+                  <div className="transport-split">
+                    <label className="transport-field">
+                      <span>{t('transport.lineName')}</span>
+                      <input value={lineName} onChange={(e) => setLineName(e.target.value)} />
+                    </label>
+                    <label className="transport-field">
+                      <span>{t('transport.duration')}</span>
+                      <input type="number" value={durationMinutes} onChange={(e) => setDurationMinutes(Number(e.target.value))} />
+                    </label>
+                  </div>
+                  <label className="transport-checkbox">
+                    <input type="checkbox" checked={useManualDuration} onChange={(e) => setUseManualDuration(e.target.checked)} />
+                    <span>{t('transport.useManualDuration')}</span>
+                  </label>
+                  <button type="submit" className="primary" disabled={!canLoad}>
+                    {t('transport.load')}
+                  </button>
+                </form>
+
+                {loadedRoute && (
+                  <div className="transport-loaded">
+                    <p><strong>Preview:</strong> {loadedRoute.lineName}: {loadedRoute.locationA} → {loadedRoute.locationB}</p>
+                    <button type="button" className="primary" onClick={() => { handleSaveRoute(); setImportOpen(false); }}>
+                      Save route
+                    </button>
+                  </div>
+                )}
+              </section>
+            </div>
+          </div>
+        )}
+
+        {/* Reuse add-to-itinerary modal from classic view */}
+        {addModalOpen && transportToAdd && (
+          <div className="place-modal-backdrop" onClick={() => setAddModalOpen(false)}>
+            <div className="place-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="place-modal-header">
+                <h3>{t('transport.addToItinerary')}</h3>
+                <button type="button" className="place-modal-close" onClick={() => setAddModalOpen(false)}>×</button>
+              </div>
+              <div className="place-modal-body">
+                <label className="place-modal-field">
+                  <span>{t('saved.day')}</span>
+                  <select
+                    value={addDayId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setAddDayId(id);
+                      const i = days.findIndex((d) => d.id === id);
+                      if (i >= 0) setAddDayIndex(i);
+                    }}
+                  >
+                    {days.map((d) => (
+                      <option key={d.id} value={d.id}>{d.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <div className="transport-time-grid">
+                  <label className="place-modal-field">
+                    <span>{t('transport.leave')}</span>
+                    <div className="transport-time-row">
+                      <select value={leaveHour} onChange={(e) => setLeaveHour(Number(e.target.value))}>{HOURS.map((h) => <option key={h} value={h}>{h}</option>)}</select>
+                      <select value={leaveMin} onChange={(e) => setLeaveMin(Number(e.target.value))}>{MINUTES.map((m) => <option key={m} value={m}>{String(m).padStart(2, '0')}</option>)}</select>
+                    </div>
+                  </label>
+                  <label className="place-modal-field">
+                    <span>{t('transport.arrive')}</span>
+                    <div className="transport-time-row">
+                      <select value={arriveHour} onChange={(e) => setArriveHour(Number(e.target.value))}>{HOURS.map((h) => <option key={h} value={h}>{h}</option>)}</select>
+                      <select value={arriveMin} onChange={(e) => setArriveMin(Number(e.target.value))}>{MINUTES.map((m) => <option key={m} value={m}>{String(m).padStart(2, '0')}</option>)}</select>
+                    </div>
+                  </label>
+                </div>
+              </div>
+              <div className="place-modal-footer">
+                <button type="button" onClick={() => setAddModalOpen(false)}>{t('saved.cancel')}</button>
+                <button type="button" className="primary" onClick={handleAddToItinerary}>
+                  {t('saved.addToTimeline')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="page transport-page">

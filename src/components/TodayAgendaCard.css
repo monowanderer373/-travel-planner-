@@ -41,3 +41,34 @@
 .today-agenda-transport .today-agenda-name {
   color: var(--accent-secondary);
 }
+
+/* ===== Voyage: time pill + tighter spacing like mock ===== */
+[data-theme="voyage-light"] .today-agenda-item,
+[data-theme="voyage-dark"] .today-agenda-item {
+  border-bottom: none;
+  padding: 0.45rem 0;
+}
+
+[data-theme="voyage-light"] .today-agenda-time,
+[data-theme="voyage-dark"] .today-agenda-time {
+  min-width: 0;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--text-secondary);
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(141, 125, 246, 0.10);
+  border: 1px solid rgba(141, 125, 246, 0.18);
+}
+
+[data-theme="voyage-dark"] .today-agenda-time {
+  background: rgba(158, 123, 255, 0.16);
+  border-color: rgba(158, 123, 255, 0.22);
+}
+
+[data-theme="voyage-light"] .today-agenda-name,
+[data-theme="voyage-dark"] .today-agenda-name {
+  font-weight: 800;
+  color: var(--text-primary);
+}

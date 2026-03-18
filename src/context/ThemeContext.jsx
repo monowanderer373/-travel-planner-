@@ -3,6 +3,8 @@ import { createContext, useContext, useState, useEffect } from 'react';
 const THEME_KEY = 'trip-planner-theme';
 const THEMES = [
   { id: 'pastel', label: 'Pastel (default)' },
+  { id: 'voyage-light', label: 'Voyage (Light)' },
+  { id: 'voyage-dark', label: 'Voyage (Dark)' },
   { id: 'doodle', label: 'Google Doodle' },
   { id: 'nier', label: 'Nier Automata' },
 ];

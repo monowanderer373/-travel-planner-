@@ -231,6 +231,75 @@ input::placeholder, textarea::placeholder {
   background-color: var(--bg-main);
 }
 
+/* ===== Theme: Voyage (new, A-style dashboard) ===== */
+[data-theme="voyage-light"] {
+  --bg-main: #f6f5f2;
+  --bg-card: rgba(255, 255, 255, 0.92);
+  --bg-sidebar: rgba(255, 255, 255, 0.9);
+  --border-soft: rgba(15, 15, 20, 0.08);
+  --border-accent: rgba(120, 110, 200, 0.22);
+
+  --text-primary: #1d1b22;
+  --text-secondary: rgba(29, 27, 34, 0.72);
+  --text-muted: rgba(29, 27, 34, 0.52);
+
+  --accent-primary: #8d7df6;
+  --accent-secondary: #4cc9a6;
+  --accent-soft: #ffb3b3;
+  --accent-warm: #f0b26c;
+
+  --shadow-sm: 0 1px 6px rgba(15, 15, 20, 0.06);
+  --shadow-md: 0 10px 30px rgba(15, 15, 20, 0.10);
+  --shadow-lg: 0 18px 55px rgba(15, 15, 20, 0.14);
+
+  --card-radius-lg: 18px;
+  --dashboard-gap: 1.15rem;
+  --hero-gradient: linear-gradient(120deg, rgba(185, 150, 255, 0.55) 0%, rgba(255, 196, 171, 0.55) 45%, rgba(190, 231, 255, 0.55) 100%);
+
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+}
+
+[data-theme="voyage-dark"] {
+  --bg-main: #0f1016;
+  --bg-card: rgba(18, 19, 27, 0.92);
+  --bg-sidebar: rgba(18, 19, 27, 0.96);
+  --border-soft: rgba(255, 255, 255, 0.10);
+  --border-accent: rgba(155, 120, 255, 0.35);
+
+  --text-primary: rgba(255, 255, 255, 0.92);
+  --text-secondary: rgba(255, 255, 255, 0.70);
+  --text-muted: rgba(255, 255, 255, 0.50);
+
+  --accent-primary: #9e7bff;
+  --accent-secondary: #2bd4b3;
+  --accent-soft: #4da3ff;
+  --accent-warm: #ffb86b;
+
+  --shadow-sm: 0 1px 8px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 14px 40px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 22px 70px rgba(0, 0, 0, 0.60);
+
+  --card-radius-lg: 18px;
+  --dashboard-gap: 1.15rem;
+  --hero-gradient: radial-gradient(1200px 300px at 20% 0%, rgba(158, 123, 255, 0.45) 0%, rgba(79, 64, 120, 0.18) 55%, rgba(16, 16, 22, 0) 100%),
+    radial-gradient(900px 260px at 80% 10%, rgba(77, 163, 255, 0.22) 0%, rgba(16, 16, 22, 0) 60%),
+    linear-gradient(135deg, rgba(24, 18, 40, 0.55) 0%, rgba(18, 19, 27, 0.55) 100%);
+
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+}
+
+[data-theme="voyage-dark"] button.primary {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-soft));
+}
+
+[data-theme="voyage-dark"] input:focus,
+[data-theme="voyage-dark"] select:focus,
+[data-theme="voyage-dark"] textarea:focus {
+  box-shadow: 0 0 0 3px rgba(158, 123, 255, 0.22);
+}
+
 [data-theme="doodle"] .main-content,
 [data-theme="doodle"] .page {
   background-color: var(--bg-main);

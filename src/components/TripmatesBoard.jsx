@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useCost } from '../context/CostContext';
 import { supabase, hasSupabase } from '../lib/supabase';
 import './TripmatesBoard.css';
 
@@ -14,6 +16,9 @@ const ACTION_LABELS = {
 export default function TripmatesBoard() {
   const { tripCreator, tripmates, shareSettings } = useItinerary();
   const { lang, t } = useLanguage();
+  const { people } = useCost();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [activities, setActivities] = useState([]);
   const [selectedKey, setSelectedKey] = useState(null);
   const tripId = shareSettings?.tripId;
@@ -47,6 +52,32 @@ export default function TripmatesBoard() {
   }, [tripCreator, tripmates]);
 
   const selectedMember = selectedKey ? members.find((m) => m.key === selectedKey) : null;
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(location.search);
+      const name = params.get('member');
+      if (!name) return;
+      const decoded = decodeURIComponent(name);
+      const hit = members.find((m) => m.name === decoded);
+      if (hit) setSelectedKey(hit.key);
+      params.delete('member');
+      navigate({ search: params.toString() ? `?${params.toString()}` : '' }, { replace: true });
+    } catch {
+      // ignore
+    }
+  }, [location.search, members, navigate]);
+
+  const paymentInfo = useMemo(() => {
+    if (!selectedMember) return null;
+    const norm = (s) => String(s || '').trim().toLowerCase();
+    const p = people.find((x) => norm(x.name) === norm(selectedMember.name));
+    const pay = p?.paymentInfo;
+    if (!pay || !pay.saved) return null;
+    const hasAny = !!(pay.qrCode || pay.bankName || pay.accountHolder || pay.accountNumber || pay.notes);
+    if (!hasAny) return null;
+    return pay;
+  }, [people, selectedMember]);
 
   useEffect(() => {
     if (!tripId || !hasSupabase() || !supabase) {
@@ -151,6 +182,40 @@ export default function TripmatesBoard() {
                 <p className="tripmates-board-modal-field tripmates-board-modal-bio">
                   <strong>{t('tripmates.bio')}</strong> {selectedMember.bio}
                 </p>
+              )}
+              {paymentInfo && (
+                <>
+                  <h4 className="tripmates-board-modal-subtitle">{t('tripmates.paymentDetails')}</h4>
+                  <div className="tripmates-pay-card">
+                    {paymentInfo.qrCode && (
+                      <div className="tripmates-pay-qr">
+                        <img src={paymentInfo.qrCode} alt="" />
+                      </div>
+                    )}
+                    <div className="tripmates-pay-fields">
+                      {paymentInfo.bankName && (
+                        <p className="tripmates-board-modal-field">
+                          <strong>{t('cost.bankName')}</strong> {paymentInfo.bankName}
+                        </p>
+                      )}
+                      {paymentInfo.accountHolder && (
+                        <p className="tripmates-board-modal-field">
+                          <strong>{t('cost.accountHolder')}</strong> {paymentInfo.accountHolder}
+                        </p>
+                      )}
+                      {paymentInfo.accountNumber && (
+                        <p className="tripmates-board-modal-field">
+                          <strong>{t('cost.accountNumber')}</strong> {paymentInfo.accountNumber}
+                        </p>
+                      )}
+                      {paymentInfo.notes && (
+                        <p className="tripmates-board-modal-field tripmates-board-modal-bio">
+                          <strong>{t('cost.notes')}</strong> {paymentInfo.notes}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </>
               )}
               <h4 className="tripmates-board-modal-subtitle">{t('tripmates.recentActivity')}</h4>
               {selectedActivities.length === 0 ? (
