@@ -422,26 +422,9 @@ export function ItineraryProvider({ children }) {
       const ts = Date.now().toString(36);
       return `${ts}${rand}`.slice(0, 14);
     };
-
-    // Reuse only the id encoded in THIS plan's existing link.
-    // Do not reuse generic shareSettings.tripId across personal plans.
-    const idFromCurrentLink = (() => {
-      const raw = String(tripmateShareLink || '').trim();
-      if (!raw) return '';
-      try {
-        const u = new URL(raw);
-        return String(u.searchParams.get('trip') || '').trim();
-      } catch {
-        const m = raw.match(/[?&]trip=([^&]+)/);
-        return m?.[1] ? decodeURIComponent(m[1]).trim() : '';
-      }
-    })();
-    const reusable =
-      idFromCurrentLink.length >= 10 &&
-      idFromCurrentLink.length <= 24 &&
-      /[a-zA-Z]/.test(idFromCurrentLink) &&
-      !/^\d+$/.test(idFromCurrentLink);
-    const tripId = reusable ? idFromCurrentLink.slice(0, 14) : newRowId();
+    // Always create a NEW shared trip id for each generate action.
+    // This prevents Japan/Thailand personal plans from accidentally sharing one link id.
+    const tripId = newRowId();
 
     setShareSettings((prev) => ({ ...prev, tripId }));
 
@@ -487,7 +470,7 @@ export function ItineraryProvider({ children }) {
       return { ok: false, link, error: error?.message || String(error) };
     }
     return { ok: true, link };
-  }, [shareSettings, trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, tripmateShareLink, navigate, location.pathname]);
+  }, [shareSettings, trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, navigate, location.pathname]);
 
   const updateTripMemories = useCallback((text) => {
     setTripMemories(text);
@@ -540,7 +523,8 @@ export function ItineraryProvider({ children }) {
         sessionStorage.removeItem('share_join_flow');
       } catch {}
 
-      setShareSettings((prev) => ({ ...prev, tripId: null }));
+      setShareSettings((prev) => ({ ...prev, tripId: null, shareLink: '' }));
+      setTripmateShareLink('');
 
       const params = clearSharedUrlParams() || new URLSearchParams();
       if (planId) params.set('plan', planId);
@@ -571,7 +555,8 @@ export function ItineraryProvider({ children }) {
       sessionStorage.removeItem('share_join_flow');
     } catch {}
 
-    setShareSettings((prev) => ({ ...prev, tripId: null }));
+    setShareSettings((prev) => ({ ...prev, tripId: null, shareLink: '' }));
+    setTripmateShareLink('');
 
     const blankPayload = {
       trip: { ...defaultTrip },
