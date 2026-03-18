@@ -77,6 +77,14 @@ export default function ShareModal({ open, onClose }) {
             </button>
           ) : (
             <>
+              <button
+                type="button"
+                className="primary"
+                style={{ marginBottom: '0.8rem' }}
+                onClick={handleGenerate}
+              >
+                Generate new share link
+              </button>
               <label className="share-field">
                 <span>Link</span>
                 <div className="share-link-row">
