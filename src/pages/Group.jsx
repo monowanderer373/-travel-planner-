@@ -65,9 +65,11 @@ export default function Group() {
         <DashboardCard titleKey="home.tripmates.title">
           <TripmatesBoard />
         </DashboardCard>
-        <DashboardCard titleKey="home.activity.title">
-          <ActivityFeed />
-        </DashboardCard>
+        {!isVoyage && (
+          <DashboardCard titleKey="home.activity.title">
+            <ActivityFeed />
+          </DashboardCard>
+        )}
       </div>
     </div>
   );
