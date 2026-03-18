@@ -10,7 +10,7 @@ import TodayAgendaCard from '../components/TodayAgendaCard';
 import UnplannedSavesCard from '../components/UnplannedSavesCard';
 import BudgetSnapshotCard from '../components/BudgetSnapshotCard';
 import DashboardCard from '../components/DashboardCard';
-import ShareItineraryCard from '../components/ShareItineraryCard';
+import ShareModal from '../components/ShareModal';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -27,6 +27,7 @@ export default function Home() {
   const { user } = useAuth();
   const { themeId } = useTheme();
   const isVoyage = themeId === 'voyage-light' || themeId === 'voyage-dark';
+  const [shareOpen, setShareOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const { trip, days, replaceItineraryState, setActiveTripId } = useItinerary();
   const shareHandledRef = useRef(false);
@@ -185,7 +186,14 @@ export default function Home() {
         <UnplannedSavesCard />
         <BudgetSnapshotCard />
         <DashboardCard titleKey="home.shareItinerary">
-          <ShareItineraryCard />
+          <button
+            type="button"
+            className="primary"
+            style={{ width: '100%' }}
+            onClick={() => setShareOpen(true)}
+          >
+            {t('tripmate.generateLink')}
+          </button>
         </DashboardCard>
         <DashboardCard titleKey="home.tripmates.title">
           <TripmatesBoard />
@@ -195,6 +203,7 @@ export default function Home() {
         </DashboardCard>
       </div>
       <LeaveSharedTripButton variant="home" />
+      <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} />
     </div>
   );
 }
