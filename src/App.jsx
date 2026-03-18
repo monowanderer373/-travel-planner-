@@ -91,6 +91,7 @@ class ErrorBoundary extends Component {
           <pre style={{ background: '#f5f0e8', padding: '1rem', borderRadius: '8px', overflow: 'auto', fontSize: '0.85rem' }}>
             {this.state.error?.message}
             {this.state.error?.stack ? `\n\n${this.state.error.stack}` : null}
+            {this.state.error?.componentStack ? `\n\n${this.state.error.componentStack}` : null}
           </pre>
         </div>
       );
