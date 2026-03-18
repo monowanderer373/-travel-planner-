@@ -18,6 +18,7 @@ import { useTheme } from '../context/ThemeContext';
 import { supabase, hasSupabase } from '../lib/supabase';
 import { decodeInviteToken } from '../utils/publicUrl';
 import './Home.css';
+import { saveItinerary } from '../utils/storage';
 
 const PENDING_INVITE_KEY = 'pending_invite_token';
 const PENDING_TRIP_KEY = 'pending_trip_id';
@@ -44,6 +45,17 @@ export default function Home() {
     return [...new Set([first, second, token].filter(Boolean))];
   };
 
+  const persistSharedTripToLocal = (data, tripId) => {
+    try {
+      if (!data || typeof data !== 'object') return;
+      const next = {
+        ...data,
+        shareSettings: { ...(data.shareSettings || {}), tripId },
+      };
+      saveItinerary(next);
+    } catch {}
+  };
+
   // Legacy ?share= param (same behaviour as before)
   useEffect(() => {
     if (!shareId || !user || !hasSupabase() || !supabase || shareHandledRef.current) return;
@@ -56,6 +68,7 @@ export default function Home() {
       .then(({ data: row, error }) => {
         if (!error && row?.data) {
           const data = row.data;
+          persistSharedTripToLocal(data, shareId);
           replaceItineraryState({
             ...data,
             shareSettings: { ...data.shareSettings, tripId: shareId },
@@ -95,6 +108,7 @@ export default function Home() {
           ...data,
           shareSettings: { ...data.shareSettings, tripId: candidateId },
         });
+        persistSharedTripToLocal(data, candidateId);
         try {
           const cr = (data?.tripCreator?.email || '').trim().toLowerCase();
           const ue = (user?.email || '').trim().toLowerCase();
@@ -138,6 +152,7 @@ export default function Home() {
             localStorage.removeItem(PENDING_TRIP_KEY);
           }
           const data = row.data;
+          persistSharedTripToLocal(data, candidateId);
           replaceItineraryState({
             ...data,
             shareSettings: { ...data.shareSettings, tripId: candidateId },
