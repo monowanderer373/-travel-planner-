@@ -118,13 +118,18 @@ export default function Settings() {
         <h2 className="section-title">{t('settings.theme')}</h2>
         <p className="settings-hint">{t('settings.themeHint')}</p>
         <div className="theme-selection">
-          {themes.map((theme) => (
-            <label key={theme.id} className={`theme-option ${themeId === theme.id ? 'theme-option-active' : ''}`}>
+      {themes.map((theme) => (
+            <label
+              key={theme.id}
+              className={`theme-option ${themeId === theme.id ? 'theme-option-active' : ''} ${theme.disabled ? 'theme-option-disabled' : ''}`}
+              aria-disabled={theme.disabled ? 'true' : 'false'}
+            >
               <input
                 type="radio"
                 name="theme"
                 value={theme.id}
                 checked={themeId === theme.id}
+                disabled={theme.disabled}
                 onChange={() => setThemeId(theme.id)}
               />
               <span className="theme-option-label">{theme.label}</span>

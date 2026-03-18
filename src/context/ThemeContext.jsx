@@ -2,11 +2,9 @@ import { createContext, useContext, useState, useEffect } from 'react';
 
 const THEME_KEY = 'trip-planner-theme';
 const THEMES = [
-  { id: 'pastel', label: 'Pastel (default)' },
   { id: 'voyage-light', label: 'Voyage (Light)' },
   { id: 'voyage-dark', label: 'Voyage (Dark)' },
-  { id: 'doodle', label: 'Google Doodle' },
-  { id: 'nier', label: 'Nier Automata' },
+  { id: 'nier', label: 'Nier Automata', disabled: true }, // show but don't allow selection (until you decide)
 ];
 
 const ThemeContext = createContext(null);
@@ -14,9 +12,15 @@ const ThemeContext = createContext(null);
 export function ThemeProvider({ children }) {
   const [themeId, setThemeIdState] = useState(() => {
     try {
-      return localStorage.getItem(THEME_KEY) || 'pastel';
+      const stored = localStorage.getItem(THEME_KEY);
+      if (stored && THEMES.some((t) => t.id === stored)) {
+        const entry = THEMES.find((t) => t.id === stored);
+        return entry?.disabled ? 'voyage-light' : stored;
+      }
+      // Default theme is Voyage (Light)
+      return 'voyage-light';
     } catch {
-      return 'pastel';
+      return 'voyage-light';
     }
   });
 
@@ -29,7 +33,10 @@ export function ThemeProvider({ children }) {
   }, [themeId]);
 
   const setThemeId = (id) => {
-    if (THEMES.some((t) => t.id === id)) setThemeIdState(id);
+    if (!THEMES.some((t) => t.id === id)) return;
+    const entry = THEMES.find((t) => t.id === id);
+    if (entry?.disabled) return;
+    setThemeIdState(id);
   };
 
   return (

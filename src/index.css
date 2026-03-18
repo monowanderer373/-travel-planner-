@@ -243,6 +243,18 @@ input::placeholder, textarea::placeholder {
   --text-secondary: rgba(29, 27, 34, 0.72);
   --text-muted: rgba(29, 27, 34, 0.52);
 
+  /* Keep pastel tokens (used across app CSS) defined for Voyage themes. */
+  --pastel-cream: #f6f5f2;
+  --pastel-blush: rgba(255, 179, 179, 0.22);
+  --pastel-mint: rgba(76, 201, 166, 0.14);
+  --pastel-lavender: rgba(141, 125, 246, 0.18);
+  --pastel-sky: rgba(77, 163, 255, 0.14);
+  --pastel-peach: rgba(240, 178, 108, 0.16);
+  --pastel-sage: rgba(76, 201, 166, 0.10);
+  --pastel-rose: rgba(255, 179, 179, 0.16);
+  --pastel-sand: rgba(240, 178, 108, 0.12);
+  --pastel-lilac: rgba(141, 125, 246, 0.14);
+
   --accent-primary: #8d7df6;
   --accent-secondary: #4cc9a6;
   --accent-soft: #ffb3b3;
@@ -261,30 +273,40 @@ input::placeholder, textarea::placeholder {
 }
 
 [data-theme="voyage-dark"] {
-  --bg-main: #0f1016;
-  --bg-card: rgba(18, 19, 27, 0.92);
-  --bg-sidebar: rgba(18, 19, 27, 0.96);
-  --border-soft: rgba(255, 255, 255, 0.10);
-  --border-accent: rgba(155, 120, 255, 0.35);
+  /* Fusion: Google Doodle deep palette + Voyage UI metrics */
+  --pastel-cream: #1a1820;
+  --pastel-blush: #2a2238;
+  --pastel-mint: #1c2628;
+  --pastel-lavender: #252038;
+  --pastel-sky: #1c2438;
+  --pastel-peach: #282228;
+  --pastel-sage: #1c2828;
+  --pastel-rose: #2a2232;
+  --pastel-sand: #1e1c26;
+  --pastel-lilac: #262044;
 
-  --text-primary: rgba(255, 255, 255, 0.92);
-  --text-secondary: rgba(255, 255, 255, 0.70);
-  --text-muted: rgba(255, 255, 255, 0.50);
+  --bg-main: #0f0e14;
+  --bg-card: #18161f;
+  --bg-sidebar: rgba(18, 16, 24, 0.98);
+  --border-soft: rgba(120, 100, 160, 0.15);
+  --border-accent: rgba(140, 100, 200, 0.45);
 
-  --accent-primary: #9e7bff;
-  --accent-secondary: #2bd4b3;
-  --accent-soft: #4da3ff;
-  --accent-warm: #ffb86b;
+  --text-primary: #f2f0f8;
+  --text-secondary: #c4bed8;
+  --text-muted: #8c86a4;
 
-  --shadow-sm: 0 1px 8px rgba(0, 0, 0, 0.45);
-  --shadow-md: 0 14px 40px rgba(0, 0, 0, 0.55);
-  --shadow-lg: 0 22px 70px rgba(0, 0, 0, 0.60);
+  --accent-primary: #c878e0;
+  --accent-secondary: #8c6cf8;
+  --accent-warm: #e89870;
+  --accent-soft: #6b9cf8;
+
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.55);
 
   --card-radius-lg: 18px;
   --dashboard-gap: 1.15rem;
-  --hero-gradient: radial-gradient(1200px 300px at 20% 0%, rgba(158, 123, 255, 0.45) 0%, rgba(79, 64, 120, 0.18) 55%, rgba(16, 16, 22, 0) 100%),
-    radial-gradient(900px 260px at 80% 10%, rgba(77, 163, 255, 0.22) 0%, rgba(16, 16, 22, 0) 60%),
-    linear-gradient(135deg, rgba(24, 18, 40, 0.55) 0%, rgba(18, 19, 27, 0.55) 100%);
+  --hero-gradient: linear-gradient(135deg, rgba(100, 80, 160, 0.4) 0%, rgba(140, 80, 180, 0.35) 100%);
 
   background-color: var(--bg-main);
   color: var(--text-primary);
@@ -298,6 +320,71 @@ input::placeholder, textarea::placeholder {
 [data-theme="voyage-dark"] select:focus,
 [data-theme="voyage-dark"] textarea:focus {
   box-shadow: 0 0 0 3px rgba(158, 123, 255, 0.22);
+}
+
+/* ===== Voyage (Dark) fusion: copy main Doodle dark styling patterns ===== */
+[data-theme="voyage-dark"] .main-content,
+[data-theme="voyage-dark"] .page {
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+}
+
+[data-theme="voyage-dark"] button {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-color: var(--border-soft);
+}
+
+[data-theme="voyage-dark"] button:hover {
+  background: var(--pastel-lavender);
+  border-color: var(--border-accent);
+}
+
+[data-theme="voyage-dark"] button.primary {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: #fff;
+  border: none;
+}
+
+[data-theme="voyage-dark"] button.primary:hover {
+  filter: brightness(1.1);
+}
+
+[data-theme="voyage-dark"] input,
+[data-theme="voyage-dark"] select,
+[data-theme="voyage-dark"] textarea {
+  background: #221e2c;
+  border-color: var(--border-soft);
+  color: var(--text-primary);
+}
+
+[data-theme="voyage-dark"] input:focus,
+[data-theme="voyage-dark"] select:focus,
+[data-theme="voyage-dark"] textarea:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(200, 120, 224, 0.25);
+}
+
+[data-theme="voyage-dark"] input::placeholder,
+[data-theme="voyage-dark"] textarea::placeholder {
+  color: var(--text-muted);
+}
+
+[data-theme="voyage-dark"] .section {
+  background: var(--bg-card);
+  border-color: var(--border-soft);
+}
+
+[data-theme="voyage-dark"] .section-title {
+  color: var(--text-secondary);
+  border-bottom-color: var(--border-soft);
+}
+
+[data-theme="voyage-dark"] .page-header h1,
+[data-theme="voyage-dark"] h1,
+[data-theme="voyage-dark"] h2,
+[data-theme="voyage-dark"] h3 {
+  color: var(--text-primary);
 }
 
 [data-theme="doodle"] .main-content,

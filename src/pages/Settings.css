@@ -82,6 +82,15 @@
   color: var(--text-primary);
 }
 
+.theme-option-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.theme-option-disabled:hover {
+  border-color: var(--border-soft);
+}
+
 .theme-option-label {
   font-size: 0.95rem;
   color: var(--text-secondary);
