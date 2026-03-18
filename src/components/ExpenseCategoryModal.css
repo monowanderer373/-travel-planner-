@@ -99,22 +99,6 @@
   line-height: 1.2;
 }
 
-[data-theme="doodle"] .category-modal-btn {
-  background: var(--pastel-lavender);
-  color: var(--text-primary);
-}
-
-[data-theme="doodle"] .category-modal-btn:hover {
-  background: var(--pastel-lilac);
-  border-color: var(--border-accent);
-}
-
-[data-theme="doodle"] .category-modal-btn-selected {
-  background: var(--pastel-lilac);
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
-}
-
 [data-theme="nier"] .category-modal-btn {
   background: var(--pastel-lavender);
   color: var(--text-primary);

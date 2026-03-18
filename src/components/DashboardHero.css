@@ -100,14 +100,6 @@
   color: #fff;
 }
 
-[data-theme="doodle"] .dashboard-hero-cta {
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-}
-
-[data-theme="doodle"] .dashboard-hero-cta:hover {
-  color: #fff;
-}
-
 .dashboard-hero-edit-btn {
   appearance: none;
   border: 1px solid rgba(141, 125, 246, 0.25);
