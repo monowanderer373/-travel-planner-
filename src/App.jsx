@@ -90,6 +90,7 @@ class ErrorBoundary extends Component {
           <p>The app hit an error. Try refreshing the page.</p>
           <pre style={{ background: '#f5f0e8', padding: '1rem', borderRadius: '8px', overflow: 'auto', fontSize: '0.85rem' }}>
             {this.state.error?.message}
+            {this.state.error?.stack ? `\n\n${this.state.error.stack}` : null}
           </pre>
         </div>
       );

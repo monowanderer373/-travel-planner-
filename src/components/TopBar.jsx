@@ -1,4 +1,5 @@
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink, Link, useLocation } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -13,6 +14,40 @@ export default function TopBar({ onMenuClick, menuOpen }) {
   const { t } = useLanguage();
   const displayName = user?.name?.trim() || 'Profile';
   const isVoyage = themeId === 'voyage-light' || themeId === 'voyage-dark';
+
+  const location = useLocation();
+  const [voyageNavOpen, setVoyageNavOpen] = useState(false);
+  const voyageToggleRef = useRef(null);
+  const voyagePanelRef = useRef(null);
+
+  const voyageTabs = useMemo(
+    () => [
+      { to: '/', label: t('nav.home'), end: true },
+      { to: '/itinerary', label: t('nav.itinerary') },
+      { to: '/saved', label: t('nav.saved') },
+      { to: '/transport', label: t('nav.transport') },
+      { to: '/cost', label: t('nav.cost') },
+      { to: '/group', label: t('home.tripmates.title') },
+    ],
+    [t]
+  );
+
+  useEffect(() => {
+    // Close dropdown on route change.
+    setVoyageNavOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!voyageNavOpen) return;
+    const onDown = (e) => {
+      const target = e.target;
+      const inPanel = voyagePanelRef.current && voyagePanelRef.current.contains(target);
+      const inToggle = voyageToggleRef.current && voyageToggleRef.current.contains(target);
+      if (!inPanel && !inToggle) setVoyageNavOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [voyageNavOpen]);
 
   return (
     <header className="topbar" role="banner">
@@ -33,26 +68,47 @@ export default function TopBar({ onMenuClick, menuOpen }) {
           {!isVoyage && <span className="topbar-tagline">Travel Planner</span>}
         </Link>
         {isVoyage && (
-          <nav className="topbar-nav" aria-label="Primary">
-            <NavLink to="/" end className={({ isActive }) => `topbar-tab ${isActive ? 'topbar-tab-active' : ''}`}>
-              {t('nav.home')}
-            </NavLink>
-            <NavLink to="/itinerary" className={({ isActive }) => `topbar-tab ${isActive ? 'topbar-tab-active' : ''}`}>
-              {t('nav.itinerary')}
-            </NavLink>
-            <NavLink to="/saved" className={({ isActive }) => `topbar-tab ${isActive ? 'topbar-tab-active' : ''}`}>
-              {t('nav.saved')}
-            </NavLink>
-            <NavLink to="/transport" className={({ isActive }) => `topbar-tab ${isActive ? 'topbar-tab-active' : ''}`}>
-              {t('nav.transport')}
-            </NavLink>
-            <NavLink to="/cost" className={({ isActive }) => `topbar-tab ${isActive ? 'topbar-tab-active' : ''}`}>
-              {t('nav.cost')}
-            </NavLink>
-            <NavLink to="/group" className={({ isActive }) => `topbar-tab ${isActive ? 'topbar-tab-active' : ''}`}>
-              {t('home.tripmates.title')}
-            </NavLink>
-          </nav>
+          <>
+            <button
+              ref={voyageToggleRef}
+              type="button"
+              className="topbar-voyage-mobile-tabs-btn"
+              aria-label={voyageNavOpen ? 'Close tabs' : 'Open tabs'}
+              aria-expanded={voyageNavOpen}
+              onClick={() => setVoyageNavOpen((v) => !v)}
+            >
+              ☰
+            </button>
+
+            <nav className="topbar-nav" aria-label="Primary">
+              {voyageTabs.map((tab) => (
+                <NavLink
+                  key={tab.to}
+                  to={tab.to}
+                  end={tab.end ? true : undefined}
+                  className={({ isActive }) => `topbar-tab ${isActive ? 'topbar-tab-active' : ''}`}
+                >
+                  {tab.label}
+                </NavLink>
+              ))}
+            </nav>
+
+            {voyageNavOpen && (
+              <div ref={voyagePanelRef} className="topbar-voyage-mobile-panel" role="menu" aria-label="Voyage tabs">
+                {voyageTabs.map((tab) => (
+                  <NavLink
+                    key={tab.to}
+                    to={tab.to}
+                    end={tab.end ? true : undefined}
+                    className={({ isActive }) => `topbar-voyage-mobile-item ${isActive ? 'topbar-voyage-mobile-item-active' : ''}`}
+                    onClick={() => setVoyageNavOpen(false)}
+                  >
+                    {tab.label}
+                  </NavLink>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
       <div className="topbar-actions">

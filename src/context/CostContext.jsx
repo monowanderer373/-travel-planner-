@@ -19,6 +19,53 @@ export const CURRENCIES = [
   { code: 'TWD', label: 'Taiwan Dollar (NT$)', symbol: 'NT$' },
 ];
 
+function toFiniteNumber(val, fallback = 0) {
+  if (typeof val === 'number') return Number.isFinite(val) ? val : fallback;
+  const n = parseFloat(val);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function normalizeSplit(s) {
+  if (!s || typeof s !== 'object') return { personId: '', repaid: false };
+  const repaid = s.repaid === true || s.repaid === 'true';
+  const amount = s.amount == null ? null : toFiniteNumber(s.amount, NaN);
+  const convertedAmount =
+    s.convertedAmount == null ? null : (Number.isFinite(parseFloat(s.convertedAmount)) ? parseFloat(s.convertedAmount) : null);
+  const rate = s.rate == null ? null : (Number.isFinite(parseFloat(s.rate)) ? parseFloat(s.rate) : null);
+  const baseAmount = s.baseAmount == null ? null : (Number.isFinite(parseFloat(s.baseAmount)) ? parseFloat(s.baseAmount) : null);
+  const taxAmount = s.taxAmount == null ? null : (Number.isFinite(parseFloat(s.taxAmount)) ? parseFloat(s.taxAmount) : null);
+
+  return {
+    ...s,
+    personId: typeof s.personId === 'string' ? s.personId : (s.personId != null ? String(s.personId) : ''),
+    repaid: !!repaid,
+    amount: amount == null || !Number.isFinite(amount) ? null : amount,
+    convertedAmount: convertedAmount == null || !Number.isFinite(convertedAmount) ? null : convertedAmount,
+    rate: rate == null || !Number.isFinite(rate) ? null : rate,
+    baseAmount: baseAmount == null || !Number.isFinite(baseAmount) ? null : baseAmount,
+    taxAmount: taxAmount == null || !Number.isFinite(taxAmount) ? null : taxAmount,
+    repaidDate: s.repaidDate || null,
+    repaidAt: s.repaidAt || null,
+    repaidAttachment: s.repaidAttachment || null,
+    rateSource: s.rateSource || null,
+    rateDate: s.rateDate || null,
+  };
+}
+
+function normalizeExpense(e, i) {
+  if (!e || typeof e !== 'object') return null;
+  const id = e.id || `exp-legacy-${Date.now()}-${i}`;
+  const amount = toFiniteNumber(e.amount, 0);
+  const splitsRaw = Array.isArray(e.splits) ? e.splits : [];
+  const splits = splitsRaw.map((s) => normalizeSplit(s));
+  return {
+    ...e,
+    id,
+    amount,
+    splits,
+  };
+}
+
 /**
  * Fetch exchange rate via Wise (no-auth attempt), then Frankfurter (ECB).
  * Returns { rate, source, date } or null.
@@ -61,16 +108,11 @@ export async function fetchRate(fromCurrency, toCurrency, date = 'latest') {
 function getInitialCost() {
   const loaded = loadCost();
   if (!loaded) return null;
-  const normalizeExpense = (e, i) => {
-    if (!e || typeof e !== 'object') return null;
-    const id = e.id || `exp-legacy-${Date.now()}-${i}`;
-    const amount = typeof e.amount === 'number' ? e.amount : parseFloat(e.amount || 0) || 0;
-    const splits = Array.isArray(e.splits) ? e.splits : [];
-    return { ...e, id, amount, splits };
-  };
   return {
     people: Array.isArray(loaded.people) ? loaded.people : [],
-    expenses: Array.isArray(loaded.expenses) ? loaded.expenses.map(normalizeExpense).filter(Boolean) : [],
+    expenses: Array.isArray(loaded.expenses)
+      ? loaded.expenses.map((e, i) => normalizeExpense(e, i)).filter(Boolean)
+      : [],
   };
 }
 
@@ -126,7 +168,12 @@ export function CostProvider({ children }) {
 
   const removeExpense = useCallback((id) => {
     if (!id) return;
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
+    setExpenses((prev) =>
+      prev
+        .filter((e) => e.id !== id)
+        .map((e, i) => normalizeExpense(e, i))
+        .filter(Boolean)
+    );
   }, []);
 
   // ── Repayment ─────────────────────────────────────────────────
@@ -238,7 +285,9 @@ export function CostProvider({ children }) {
           : defaultPaymentInfo(),
       })));
     }
-    if (Array.isArray(data.expenses)) setExpenses(data.expenses);
+    if (Array.isArray(data.expenses)) {
+      setExpenses(data.expenses.map((e, i) => normalizeExpense(e, i)).filter(Boolean));
+    }
   }, []);
 
   useEffect(() => {

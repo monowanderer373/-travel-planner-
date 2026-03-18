@@ -17,7 +17,7 @@
 
 .sidebar-logo {
   display: block;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Titillium Web', system-ui, sans-serif;
   font-weight: 600;
   font-size: 1.4rem;
   color: var(--accent-primary);
