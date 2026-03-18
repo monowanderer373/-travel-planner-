@@ -18,9 +18,13 @@ function PeopleManager() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { people, addPerson, updatePerson, removePerson } = useCost();
-  const { tripmates, tripCreator } = useItinerary();
+  const { people, addPerson, updatePerson, removePerson, removeExpensesForPersonId } = useCost();
+  const { tripmates, tripCreator, removeTripmate } = useItinerary();
   const [nameInput, setNameInput] = useState('');
+
+  // Prevent "auto-add newly joined tripmates" effect from immediately restoring travellers you manually removed.
+  const removedNamesRef = useRef(new Set());
+  const normName = (s) => String(s || '').trim().toLowerCase();
 
   const creatorEmail = String(tripCreator?.email || '').trim().toLowerCase();
   const currentEmail = String(user?.email || '').trim().toLowerCase();
@@ -54,6 +58,7 @@ function PeopleManager() {
     for (const n of candidates) {
       const k = norm(n);
       if (!k || existing.has(k)) continue;
+      if (removedNamesRef.current.has(k)) continue;
       existing.add(k);
       toAdd.push(n);
     }
@@ -66,7 +71,7 @@ function PeopleManager() {
     if (!isCreator) return;
     const name = nameInput.trim();
     if (!name) return;
-    addPerson(name);
+    addTraveller(name);
     setNameInput('');
   };
 
@@ -76,20 +81,26 @@ function PeopleManager() {
   const creatorNotInPeople = creatorName && !existingNames.has(creatorName.toLowerCase());
   const canAddAll = people.length === 0 && (tripmatesToAdd.length > 0 || creatorNotInPeople);
 
+  const addTraveller = (name) => {
+    const k = normName(name);
+    if (k) removedNamesRef.current.delete(k);
+    addPerson(name);
+  };
+
   const addTripmatesAsTravellers = () => {
     if (!isCreator) return;
-    tripmatesToAdd.forEach((t) => addPerson(t.name));
+    tripmatesToAdd.forEach((t) => addTraveller(t.name));
   };
 
   const addCreatorAsTraveller = () => {
     if (!isCreator) return;
-    if (creatorName) addPerson(creatorName);
+    if (creatorName) addTraveller(creatorName);
   };
 
   const addTripMatesAndCreatorAsTravellers = () => {
     if (!isCreator) return;
-    if (creatorNotInPeople && creatorName) addPerson(creatorName);
-    tripmatesToAdd.forEach((t) => addPerson(t.name));
+    if (creatorNotInPeople && creatorName) addTraveller(creatorName);
+    tripmatesToAdd.forEach((t) => addTraveller(t.name));
   };
 
   return (
@@ -145,7 +156,24 @@ function PeopleManager() {
               </button>
             )}
             {isCreator && (
-              <button type="button" className="person-remove" onClick={() => removePerson(p.id)}>×</button>
+              <button
+                type="button"
+                className="person-remove"
+                onClick={() => {
+                  const k = normName(p.name);
+                  if (k) removedNamesRef.current.add(k);
+
+                  // Clear related local expenses on this device.
+                  removeExpensesForPersonId(p.id);
+                  removePerson(p.id);
+
+                  // If this traveller comes from tripmates (invited users), remove it from the itinerary too.
+                  const mate = (tripmates || []).find((tm) => normName(tm?.name) === k);
+                  if (mate?.id) removeTripmate(mate.id);
+                }}
+              >
+                ×
+              </button>
             )}
           </div>
         ))}

@@ -176,6 +176,22 @@ export function CostProvider({ children }) {
     );
   }, []);
 
+  const removeExpensesForPersonId = useCallback((personId) => {
+    if (!personId) return;
+    setExpenses((prev) =>
+      prev
+        .filter((e) => {
+          if (!e || typeof e !== 'object') return false;
+          if (e.payerId === personId) return false;
+          const splits = Array.isArray(e.splits) ? e.splits : [];
+          const used = splits.some((s) => s && typeof s === 'object' && s.personId === personId);
+          return !used;
+        })
+        .map((e, i) => normalizeExpense(e, i))
+        .filter(Boolean)
+    );
+  }, []);
+
   // ── Repayment ─────────────────────────────────────────────────
   /** Mark a single split as repaid. attachment: { name, url } | null */
   const markSplitRepaid = useCallback((expenseId, splitIndex, repaidDate, attachment) => {
@@ -313,6 +329,7 @@ export function CostProvider({ children }) {
     addExpense,
     updateExpense,
     removeExpense,
+    removeExpensesForPersonId,
     markSplitRepaid,
     unmarkSplitRepaid,
     getCachedRate,
