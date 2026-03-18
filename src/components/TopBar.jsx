@@ -218,18 +218,67 @@ export default function TopBar({ onMenuClick, menuOpen }) {
                   })}
                 </div>
               )}
+              {isSharedMode && (
+                <>
+                  <div className="topbar-plan-divider" />
+                  {personalPlans.length === 0 ? (
+                    <div className="topbar-plan-empty">Loading…</div>
+                  ) : (
+                    <div className="topbar-plan-list">
+                      {personalPlans.map((p) => {
+                        const pTrip = p?.data?.trip || {};
+                        const pTitle = String(pTrip?.destination || '').trim() || 'Untitled';
+                        const pStartDate = pTrip?.startDate;
+                        const pMonthYear = pStartDate ? monthYearFmt.format(new Date(`${pStartDate}T00:00:00`)) : '';
+                        const pLabel = `${pTitle}${pMonthYear ? ` · ${pMonthYear}` : ''}`;
+                        const active = p?.id === activePersonalPlanId;
+                        return (
+                          <button
+                            key={p?.id}
+                            type="button"
+                            className={`topbar-plan-item ${active ? 'topbar-plan-item-active' : ''}`}
+                            onClick={() => {
+                              const ok = window.confirm('Switch to your personal plan and leave this shared trip?');
+                              if (!ok) return;
+                              setPlanOpen(false);
+                              void switchToPersonalPlan(p?.id);
+                            }}
+                          >
+                            <span className="topbar-plan-item-label">{pLabel}</span>
+                            <span className="topbar-plan-item-spacer" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
               <div className="topbar-plan-divider" />
               {isSharedMode ? (
-                <button
-                  type="button"
-                  className="topbar-plan-new"
-                  onClick={() => {
-                    setPlanOpen(false);
-                    void leaveSharedTrip();
-                  }}
-                >
-                  Leave shared trip
-                </button>
+                <div style={{ display: 'flex', gap: '0.55rem' }}>
+                  <button
+                    type="button"
+                    className="topbar-plan-new"
+                    onClick={() => {
+                      const ok = window.confirm('Create a new personal plan and leave this shared trip?');
+                      if (!ok) return;
+                      setPlanOpen(false);
+                      void createPersonalPlan();
+                    }}
+                  >
+                    + New Plan
+                  </button>
+                  <button
+                    type="button"
+                    className="topbar-plan-new"
+                    onClick={() => {
+                      setPlanOpen(false);
+                      void leaveSharedTrip();
+                    }}
+                  >
+                    Leave shared trip
+                  </button>
+                </div>
               ) : (
                 <button
                   type="button"

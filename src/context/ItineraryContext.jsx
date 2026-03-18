@@ -182,6 +182,7 @@ export function ItineraryProvider({ children }) {
   /** Increment to pull latest personal row from cloud (e.g. after tab visible again). */
   const [personalCloudPullKey, setPersonalCloudPullKey] = useState(0);
   const lastHiddenAtRef = useRef(0);
+  const joinTripmateSyncRef = useRef('');
 
   function isTripIdActiveInUrl(tid) {
     if (!tid || typeof window === 'undefined') return false;
@@ -863,6 +864,88 @@ export function ItineraryProvider({ children }) {
         setPersonalPlans([]);
       });
   }, [user?.id, planFromUrl]);
+
+  // Ensure invited user is recorded in tripmates once they join a shared trip.
+  // We do an immediate cloud write so closing the browser right away still keeps the record.
+  useEffect(() => {
+    const tripId = shareSettings?.tripId;
+    if (!tripId || !user?.id) return;
+    if (!hasSupabase() || !supabase) return;
+    if (!isSupabaseUser(user)) return;
+
+    let joinFlowId = '';
+    try {
+      joinFlowId = sessionStorage.getItem('share_join_flow') || '';
+    } catch {}
+    if (!joinFlowId || joinFlowId !== tripId) return;
+
+    const creatorId = String(tripCreator?.id || tripCreator?.userId || '').trim();
+    const creatorEmail = String(tripCreator?.email || '').trim().toLowerCase();
+    const userEmail = String(user?.email || '').trim().toLowerCase();
+    const isCreator = (!!creatorId && creatorId === String(user.id)) || (!!creatorEmail && !!userEmail && creatorEmail === userEmail);
+    if (isCreator) {
+      try { sessionStorage.removeItem('share_join_flow'); } catch {}
+      return;
+    }
+
+    const opKey = `${tripId}:${user.id}`;
+    if (joinTripmateSyncRef.current === opKey) return;
+    joinTripmateSyncRef.current = opKey;
+
+    const same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+    const exists = tripmates.some((m) =>
+      (m?.userId && String(m.userId) === String(user.id)) ||
+      (m?.email && userEmail && same(m.email, userEmail))
+    );
+
+    if (exists) {
+      try { sessionStorage.removeItem('share_join_flow'); } catch {}
+      return;
+    }
+
+    const member = {
+      id: `tripmate-${Date.now()}`,
+      userId: String(user.id),
+      name: String(user?.name || user?.email || 'Traveler').trim() || 'Traveler',
+      email: String(user?.email || '').trim(),
+      avatarUrl: String(user?.photoURL || '').trim(),
+      joinedAt: new Date().toISOString(),
+    };
+    const nextTripmates = [...tripmates, member];
+    setTripmates(nextTripmates);
+
+    const payload = {
+      trip,
+      days,
+      savedPlaces,
+      savedTransports,
+      tripmates: nextTripmates,
+      tripCreator,
+      tripMemories,
+      planSharedTripId,
+      shareSettings: { ...shareSettings, tripId },
+      tripmateShareLink,
+    };
+
+    void writeSharedItineraryRow(supabase, tripId, payload).finally(() => {
+      try { sessionStorage.removeItem('share_join_flow'); } catch {}
+    });
+  }, [
+    shareSettings?.tripId,
+    user?.id,
+    user?.name,
+    user?.email,
+    user?.photoURL,
+    tripCreator,
+    tripmates,
+    trip,
+    days,
+    savedPlaces,
+    savedTransports,
+    tripMemories,
+    planSharedTripId,
+    tripmateShareLink,
+  ]);
 
   const shareTripIdRef = useRef(shareSettings.tripId);
   useEffect(() => {
