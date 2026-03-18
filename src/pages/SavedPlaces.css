@@ -463,6 +463,10 @@
   .voyage-card-media {
     aspect-ratio: 16 / 10;
   }
+  .voyage-category-picker {
+    max-width: 220px;
+    padding: 0.55rem 0.6rem;
+  }
   .voyage-btn {
     padding: 0.42rem 0.75rem;
   }
@@ -533,12 +537,10 @@
 }
 
 .voyage-category-picker {
-  position: absolute;
-  left: 0;
-  top: calc(100% + 0.35rem);
+  position: fixed;
   width: max-content;
   max-width: 260px;
-  z-index: 10;
+  z-index: 9999;
   padding: 0.65rem 0.75rem;
   border-radius: 16px;
   border: 1px solid rgba(141, 125, 246, 0.25);

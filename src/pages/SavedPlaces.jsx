@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -124,7 +125,8 @@ export default function SavedPlaces() {
   const [editCover, setEditCover] = useState('');
   const [editLink, setEditLink] = useState('');
 
-  const [categoryPickerPlaceId, setCategoryPickerPlaceId] = useState(null);
+  const [categoryPicker, setCategoryPicker] = useState({ placeId: null, x: 0, y: 0 });
+  const categoryPickerRef = useRef(null);
 
   // Inline title editing (double-click to edit in-place)
   const [inlineEditId, setInlineEditId] = useState(null);
@@ -149,8 +151,19 @@ export default function SavedPlaces() {
   const selectPlaceCategory = (placeId, nextLabel) => {
     const next = nextLabel ? String(nextLabel).trim() : '';
     updateSavedPlace(placeId, { category: next });
-    setCategoryPickerPlaceId(null);
+    setCategoryPicker({ placeId: null, x: 0, y: 0 });
   };
+
+  useEffect(() => {
+    if (!categoryPicker.placeId) return;
+    const onDown = (e) => {
+      if (categoryPickerRef.current && !categoryPickerRef.current.contains(e.target)) {
+        setCategoryPicker({ placeId: null, x: 0, y: 0 });
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [categoryPicker.placeId]);
 
   const getSource = (place) => {
     const raw = String(place?.embedUrl || '').trim();
@@ -606,7 +619,7 @@ export default function SavedPlaces() {
                       {(() => {
                         const currentCategory = getNormalizedCategoryLabel(place.category);
                         const btnLabel = currentCategory || 'Place';
-                        const open = categoryPickerPlaceId === place.id;
+                        const open = categoryPicker.placeId === place.id;
                         return (
                           <div className="voyage-category-wrap">
                             <button
@@ -614,39 +627,16 @@ export default function SavedPlaces() {
                               className={`voyage-category-btn ${open ? 'voyage-category-btn--active' : ''}`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setCategoryPickerPlaceId((prev) => (prev === place.id ? null : place.id));
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setCategoryPicker((prev) => {
+                                  if (prev.placeId === place.id) return { placeId: null, x: 0, y: 0 };
+                                  return { placeId: place.id, x: rect.left, y: rect.bottom + 8 };
+                                });
                               }}
                             >
                               <span className="voyage-category-btn-label">{btnLabel}</span>
                               <span className="voyage-category-caret">{open ? '▲' : '▼'}</span>
                             </button>
-
-                            {open && (
-                              <div
-                                className="voyage-category-picker"
-                                role="menu"
-                                aria-label="Select categories"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <button
-                                  type="button"
-                                  className={`voyage-chip ${!currentCategory ? 'voyage-chip-active' : ''}`}
-                                  onClick={() => selectPlaceCategory(place.id, '')}
-                                >
-                                  Place
-                                </button>
-                                {VOYAGE_CATEGORY_PRESETS.map((c) => (
-                                  <button
-                                    key={c.key}
-                                    type="button"
-                                    className={`voyage-chip ${currentCategory === c.label ? 'voyage-chip-active' : ''}`}
-                                    onClick={() => selectPlaceCategory(place.id, c.label)}
-                                  >
-                                    {c.label}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
                           </div>
                         );
                       })()}
@@ -731,6 +721,41 @@ export default function SavedPlaces() {
             </div>
           </div>
         )}
+
+        {categoryPicker.placeId && (() => {
+          const pickerPlace = (savedPlaces || []).find((p) => p.id === categoryPicker.placeId);
+          if (!pickerPlace) return null;
+          const currentCategory = getNormalizedCategoryLabel(pickerPlace.category);
+          return createPortal(
+            <div
+              ref={categoryPickerRef}
+              className="voyage-category-picker"
+              role="menu"
+              aria-label="Select categories"
+              style={{ left: categoryPicker.x, top: categoryPicker.y }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                className={`voyage-chip ${!currentCategory ? 'voyage-chip-active' : ''}`}
+                onClick={() => selectPlaceCategory(pickerPlace.id, '')}
+              >
+                Place
+              </button>
+              {VOYAGE_CATEGORY_PRESETS.map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  className={`voyage-chip ${currentCategory === c.label ? 'voyage-chip-active' : ''}`}
+                  onClick={() => selectPlaceCategory(pickerPlace.id, c.label)}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>,
+            document.body
+          );
+        })()}
 
         {addModalOpen && addModalPlace && (
           <div className="place-modal-backdrop" onClick={() => setAddModalOpen(false)}>

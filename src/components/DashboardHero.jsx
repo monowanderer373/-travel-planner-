@@ -274,15 +274,13 @@ export default function DashboardHero() {
                 type="button"
                 className="dashboard-hero-chip dashboard-hero-weather-btn"
                 onClick={() => {
-                  if (!trip.startDate || !trip.endDate) return;
-                  setWeatherMonth(() => {
-                    const base = new Date(trip.startDate + 'T00:00:00');
-                    return { year: base.getFullYear(), month: base.getMonth() };
-                  });
-                  setSelectedWeatherDate(trip.startDate);
-                  setWeatherForecast(null);
-                  setWeatherError('');
-                  setWeatherOpen(true);
+                  const cityName =
+                    resolveCityNameForDate(trip.startDate) ||
+                    (Array.isArray(trip.cities) && trip.cities[0]?.name ? trip.cities[0].name : '') ||
+                    trip.destination?.trim() ||
+                    '';
+                  const url = buildWeatherWebsiteUrl(cityName);
+                  if (url) window.open(url, '_blank', 'noopener,noreferrer');
                 }}
               >
                 Weather
