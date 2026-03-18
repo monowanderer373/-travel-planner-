@@ -124,6 +124,8 @@ export default function SavedPlaces() {
   const [editCover, setEditCover] = useState('');
   const [editLink, setEditLink] = useState('');
 
+  const [categoryPickerPlaceId, setCategoryPickerPlaceId] = useState(null);
+
   // Inline title editing (double-click to edit in-place)
   const [inlineEditId, setInlineEditId] = useState(null);
   const [inlineEditValue, setInlineEditValue] = useState('');
@@ -137,6 +139,18 @@ export default function SavedPlaces() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const getNormalizedCategoryLabel = (label) => {
+    if (!label) return '';
+    const cur = String(label).trim();
+    return VOYAGE_CATEGORY_PRESETS.some((c) => c.label === cur) ? cur : '';
+  };
+
+  const selectPlaceCategory = (placeId, nextLabel) => {
+    const next = nextLabel ? String(nextLabel).trim() : '';
+    updateSavedPlace(placeId, { category: next });
+    setCategoryPickerPlaceId(null);
+  };
 
   const getSource = (place) => {
     const raw = String(place?.embedUrl || '').trim();
@@ -588,7 +602,55 @@ export default function SavedPlaces() {
                         </button>
                       )
                     )}
-                    {place.category && <div className="voyage-card-tags"><span className="voyage-tag">{place.category}</span></div>}
+                    <div className="voyage-card-tags">
+                      {(() => {
+                        const currentCategory = getNormalizedCategoryLabel(place.category);
+                        const btnLabel = currentCategory || 'Place';
+                        const open = categoryPickerPlaceId === place.id;
+                        return (
+                          <div className="voyage-category-wrap">
+                            <button
+                              type="button"
+                              className={`voyage-category-btn ${open ? 'voyage-category-btn--active' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCategoryPickerPlaceId((prev) => (prev === place.id ? null : place.id));
+                              }}
+                            >
+                              <span className="voyage-category-btn-label">{btnLabel}</span>
+                              <span className="voyage-category-caret">{open ? '▲' : '▼'}</span>
+                            </button>
+
+                            {open && (
+                              <div
+                                className="voyage-category-picker"
+                                role="menu"
+                                aria-label="Select categories"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  type="button"
+                                  className={`voyage-chip ${!currentCategory ? 'voyage-chip-active' : ''}`}
+                                  onClick={() => selectPlaceCategory(place.id, '')}
+                                >
+                                  Place
+                                </button>
+                                {VOYAGE_CATEGORY_PRESETS.map((c) => (
+                                  <button
+                                    key={c.key}
+                                    type="button"
+                                    className={`voyage-chip ${currentCategory === c.label ? 'voyage-chip-active' : ''}`}
+                                    onClick={() => selectPlaceCategory(place.id, c.label)}
+                                  >
+                                    {c.label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
                     <div className="voyage-card-actions">
                       <button type="button" className="voyage-btn" onClick={() => openPlanModal(place, 0)}>
                         plan
@@ -899,9 +961,8 @@ function VoyageLinkImport({ initialUrl, detectSource, onSave }) {
       title: (title || '').trim() || suggestTitle(),
       hours,
       rating: null,
-      category:
-        (category || '').trim() ||
-        (src.key === 'instagram' ? 'Instagram' : src.key === 'xhs' ? '小红书' : src.key === 'blog' ? 'Blog' : 'Link'),
+      // Categories are only Food/Cafe/Bistro/... presets (not "source" labels like Google Maps/Link).
+      category: (category || '').trim() || '',
       collection: (collection || '').trim() || '',
       photoUrl: (coverUrl || '').trim() || null,
       reviews: [],

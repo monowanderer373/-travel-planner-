@@ -483,6 +483,7 @@
   gap: 0.4rem;
   flex-wrap: wrap;
   margin-bottom: 0.75rem;
+  position: relative;
 }
 
 .voyage-tag {
@@ -493,6 +494,65 @@
   border-radius: 999px;
   background: rgba(141, 125, 246, 0.10);
   border: 1px solid rgba(141, 125, 246, 0.16);
+}
+
+.voyage-category-wrap {
+  display: inline-flex;
+  position: relative;
+}
+
+.voyage-category-btn {
+  appearance: none;
+  border: 1px solid rgba(141, 125, 246, 0.16);
+  background: rgba(141, 125, 246, 0.10);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 0.22rem 0.55rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.voyage-category-btn:hover {
+  border-color: rgba(141, 125, 246, 0.35);
+  filter: brightness(1.02);
+}
+
+.voyage-category-btn--active {
+  background: rgba(141, 125, 246, 0.18);
+  border-color: rgba(141, 125, 246, 0.45);
+  color: var(--text-primary);
+}
+
+.voyage-category-caret {
+  font-size: 0.7rem;
+  opacity: 0.9;
+}
+
+.voyage-category-picker {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 0.35rem);
+  width: max-content;
+  max-width: 260px;
+  z-index: 10;
+  padding: 0.65rem 0.75rem;
+  border-radius: 16px;
+  border: 1px solid rgba(141, 125, 246, 0.25);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow-lg, 0 20px 60px rgba(0, 0, 0, 0.18));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+[data-theme="voyage-dark"] .voyage-category-picker {
+  background: rgba(18, 19, 27, 0.95);
+  border-color: rgba(141, 125, 246, 0.22);
 }
 
 .voyage-card-actions {
