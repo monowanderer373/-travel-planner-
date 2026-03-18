@@ -4,14 +4,14 @@ import { formatHour } from '../utils/time';
 import DashboardCard from './DashboardCard';
 import './DaySummaryCard.css';
 
-export default function DaySummaryCard() {
+export default function DaySummaryCard({ selectedDay }) {
   const { t } = useLanguage();
   const { days } = useItinerary();
-  const firstDay = days[0];
-  const timeline = firstDay?.timeline || [];
+  const effectiveDay = selectedDay || days[0];
+  const timeline = effectiveDay?.timeline || [];
 
   return (
-    <DashboardCard title={firstDay?.label || t('itinerary.summary.title')}>
+    <DashboardCard title={effectiveDay?.label || t('itinerary.summary.title')}>
       {timeline.length === 0 ? (
         <p className="day-summary-empty">{t('itinerary.summary.empty')}</p>
       ) : (

@@ -1,14 +1,26 @@
+import { useState, useEffect } from 'react';
 import DayPanel from '../components/DayPanel';
 import ShareModal from '../components/ShareModal';
 import DaySummaryCard from '../components/DaySummaryCard';
 import ItineraryTipsCard from '../components/ItineraryTipsCard';
-import { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
+import { useItinerary } from '../context/ItineraryContext';
 import './Itinerary.css';
 
 export default function Itinerary() {
   const { t } = useLanguage();
+  const { days } = useItinerary();
   const [shareOpen, setShareOpen] = useState(false);
+  const [selectedDayId, setSelectedDayId] = useState(() => (days[0]?.id ?? null));
+
+  useEffect(() => {
+    if (!days.length) return;
+    if (!selectedDayId || !days.some((d) => d.id === selectedDayId)) {
+      setSelectedDayId(days[0].id);
+    }
+  }, [days, selectedDayId]);
+
+  const selectedDay = days.find((d) => d.id === selectedDayId) || days[0];
 
   return (
     <div className="page itinerary-page">
@@ -22,9 +34,9 @@ export default function Itinerary() {
         {t('itinerary.intro')}
       </p>
       <div className="itinerary-main">
-        <DayPanel />
+        <DayPanel selectedDayId={selectedDayId} onSelectDay={setSelectedDayId} />
         <div className="itinerary-sidebar">
-          <DaySummaryCard />
+          <DaySummaryCard selectedDay={selectedDay} />
           <ItineraryTipsCard />
         </div>
       </div>

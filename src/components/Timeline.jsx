@@ -5,20 +5,35 @@ import './Timeline.css';
 
 const HOURS = Array.from({ length: 16 }, (_, i) => i + 8); // 8–23
 
-function timeToSlot(hour) {
-  return (Number(hour) - 8) * 48; // 48px per hour, supports fractional
-}
-
-function slotToTime(slot) {
-  return Math.round(slot / 48) + 8;
+/** For each row i (0–15), return 'slot' | 'empty' | { type: 'block', block, index, span } */
+function getRowContents(timeline) {
+  const rows = [];
+  for (let i = 0; i < 16; i++) {
+    const hour = 8 + i;
+    const blockAtStart = timeline.find((b) => b.startHour === hour);
+    const blockCovering = timeline.find((b) => b.startHour < hour && b.endHour > hour);
+    if (blockAtStart) {
+      rows.push({
+        type: 'block',
+        block: blockAtStart,
+        index: timeline.indexOf(blockAtStart),
+        span: blockAtStart.endHour - blockAtStart.startHour,
+      });
+    } else if (blockCovering) {
+      rows.push({ type: 'empty' });
+    } else {
+      rows.push({ type: 'slot', hour });
+    }
+  }
+  return rows;
 }
 
 export default function Timeline({ day }) {
-  const { updateDayTimeline, updateTimelineItem, removeFromTimeline } = useItinerary();
+  const { updateDayTimeline, removeFromTimeline } = useItinerary();
   const [selecting, setSelecting] = useState(null);
-  const [editingIndex, setEditingIndex] = useState(null);
 
   const timeline = day.timeline || [];
+  const rowContents = getRowContents(timeline);
 
   const addBlock = (startHour, endHour, label = 'New activity') => {
     const start = Math.min(startHour, endHour);
@@ -44,12 +59,6 @@ export default function Timeline({ day }) {
     addBlock(selecting.start, hour);
   };
 
-  const handleDurationChange = (index, newDuration) => {
-    const item = timeline[index];
-    const endHour = Math.min(23, item.startHour + Number(newDuration));
-    updateTimelineItem(day.id, index, { duration: endHour - item.startHour, endHour });
-  };
-
   const totalTravelTime = timeline.reduce((acc, t) => acc + (t.endHour - t.startHour), 0);
 
   return (
@@ -62,103 +71,50 @@ export default function Timeline({ day }) {
             </div>
           ))}
         </div>
-        <div className="timeline-slots">
-          {HOURS.map((hour) => (
-            <button
-              key={hour}
-              type="button"
-              className={`timeline-slot ${selecting ? 'timeline-slot-selectable' : ''}`}
-              onClick={() => handleSlotClick(hour)}
-              title={selecting ? `Set end time (start: ${selecting.start}:00)` : 'Click to set start, then click end time'}
-            >
-              {selecting && selecting.start === hour && <span className="timeline-slot-start">Start</span>}
-            </button>
-          ))}
-        </div>
-        <div className="timeline-blocks" style={{ height: HOURS.length * 48 }}>
-          {timeline.map((item, index) => {
-            const top = timeToSlot(item.startHour);
-            const height = (item.endHour - item.startHour) * 48;
-            const isTransport = item.type === 'transport';
-            const durationDisplay = isTransport && (item.durationMinutes != null)
-              ? `${item.durationMinutes} min`
-              : isTransport && item.duration
-                ? `${item.duration}h`
+        <div className="timeline-content">
+          {rowContents.map((row, i) => {
+            if (row.type === 'slot') {
+              return (
+                <button
+                  key={`slot-${row.hour}`}
+                  type="button"
+                  className={`timeline-slot ${selecting ? 'timeline-slot-selectable' : ''}`}
+                  style={{ gridRow: `${i + 1} / auto` }}
+                  onClick={() => handleSlotClick(row.hour)}
+                  title={selecting ? `Set end time (start: ${selecting.start}:00)` : 'Click to set start, then click end time'}
+                >
+                  {selecting && selecting.start === row.hour && <span className="timeline-slot-start">Start</span>}
+                </button>
+              );
+            }
+            if (row.type === 'empty') {
+              return <div key={`empty-${i}`} className="timeline-row-empty" style={{ gridRow: `${i + 1} / auto` }} aria-hidden />;
+            }
+            const { block, index, span } = row;
+            const isTransport = block.type === 'transport';
+            const durationDisplay = isTransport && block.durationMinutes != null
+              ? `${block.durationMinutes} min`
+              : isTransport && block.duration
+                ? `${block.duration}h`
                 : null;
-            const mapUrl = (item.mapUrl || '').trim();
-            const isEditing = editingIndex === index;
 
             return (
               <div
-                key={item.id}
+                key={block.id}
                 className={`timeline-block ${isTransport ? 'timeline-block-transport' : ''}`}
-                style={{ top: `${top}px`, height: `${height}px` }}
+                style={{ gridRow: `${i + 1} / span ${span}` }}
               >
                 <div className="timeline-block-inner">
                   {isTransport ? (
                     <>
-                      <span className="timeline-block-transport-label">🚆 {item.lineName || 'Transport'}</span>
+                      <span className="timeline-block-transport-label">🚆 {block.lineName || 'Transport'}</span>
                       <span className="timeline-block-time">
-                        {formatHour(item.startHour)} – {formatHour(item.endHour)}
+                        {formatHour(block.startHour)} – {formatHour(block.endHour)}
                       </span>
                       {durationDisplay && <span className="timeline-block-transport-duration">{durationDisplay}</span>}
                     </>
                   ) : (
-                    <>
-                      <div className="timeline-block-name-row">
-                        {mapUrl && !isEditing ? (
-                          <a
-                            className="timeline-block-name-link"
-                            href={mapUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            title="Open in Google Maps"
-                          >
-                            {item.name}
-                          </a>
-                        ) : (
-                          <input
-                            type="text"
-                            className="timeline-block-name-input"
-                            value={item.name}
-                            onChange={(e) => updateTimelineItem(day.id, index, { name: e.target.value })}
-                            onBlur={() => setEditingIndex(null)}
-                            placeholder="Activity name"
-                            autoFocus={isEditing}
-                          />
-                        )}
-                        <button
-                          type="button"
-                          className="timeline-block-edit"
-                          onClick={() => setEditingIndex((cur) => (cur === index ? null : index))}
-                          aria-label="Edit name"
-                          title="Edit name"
-                        >
-                          ✎
-                        </button>
-                      </div>
-                      <span className="timeline-block-time">
-                        {formatHour(item.startHour)} – {formatHour(item.endHour)}
-                      </span>
-                      <label className="timeline-block-duration">
-                        Duration (hrs):{' '}
-                        <input
-                          type="number"
-                          min={0.5}
-                          max={15}
-                          step={0.5}
-                          value={item.duration}
-                          onChange={(e) => handleDurationChange(index, e.target.value)}
-                        />
-                      </label>
-                      <input
-                        type="text"
-                        className="timeline-block-notes"
-                        placeholder="Notes"
-                        value={item.notes}
-                        onChange={(e) => updateTimelineItem(day.id, index, { notes: e.target.value })}
-                      />
-                    </>
+                    <span className="timeline-block-name">{block.name}</span>
                   )}
                   <button
                     type="button"

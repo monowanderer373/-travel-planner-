@@ -3,9 +3,14 @@ import { useLanguage } from '../context/LanguageContext';
 import Timeline from './Timeline';
 import './DayPanel.css';
 
-export default function DayPanel() {
+export default function DayPanel({ selectedDayId, onSelectDay }) {
   const { t } = useLanguage();
   const { days, addDay } = useItinerary();
+
+  const handleSelect = (id) => {
+    if (!onSelectDay) return;
+    onSelectDay(id);
+  };
 
   return (
     <section className="section day-panel">
@@ -17,7 +22,11 @@ export default function DayPanel() {
       </div>
       <div className="days-list">
         {days.map((day) => (
-          <div key={day.id} className="day-block animate-in">
+          <div
+            key={day.id}
+            className={`day-block animate-in${selectedDayId === day.id ? ' day-block-active' : ''}`}
+            onClick={() => handleSelect(day.id)}
+          >
             <h3 className="day-block-title">{day.label}</h3>
             <Timeline day={day} />
           </div>

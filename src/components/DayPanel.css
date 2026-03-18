@@ -24,10 +24,17 @@
   background: var(--pastel-sand);
   border-radius: 14px;
   border: 1px solid var(--border-soft);
+  cursor: pointer;
 }
 
 .day-block-title {
   margin: 0 0 1rem 0;
   font-size: 1.1rem;
   color: var(--text-secondary);
+}
+
+.day-block-active {
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow-sm);
+  background: #fffbe8;
 }

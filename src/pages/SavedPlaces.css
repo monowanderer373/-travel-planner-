@@ -1,33 +1,57 @@
+/* Phase 3 Style C: tokens + card layout */
+.saved-places-page .page-header {
+  margin-bottom: 0.5rem;
+}
+
 .saved-places-list-title {
-  margin: 1.5rem 0 1rem;
+  margin: var(--dashboard-gap, 1.25rem) 0 1rem;
   font-size: 1.1rem;
-  color: var(--text-secondary);
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .empty-state {
   padding: 2rem;
   text-align: center;
-  background: var(--pastel-sand);
-  border-radius: 14px;
+  background: var(--bg-card);
+  border-radius: var(--card-radius-lg, 16px);
+  border: 1px solid var(--border-soft);
   color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
 }
 
 .saved-places-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.25rem;
+  gap: var(--dashboard-gap, 1.25rem);
 }
 
 .saved-place-card {
   position: relative;
+  background: var(--bg-card);
+  border-radius: var(--card-radius-lg, 16px);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.saved-place-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.saved-place-card .place-card {
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
 }
 
 .saved-place-edit {
-  margin-top: 0.75rem;
-  padding: 0.75rem 0.85rem;
+  margin: 0;
+  padding: 0.75rem 1rem;
   background: var(--pastel-sand);
-  border-radius: 10px;
-  border: 1px solid var(--border-soft);
+  border-top: 1px solid var(--border-soft);
+  border-radius: 0 0 var(--card-radius-lg, 16px);
 }
 
 .saved-place-edit-label {
@@ -42,7 +66,6 @@
   grid-template-columns: 1fr auto auto;
   gap: 0.5rem;
   align-items: end;
-  flex-wrap: wrap;
 }
 
 .saved-place-edit-field {
@@ -57,6 +80,8 @@
 .saved-place-edit-field select {
   padding: 0.4rem 0.5rem;
   font-size: 0.88rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
 }
 
 .saved-place-edit-field span {
@@ -72,6 +97,22 @@
   margin-top: 0.5rem;
   font-size: 0.88rem;
   padding: 0.4rem 0.75rem;
+  border-radius: 10px;
+}
+
+.saved-place-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1rem;
+  margin: 0;
+  border-top: 1px solid var(--border-soft);
+  background: var(--bg-card);
+  gap: 0.5rem;
+}
+
+.saved-place-card .place-card-actions {
+  margin-top: 0.5rem;
 }
 
 @media (max-width: 520px) {
@@ -80,20 +121,6 @@
   }
 }
 
-.saved-place-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 0 0;
-  margin-top: 0.5rem;
-  border-top: 1px solid var(--border-soft);
-}
-
-.saved-place-card .place-card-actions {
-  margin-top: 0.5rem;
-}
-
-/* ----- Mobile: single column, no zoomed-desktop look ----- */
 @media (max-width: 768px) {
   .saved-places-page {
     max-width: 100%;
@@ -111,10 +138,9 @@
 
   .saved-place-footer {
     flex-wrap: wrap;
-    gap: 0.5rem;
   }
 
   .saved-place-footer button {
-    width: 100%;
+    min-width: 0;
   }
 }

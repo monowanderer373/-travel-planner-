@@ -1,9 +1,10 @@
+/* Phase 3 Style C: tokens */
 .cost-page .page-header {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.75rem 1.25rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: var(--dashboard-gap, 1.25rem);
 }
 
 .page-intro-inline {
@@ -13,7 +14,12 @@
 }
 
 .cost-section {
-  margin-bottom: 1.25rem;
+  margin-bottom: var(--dashboard-gap, 1.25rem);
+  padding: 1rem 1.25rem;
+  background: var(--bg-card);
+  border-radius: var(--card-radius-lg, 16px);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-sm);
 }
 
 /* ══════════════════════ PEOPLE ══════════════════════ */
@@ -113,7 +119,7 @@
 
 .traveller-payment-card {
   border: 1px solid var(--border-soft);
-  border-radius: 12px;
+  border-radius: var(--card-radius-lg, 16px);
   background: var(--bg-card);
   overflow: hidden;
   box-shadow: var(--shadow-sm);
@@ -568,7 +574,7 @@
 }
 
 .day-exp-card {
-  border-radius: 14px;
+  border-radius: var(--card-radius-lg, 16px);
   border: 1px solid var(--border-soft);
   background: var(--bg-card);
   box-shadow: var(--shadow-sm);
@@ -666,9 +672,9 @@
 
 /* ══════════════════════ EXPENSE CARD V2 ══════════════════════ */
 .expense-card-v2 {
-  border-radius: 10px;
+  border-radius: var(--card-radius-lg, 16px);
   border: 1px solid var(--border-soft);
-  background: #fff;
+  background: var(--bg-card);
   overflow: hidden;
   transition: box-shadow 0.2s;
 }
