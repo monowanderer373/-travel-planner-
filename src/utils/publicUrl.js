@@ -3,6 +3,21 @@
  * Always includes the app base path (e.g. /-travel-planner-) so links don't 404.
  */
 export function getPublicBaseUrl() {
+  // Prefer runtime origin + Vite base path when we are already on GitHub Pages.
+  // This prevents generating broken base URLs (which would 404 at the Pages level).
+  if (typeof window !== 'undefined') {
+    const origin = window.location.origin;
+    const base = import.meta.env.BASE_URL || '/';
+    const path = base.replace(/^\/+|\/+$/g, '');
+
+    if (origin && origin.includes('github.io')) {
+      if (path) return `${origin}/${path}`.replace(/\/$/, '');
+      // Very defensive fallback (your repo is "-travel-planner-")
+      return `${origin}/-travel-planner-`.replace(/\/$/, '');
+    }
+  }
+
+  // Otherwise, allow CI to set a canonical public URL.
   const pub = import.meta.env.VITE_APP_PUBLIC_URL;
   if (pub && typeof pub === 'string' && pub.trim()) {
     const url = pub.trim().replace(/\/$/, '');
@@ -11,6 +26,7 @@ export function getPublicBaseUrl() {
       if (parsed.pathname && parsed.pathname !== '/') return url;
     } catch {}
   }
+
   return getInviteBaseUrl();
 }
 
