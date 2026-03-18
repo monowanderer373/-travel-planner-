@@ -19,7 +19,7 @@ function PeopleManager() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { people, addPerson, updatePerson, removePerson, removeExpensesForPersonId } = useCost();
-  const { tripmates, tripCreator, removeTripmate } = useItinerary();
+  const { tripmates, tripCreator } = useItinerary();
   const [nameInput, setNameInput] = useState('');
 
   // Prevent "auto-add newly joined tripmates" effect from immediately restoring travellers you manually removed.
@@ -166,10 +166,6 @@ function PeopleManager() {
                   // Clear related local expenses on this device.
                   removeExpensesForPersonId(p.id);
                   removePerson(p.id);
-
-                  // If this traveller comes from tripmates (invited users), remove it from the itinerary too.
-                  const mate = (tripmates || []).find((tm) => normName(tm?.name) === k);
-                  if (mate?.id) removeTripmate(mate.id);
                 }}
               >
                 ×
