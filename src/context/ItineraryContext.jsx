@@ -151,6 +151,17 @@ export function ItineraryProvider({ children }) {
       return shareSettings.tripId || tripFromUrl;
     }
   }, [shareSettings.tripId, tripFromUrl, location.search]);
+
+  const planFromUrl = useMemo(() => {
+    try {
+      return new URLSearchParams(location.search).get('plan');
+    } catch {
+      return null;
+    }
+  }, [location.search]);
+
+  const [personalPlans, setPersonalPlans] = useState([]);
+  const [activePersonalPlanId, setActivePersonalPlanId] = useState(() => planFromUrl || null);
   const [tripmateShareLink, setTripmateShareLink] = useState(initial?.tripmateShareLink ?? '');
   const { reportSaving, reportSaved } = useSaveStatus();
   const saveTimeoutRef = useRef(null);
@@ -470,6 +481,119 @@ export function ItineraryProvider({ children }) {
     setShareSettings((prev) => ({ ...prev, tripId: tripId || null }));
   }, []);
 
+  const clearSharedUrlParams = useCallback(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      params.delete('trip');
+      params.delete('share');
+      params.delete('invite');
+      params.delete('source');
+      return params;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const switchToPersonalPlan = useCallback(
+    async (planId) => {
+      if (!user?.id) return;
+      // Exit shared mode first (URL + state), then load the selected personal plan.
+      try {
+        localStorage.removeItem('pending_trip_id');
+        localStorage.removeItem('pending_invite_token');
+        sessionStorage.removeItem('share_join_flow');
+      } catch {}
+
+      setShareSettings((prev) => ({ ...prev, tripId: null }));
+
+      const params = clearSharedUrlParams() || new URLSearchParams();
+      if (planId) params.set('plan', planId);
+      const q = params.toString();
+      navigate(`${location.pathname}${q ? `?${q}` : ''}`, { replace: true });
+
+      setActivePersonalPlanId(planId || null);
+
+      if (!hasSupabase() || !supabase) return;
+      const { data: row, error } = await supabase
+        .from('itineraries')
+        .select('data')
+        .eq('id', planId)
+        .eq('profile_id', user.id)
+        .maybeSingle();
+      if (error || !row?.data || typeof row.data !== 'object') return;
+      replaceItineraryState({ ...row.data, shareSettings: { ...(row.data.shareSettings || {}), tripId: null } });
+    },
+    [user?.id, clearSharedUrlParams, navigate, hasSupabase, supabase, replaceItineraryState, location.pathname]
+  );
+
+  const createPersonalPlan = useCallback(async () => {
+    if (!user) return null;
+    // Exit shared mode first so the autosave doesn't write to shared tables.
+    try {
+      localStorage.removeItem('pending_trip_id');
+      localStorage.removeItem('pending_invite_token');
+      sessionStorage.removeItem('share_join_flow');
+    } catch {}
+
+    setShareSettings((prev) => ({ ...prev, tripId: null }));
+
+    const blankPayload = {
+      trip: { ...defaultTrip },
+      days: JSON.parse(JSON.stringify(defaultDays)),
+      savedPlaces: [],
+      savedTransports: [],
+      tripmates: [],
+      tripCreator: { name: user?.name || '', email: user?.email || '', id: user?.id || '' },
+      tripMemories: '',
+      shareSettings: {
+        allowVote: false,
+        allowEdit: true,
+        shareLink: '',
+        tripId: null,
+        linkAccess: 'invited',
+        linkPermission: 'edit',
+        invitedEmails: [],
+      },
+      tripmateShareLink: '',
+    };
+
+    if (!hasSupabase() || !supabase) {
+      setActivePersonalPlanId(null);
+      replaceItineraryState(blankPayload);
+      return null;
+    }
+
+    const { data: insRow, error } = await supabase
+      .from('itineraries')
+      .insert({ profile_id: user.id, data: blankPayload })
+      .select('id')
+      .maybeSingle();
+
+    if (error || !insRow?.id) return null;
+
+    const newId = insRow.id;
+    setActivePersonalPlanId(newId);
+    await switchToPersonalPlan(newId);
+    return newId;
+  }, [user, hasSupabase, supabase, replaceItineraryState, switchToPersonalPlan]);
+
+  const deletePersonalPlan = useCallback(
+    async (planId) => {
+      if (!user?.id || !planId) return;
+      if (!hasSupabase() || !supabase) return;
+      await supabase.from('itineraries').delete().eq('id', planId).eq('profile_id', user.id);
+      setPersonalPlans((prev) => prev.filter((p) => p.id !== planId));
+
+      // If we deleted the active plan, switch to the newest remaining plan.
+      if (activePersonalPlanId === planId) {
+        const next = personalPlans.filter((p) => p.id !== planId);
+        const nextId = next[0]?.id ?? null;
+        await switchToPersonalPlan(nextId);
+      }
+    },
+    [user?.id, hasSupabase, supabase, activePersonalPlanId, personalPlans, switchToPersonalPlan]
+  );
+
   /** Invited user leaves shared trip → load personal itinerary (or empty default). */
   const leaveSharedTrip = useCallback(async () => {
     if (!shareSettings.tripId) return;
@@ -506,15 +630,24 @@ export function ItineraryProvider({ children }) {
     };
 
     if (hasSupabase() && supabase && user?.id && !String(user.id).startsWith('user-')) {
-      const { data: row } = await supabase
-        .from('itineraries')
-        .select('data')
-        .eq('profile_id', user.id)
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const desired = activePersonalPlanId || null;
+      const { data: row } = desired
+        ? await supabase
+          .from('itineraries')
+          .select('id, data')
+          .eq('id', desired)
+          .eq('profile_id', user.id)
+          .maybeSingle()
+        : await supabase
+          .from('itineraries')
+          .select('id, data')
+          .eq('profile_id', user.id)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
       if (row?.data && typeof row.data === 'object') {
+        setActivePersonalPlanId(row.id);
         const d = { ...row.data };
         d.shareSettings = {
           ...(d.shareSettings && typeof d.shareSettings === 'object' ? d.shareSettings : {}),
@@ -524,7 +657,7 @@ export function ItineraryProvider({ children }) {
       } else {
         emptyPersonal();
       }
-      supabaseLoadedRef.current = user.id;
+      supabaseLoadedRef.current = desired ? `personal-${user.id}-${desired}` : `personal-latest-${user.id}`;
     } else {
       emptyPersonal();
     }
@@ -594,22 +727,29 @@ export function ItineraryProvider({ children }) {
           sessionStorage.getItem('auth_return_to')?.includes('invite');
         if (hasPendingInvite) return;
       } catch {}
-      if (supabaseLoadedRef.current === user.id) return;
-      supabaseLoadedRef.current = user.id;
+      const desiredPlanId = planFromUrl || activePersonalPlanId || null;
+      const loadKey = desiredPlanId ? `personal-${user.id}-${desiredPlanId}` : `personal-latest-${user.id}`;
+      if (supabaseLoadedRef.current === loadKey) return;
+      supabaseLoadedRef.current = loadKey;
       if (orphanTripRecoveryRef.current) {
         orphanTripRecoveryRef.current = false;
-        supabaseLoadedRef.current = user.id;
+        supabaseLoadedRef.current = loadKey;
         return;
       }
-      supabase
-        .from('itineraries')
-        .select('data')
-        .eq('profile_id', user.id)
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+      const q = desiredPlanId
+        ? supabase.from('itineraries').select('id, data').eq('id', desiredPlanId).eq('profile_id', user.id).maybeSingle()
+        : supabase
+          .from('itineraries')
+          .select('id, data')
+          .eq('profile_id', user.id)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+      void q
         .then(({ data: row }) => {
           if (!row?.data || typeof row.data !== 'object') return;
+          setActivePersonalPlanId(row.id);
           // Old rows often still had tripId in JSON → next effect run would load shared_itineraries and overwrite this with empty/stale data (breaks phone sync).
           const d = { ...row.data };
           d.shareSettings = { ...(d.shareSettings && typeof d.shareSettings === 'object' ? d.shareSettings : {}), tripId: null };
@@ -617,7 +757,34 @@ export function ItineraryProvider({ children }) {
         })
         .catch(() => {});
     }
-  }, [user?.id, shareSettings.tripId, resolvedSharedTripId, personalCloudPullKey, replaceItineraryState]);
+  }, [user?.id, shareSettings.tripId, resolvedSharedTripId, personalCloudPullKey, replaceItineraryState, planFromUrl, activePersonalPlanId]);
+
+  // Load user's personal plans list for the "Your Plan" dropdown.
+  useEffect(() => {
+    if (!user) {
+      setPersonalPlans([]);
+      setActivePersonalPlanId(null);
+      return;
+    }
+    if (!hasSupabase() || !supabase || !isSupabaseUser(user)) return;
+
+    void supabase
+      .from('itineraries')
+      .select('id, data, updated_at')
+      .eq('profile_id', user.id)
+      .order('updated_at', { ascending: false })
+      .limit(20)
+      .then(({ data: rows }) => {
+        const next = Array.isArray(rows) ? rows : [];
+        setPersonalPlans(next);
+        // If there's a URL plan, prefer it; otherwise fall back to first plan.
+        const desired = planFromUrl || (next[0]?.id ?? null);
+        setActivePersonalPlanId(desired);
+      })
+      .catch(() => {
+        setPersonalPlans([]);
+      });
+  }, [user?.id, planFromUrl]);
 
   const shareTripIdRef = useRef(shareSettings.tripId);
   useEffect(() => {
@@ -735,7 +902,28 @@ export function ItineraryProvider({ children }) {
             try {
               const { ok } = await ensureProfileExists(supabase, user);
               if (!ok) return;
-              const { data: row, error: selErr } = await supabase
+              const personalPayload = {
+                ...payload,
+                shareSettings: { ...shareSettings, tripId: null },
+              };
+              const body = { data: personalPayload, updated_at: updatedAt };
+
+              // Prefer updating the active personal plan.
+              if (activePersonalPlanId) {
+                const { data: upRow, error: upErr } = await supabase
+                  .from('itineraries')
+                  .update(body)
+                  .eq('id', activePersonalPlanId)
+                  .eq('profile_id', user.id)
+                  .select('id')
+                  .maybeSingle();
+                if (upErr) throw upErr;
+
+                if (upRow?.id) return;
+              }
+
+              // Fallback: update the latest personal row.
+              const { data: latestRow, error: selErr } = await supabase
                 .from('itineraries')
                 .select('id')
                 .eq('profile_id', user.id)
@@ -743,19 +931,23 @@ export function ItineraryProvider({ children }) {
                 .limit(1)
                 .maybeSingle();
               if (selErr) throw selErr;
-              const personalPayload = {
-                ...payload,
-                shareSettings: { ...shareSettings, tripId: null },
-              };
-              const body = { data: personalPayload, updated_at: updatedAt };
-              if (row?.id) {
-                const { error: upErr } = await supabase.from('itineraries').update(body).eq('id', row.id);
-                if (upErr) throw upErr;
-              } else {
-                const { error: insErr } = await supabase
+
+              if (latestRow?.id) {
+                const { error: upErr } = await supabase
                   .from('itineraries')
-                  .insert({ profile_id: user.id, ...body });
+                  .update(body)
+                  .eq('id', latestRow.id)
+                  .eq('profile_id', user.id);
+                if (upErr) throw upErr;
+                setActivePersonalPlanId(latestRow.id);
+              } else {
+                const { data: insRow, error: insErr } = await supabase
+                  .from('itineraries')
+                  .insert({ profile_id: user.id, ...body })
+                  .select('id')
+                  .maybeSingle();
                 if (insErr) throw insErr;
+                if (insRow?.id) setActivePersonalPlanId(insRow.id);
               }
             } catch (e) {
               console.warn('[Travel Planner] Cloud save failed (check login & Supabase).', e?.message || e);
@@ -769,7 +961,7 @@ export function ItineraryProvider({ children }) {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, shareSettings, tripmateShareLink, user?.id]);
+  }, [trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, shareSettings, tripmateShareLink, user?.id, activePersonalPlanId]);
 
   const value = {
     trip,
@@ -808,6 +1000,12 @@ export function ItineraryProvider({ children }) {
     setActiveTripId,
     leaveSharedTrip,
     activeTripId: shareSettings.tripId,
+    // Personal multi-plan support (Your Plan dropdown)
+    personalPlans,
+    activePersonalPlanId,
+    switchToPersonalPlan,
+    createPersonalPlan,
+    deletePersonalPlan,
     TRAVEL_STYLES,
   };
 

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useItinerary } from '../context/ItineraryContext';
 import './TopBarVoyage.css';
 
 const base = import.meta.env.BASE_URL || '/';
@@ -11,7 +12,7 @@ const settingsIcon = `${base.replace(/\/$/, '')}/icons/settings.png`;
 export default function TopBar({ onMenuClick, menuOpen }) {
   const { user } = useAuth();
   const { themeId } = useTheme();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const displayName = user?.name?.trim() || 'Profile';
   const isVoyage = themeId === 'voyage-light' || themeId === 'voyage-dark';
 
@@ -19,6 +20,11 @@ export default function TopBar({ onMenuClick, menuOpen }) {
   const [voyageNavOpen, setVoyageNavOpen] = useState(false);
   const voyageToggleRef = useRef(null);
   const voyagePanelRef = useRef(null);
+
+  const { personalPlans, activePersonalPlanId, switchToPersonalPlan, createPersonalPlan, deletePersonalPlan } = useItinerary();
+  const [planOpen, setPlanOpen] = useState(false);
+  const planToggleRef = useRef(null);
+  const planPanelRef = useRef(null);
 
   const voyageTabs = useMemo(
     () => [
@@ -48,6 +54,30 @@ export default function TopBar({ onMenuClick, menuOpen }) {
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, [voyageNavOpen]);
+
+  useEffect(() => {
+    if (!planOpen) return;
+    const onDown = (e) => {
+      const target = e.target;
+      const inPanel = planPanelRef.current && planPanelRef.current.contains(target);
+      const inToggle = planToggleRef.current && planToggleRef.current.contains(target);
+      if (!inPanel && !inToggle) setPlanOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [planOpen]);
+
+  const activePlan = personalPlans.find((p) => p?.id === activePersonalPlanId) || personalPlans[0];
+  const activeTrip = activePlan?.data?.trip || {};
+  const activeTitle = String(activeTrip?.destination || '').trim() || 'Untitled';
+  const activeStartDate = activeTrip?.startDate;
+  const monthYearFmt = new Intl.DateTimeFormat(lang === 'zh-CN' ? 'zh-CN' : 'en-US', {
+    year: 'numeric',
+    month: 'long',
+  });
+  const activeMonthYear = activeStartDate ? monthYearFmt.format(new Date(`${activeStartDate}T00:00:00`)) : '';
+
+  const planTitleText = `${activeTitle}${activeMonthYear ? ` · ${activeMonthYear}` : ''}`;
 
   return (
     <header className="topbar" role="banner">
@@ -112,6 +142,75 @@ export default function TopBar({ onMenuClick, menuOpen }) {
         )}
       </div>
       <div className="topbar-actions">
+        <div className="topbar-plan-wrap">
+          <button
+            ref={planToggleRef}
+            type="button"
+            className={`topbar-link topbar-plan-toggle ${planOpen ? 'topbar-plan-toggle-open' : ''}`}
+            onClick={() => setPlanOpen((v) => !v)}
+            aria-label="Your Plan"
+            aria-expanded={planOpen}
+          >
+            Your Plan
+          </button>
+          {planOpen && (
+            <div ref={planPanelRef} className="topbar-plan-panel" role="menu" aria-label="Personal plans">
+              {personalPlans.length === 0 ? (
+                <div className="topbar-plan-empty">Loading…</div>
+              ) : (
+                <div className="topbar-plan-list">
+                  {personalPlans.map((p) => {
+                    const trip = p?.data?.trip || {};
+                    const title = String(trip?.destination || '').trim() || 'Untitled';
+                    const startDate = trip?.startDate;
+                    const monthYear = startDate ? monthYearFmt.format(new Date(`${startDate}T00:00:00`)) : '';
+                    const label = `${title}${monthYear ? ` · ${monthYear}` : ''}`;
+                    const active = p?.id === activePersonalPlanId;
+                    return (
+                      <button
+                        key={p?.id}
+                        type="button"
+                        className={`topbar-plan-item ${active ? 'topbar-plan-item-active' : ''}`}
+                        onClick={() => {
+                          setPlanOpen(false);
+                          void switchToPersonalPlan(p?.id);
+                        }}
+                      >
+                        <span className="topbar-plan-item-label">{label}</span>
+                        <span className="topbar-plan-item-spacer" />
+                        <button
+                          type="button"
+                          className="topbar-plan-item-delete"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const ok = window.confirm('Delete this plan? This can not be undone.');
+                            if (!ok) return;
+                            void deletePersonalPlan(p?.id);
+                          }}
+                          aria-label="Delete plan"
+                        >
+                          ×
+                        </button>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="topbar-plan-divider" />
+              <button
+                type="button"
+                className="topbar-plan-new"
+                onClick={() => {
+                  setPlanOpen(false);
+                  void createPersonalPlan();
+                }}
+              >
+                + New Plan
+              </button>
+              {activePlan ? <div className="topbar-plan-active-hint" aria-hidden="true">{planTitleText}</div> : null}
+            </div>
+          )}
+        </div>
         <NavLink
           to="/profile"
           className={({ isActive }) => `topbar-link ${isActive ? 'topbar-link-active' : ''}`}
