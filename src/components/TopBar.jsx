@@ -21,7 +21,16 @@ export default function TopBar({ onMenuClick, menuOpen }) {
   const voyageToggleRef = useRef(null);
   const voyagePanelRef = useRef(null);
 
-  const { personalPlans, activePersonalPlanId, switchToPersonalPlan, createPersonalPlan, deletePersonalPlan } = useItinerary();
+  const {
+    trip,
+    shareSettings,
+    leaveSharedTrip,
+    personalPlans,
+    activePersonalPlanId,
+    switchToPersonalPlan,
+    createPersonalPlan,
+    deletePersonalPlan,
+  } = useItinerary();
   const [planOpen, setPlanOpen] = useState(false);
   const planToggleRef = useRef(null);
   const planPanelRef = useRef(null);
@@ -67,8 +76,9 @@ export default function TopBar({ onMenuClick, menuOpen }) {
     return () => document.removeEventListener('mousedown', onDown);
   }, [planOpen]);
 
+  const isSharedMode = !!shareSettings?.tripId;
   const activePlan = personalPlans.find((p) => p?.id === activePersonalPlanId) || personalPlans[0];
-  const activeTrip = activePlan?.data?.trip || {};
+  const activeTrip = isSharedMode ? (trip || {}) : (activePlan?.data?.trip || {});
   const activeTitle = String(activeTrip?.destination || '').trim() || 'Untitled';
   const activeStartDate = activeTrip?.startDate;
   const monthYearFmt = new Intl.DateTimeFormat(lang === 'zh-CN' ? 'zh-CN' : 'en-US', {
@@ -155,7 +165,19 @@ export default function TopBar({ onMenuClick, menuOpen }) {
           </button>
           {planOpen && (
             <div ref={planPanelRef} className="topbar-plan-panel" role="menu" aria-label="Personal plans">
-              {personalPlans.length === 0 ? (
+              {isSharedMode ? (
+                <div className="topbar-plan-list">
+                  <button
+                    type="button"
+                    className="topbar-plan-item topbar-plan-item-active"
+                    disabled
+                    aria-disabled="true"
+                  >
+                    <span className="topbar-plan-item-label">{planTitleText}</span>
+                    <span className="topbar-plan-item-spacer" />
+                  </button>
+                </div>
+              ) : personalPlans.length === 0 ? (
                 <div className="topbar-plan-empty">Loading…</div>
               ) : (
                 <div className="topbar-plan-list">
@@ -197,17 +219,30 @@ export default function TopBar({ onMenuClick, menuOpen }) {
                 </div>
               )}
               <div className="topbar-plan-divider" />
-              <button
-                type="button"
-                className="topbar-plan-new"
-                onClick={() => {
-                  setPlanOpen(false);
-                  void createPersonalPlan();
-                }}
-              >
-                + New Plan
-              </button>
-              {activePlan ? <div className="topbar-plan-active-hint" aria-hidden="true">{planTitleText}</div> : null}
+              {isSharedMode ? (
+                <button
+                  type="button"
+                  className="topbar-plan-new"
+                  onClick={() => {
+                    setPlanOpen(false);
+                    void leaveSharedTrip();
+                  }}
+                >
+                  Leave shared trip
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="topbar-plan-new"
+                  onClick={() => {
+                    setPlanOpen(false);
+                    void createPersonalPlan();
+                  }}
+                >
+                  + New Plan
+                </button>
+              )}
+              {(isSharedMode || activePlan) ? <div className="topbar-plan-active-hint" aria-hidden="true">{planTitleText}</div> : null}
             </div>
           )}
         </div>
