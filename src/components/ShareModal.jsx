@@ -5,7 +5,13 @@ import './ShareModal.css';
 
 export default function ShareModal({ open, onClose }) {
   const { user } = useAuth();
-  const { tripCreator, shareSettings, setShareSettings, generateShareLink } = useItinerary();
+  const {
+    tripCreator,
+    shareSettings,
+    setShareSettings,
+    generateTripmateLink,
+    tripmateShareLink,
+  } = useItinerary();
 
   const isCreator = useMemo(() => {
     const creatorEmail = String(tripCreator?.email || '').trim().toLowerCase();
@@ -15,14 +21,14 @@ export default function ShareModal({ open, onClose }) {
     return (!!creatorId && !!currentId && creatorId === currentId) || (!!creatorEmail && !!currentEmail && creatorEmail === currentEmail);
   }, [tripCreator?.email, tripCreator?.id, tripCreator?.userId, user?.email, user?.id]);
 
-  const shareLink = shareSettings?.shareLink || '';
-  const hasCorrectShareLink = shareLink.includes('?share=') || shareLink.includes('share=');
+  const link = tripmateShareLink || '';
+  const hasCorrectTripLink = link.includes('?trip=') || link.includes('trip=');
 
-  const handleGenerate = () => generateShareLink();
+  const handleGenerate = () => generateTripmateLink();
 
   const handleCopy = () => {
-    if (!shareSettings?.shareLink) return;
-    navigator.clipboard?.writeText(shareSettings.shareLink);
+    if (!tripmateShareLink) return;
+    navigator.clipboard?.writeText(tripmateShareLink);
   };
 
   // If creator has a cached link but it's not in the expected format,
@@ -30,10 +36,12 @@ export default function ShareModal({ open, onClose }) {
   useEffect(() => {
     if (!open) return;
     if (!isCreator) return;
-    if (!shareSettings?.shareLink || !hasCorrectShareLink) {
-      generateShareLink();
+    // We intentionally generate the sync-able `/?trip=...` link here.
+    // (Your older working link is exactly this format.)
+    if (!tripmateShareLink || !hasCorrectTripLink) {
+      generateTripmateLink();
     }
-  }, [open, isCreator, hasCorrectShareLink, shareSettings?.shareLink, generateShareLink]);
+  }, [open, isCreator, hasCorrectTripLink, tripmateShareLink, generateTripmateLink]);
 
   if (!open) return null;
 
@@ -63,7 +71,7 @@ export default function ShareModal({ open, onClose }) {
           <button type="button" className="modal-close" onClick={onClose} aria-label="Close">×</button>
         </div>
         <div className="modal-body">
-          {!shareSettings?.shareLink || !hasCorrectShareLink ? (
+          {!tripmateShareLink || !hasCorrectTripLink ? (
             <button type="button" className="primary" onClick={handleGenerate}>
               Generate share link
             </button>
@@ -72,7 +80,7 @@ export default function ShareModal({ open, onClose }) {
               <label className="share-field">
                 <span>Link</span>
                 <div className="share-link-row">
-                  <input type="text" readOnly value={shareSettings.shareLink} />
+                  <input type="text" readOnly value={tripmateShareLink} />
                   <button type="button" onClick={handleCopy}>Copy</button>
                 </div>
               </label>
