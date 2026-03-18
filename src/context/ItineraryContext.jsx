@@ -412,17 +412,36 @@ export function ItineraryProvider({ children }) {
   }, []);
 
   const generateTripmateLink = useCallback(async () => {
-    /** Row id for shared_itineraries — must match URL ?trip= exactly. Never use decodeInviteToken here:
-     * strings like eyJ0cmlwIjoxNz parse as {"trip":17 → id "17" while the link still shows wrong id → empty table / broken join. */
-    const newRowId = () => btoa(JSON.stringify({ trip: Date.now() })).slice(0, 14);
-    const ex = shareSettings.tripId;
-    const exs = ex != null ? String(ex).trim() : '';
-    const looksOpaque =
-      exs.length >= 10 &&
-      exs.length <= 24 &&
-      /[a-zA-Z]/.test(exs) &&
-      !/^\d+$/.test(exs);
-    const tripId = looksOpaque ? exs.slice(0, 14) : newRowId();
+    // Generate robust unique shared row id (avoid timestamp-prefix collisions).
+    const newRowId = () => {
+      try {
+        const uuid = globalThis.crypto?.randomUUID?.();
+        if (uuid) return uuid.replace(/-/g, '').slice(0, 14);
+      } catch {}
+      const rand = Math.random().toString(36).slice(2, 10);
+      const ts = Date.now().toString(36);
+      return `${ts}${rand}`.slice(0, 14);
+    };
+
+    // Reuse only the id encoded in THIS plan's existing link.
+    // Do not reuse generic shareSettings.tripId across personal plans.
+    const idFromCurrentLink = (() => {
+      const raw = String(tripmateShareLink || '').trim();
+      if (!raw) return '';
+      try {
+        const u = new URL(raw);
+        return String(u.searchParams.get('trip') || '').trim();
+      } catch {
+        const m = raw.match(/[?&]trip=([^&]+)/);
+        return m?.[1] ? decodeURIComponent(m[1]).trim() : '';
+      }
+    })();
+    const reusable =
+      idFromCurrentLink.length >= 10 &&
+      idFromCurrentLink.length <= 24 &&
+      /[a-zA-Z]/.test(idFromCurrentLink) &&
+      !/^\d+$/.test(idFromCurrentLink);
+    const tripId = reusable ? idFromCurrentLink.slice(0, 14) : newRowId();
 
     setShareSettings((prev) => ({ ...prev, tripId }));
 
@@ -468,7 +487,7 @@ export function ItineraryProvider({ children }) {
       return { ok: false, link, error: error?.message || String(error) };
     }
     return { ok: true, link };
-  }, [shareSettings, trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, navigate, location.pathname]);
+  }, [shareSettings, trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, tripmateShareLink, navigate, location.pathname]);
 
   const updateTripMemories = useCallback((text) => {
     setTripMemories(text);
