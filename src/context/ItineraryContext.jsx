@@ -78,6 +78,7 @@ function getInitialItinerary() {
         tripmates: [],
         tripCreator: { name: '' },
         tripMemories: '',
+        planSharedTripId: '',
         shareSettings,
         tripmateShareLink: '',
       };
@@ -95,6 +96,7 @@ function getInitialItinerary() {
     tripmates: Array.isArray(loaded.tripmates) ? loaded.tripmates : [],
     tripCreator: loaded.tripCreator && typeof loaded.tripCreator === 'object' ? loaded.tripCreator : { name: '' },
     tripMemories: typeof loaded.tripMemories === 'string' ? loaded.tripMemories : '',
+    planSharedTripId: typeof loaded.planSharedTripId === 'string' ? loaded.planSharedTripId : '',
     shareSettings,
     tripmateShareLink: typeof loaded.tripmateShareLink === 'string' ? loaded.tripmateShareLink : '',
   };
@@ -132,6 +134,7 @@ export function ItineraryProvider({ children }) {
   const [tripmates, setTripmates] = useState(initial?.tripmates ?? []);
   const [tripCreator, setTripCreatorState] = useState(initial?.tripCreator ?? { name: '' });
   const [tripMemories, setTripMemories] = useState(initial?.tripMemories ?? '');
+  const [planSharedTripId, setPlanSharedTripId] = useState(initial?.planSharedTripId ?? '');
   const [shareSettings, setShareSettings] = useState(
     initial?.shareSettings ?? {
       allowVote: false,
@@ -411,7 +414,8 @@ export function ItineraryProvider({ children }) {
     setTripmates((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const generateTripmateLink = useCallback(async () => {
+  const generateTripmateLink = useCallback(async (options = {}) => {
+    const { forceNew = false, revokeOld = false } = options || {};
     // Generate robust unique shared row id (avoid timestamp-prefix collisions).
     const newRowId = () => {
       try {
@@ -422,9 +426,28 @@ export function ItineraryProvider({ children }) {
       const ts = Date.now().toString(36);
       return `${ts}${rand}`.slice(0, 14);
     };
-    // Always create a NEW shared trip id for each generate action.
-    // This prevents Japan/Thailand personal plans from accidentally sharing one link id.
-    const tripId = newRowId();
+
+    const linkTripId = (() => {
+      const raw = String(tripmateShareLink || '').trim();
+      if (!raw) return '';
+      try {
+        const u = new URL(raw);
+        return String(u.searchParams.get('trip') || '').trim();
+      } catch {
+        const m = raw.match(/[?&]trip=([^&]+)/);
+        return m?.[1] ? decodeURIComponent(m[1]).trim() : '';
+      }
+    })();
+    const validTripId = (s) =>
+      s &&
+      s.length >= 10 &&
+      s.length <= 24 &&
+      /[a-zA-Z]/.test(s) &&
+      !/^\d+$/.test(s);
+
+    const existing = validTripId(planSharedTripId) ? planSharedTripId : (validTripId(linkTripId) ? linkTripId : '');
+    const tripId = !forceNew && existing ? String(existing).slice(0, 14) : newRowId();
+    const oldTripId = existing && existing !== tripId ? existing : null;
 
     setShareSettings((prev) => ({ ...prev, tripId }));
 
@@ -445,6 +468,7 @@ export function ItineraryProvider({ children }) {
     const base = getPublicBaseUrl() || getInviteBaseUrl();
     const link = base ? `${base.replace(/\/$/, '')}/?trip=${encodeURIComponent(tripId)}` : `#trip-${tripId}`;
     setTripmateShareLink(link);
+    setPlanSharedTripId(tripId);
 
     const nextShareSettings = { ...shareSettings, tripId, shareLink: shareSettings.shareLink || '', tripmateShareLink: link };
     const payload = {
@@ -455,6 +479,7 @@ export function ItineraryProvider({ children }) {
       tripmates,
       tripCreator,
       tripMemories,
+      planSharedTripId: tripId,
       shareSettings: nextShareSettings,
       tripmateShareLink: link,
     };
@@ -463,6 +488,33 @@ export function ItineraryProvider({ children }) {
       sharedTripLoadedRef.current = true;
       return { ok: false, link, error: 'no_supabase' };
     }
+
+    // Persist per-plan shared link metadata so each personal plan keeps its own stable link.
+    if (activePersonalPlanId && user?.id) {
+      try {
+        const { data: planRow } = await supabase
+          .from('itineraries')
+          .select('data')
+          .eq('id', activePersonalPlanId)
+          .eq('profile_id', user.id)
+          .maybeSingle();
+        const cur = planRow?.data && typeof planRow.data === 'object' ? planRow.data : {};
+        const nextData = { ...cur, planSharedTripId: tripId, tripmateShareLink: link };
+        await supabase
+          .from('itineraries')
+          .update({ data: nextData, updated_at: new Date().toISOString() })
+          .eq('id', activePersonalPlanId)
+          .eq('profile_id', user.id);
+        setPersonalPlans((prev) => prev.map((p) => (p.id === activePersonalPlanId ? { ...p, data: nextData } : p)));
+      } catch {}
+    }
+
+    if (revokeOld && oldTripId) {
+      try {
+        await supabase.from('shared_itineraries').delete().eq('id', oldTripId);
+      } catch {}
+    }
+
     const { error } = await writeSharedItineraryRow(supabase, tripId, payload);
     sharedTripLoadedRef.current = true;
     if (error) {
@@ -470,7 +522,7 @@ export function ItineraryProvider({ children }) {
       return { ok: false, link, error: error?.message || String(error) };
     }
     return { ok: true, link };
-  }, [shareSettings, trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, navigate, location.pathname]);
+  }, [shareSettings, trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, planSharedTripId, tripmateShareLink, activePersonalPlanId, user?.id, navigate, location.pathname]);
 
   const updateTripMemories = useCallback((text) => {
     setTripMemories(text);
@@ -489,6 +541,7 @@ export function ItineraryProvider({ children }) {
     if (Array.isArray(data.tripmates)) setTripmates(data.tripmates);
     if (data.tripCreator) setTripCreatorState((prev) => ({ ...prev, ...data.tripCreator }));
     if (typeof data.tripMemories === 'string') setTripMemories(data.tripMemories);
+    if (typeof data.planSharedTripId === 'string') setPlanSharedTripId(data.planSharedTripId);
     if (data.shareSettings) {
       setShareSettings((prev) => ({ ...prev, ...data.shareSettings }));
       if (data.shareSettings.tripId) sharedTripLoadedRef.current = true;
@@ -525,6 +578,7 @@ export function ItineraryProvider({ children }) {
 
       setShareSettings((prev) => ({ ...prev, tripId: null, shareLink: '' }));
       setTripmateShareLink('');
+      setPlanSharedTripId('');
 
       const params = clearSharedUrlParams() || new URLSearchParams();
       if (planId) params.set('plan', planId);
@@ -557,6 +611,7 @@ export function ItineraryProvider({ children }) {
 
     setShareSettings((prev) => ({ ...prev, tripId: null, shareLink: '' }));
     setTripmateShareLink('');
+    setPlanSharedTripId('');
 
     const blankPayload = {
       trip: { ...defaultTrip },
@@ -566,6 +621,7 @@ export function ItineraryProvider({ children }) {
       tripmates: [],
       tripCreator: { name: user?.name || '', email: user?.email || '', id: user?.id || '' },
       tripMemories: '',
+      planSharedTripId: '',
       shareSettings: {
         allowVote: false,
         allowEdit: true,
@@ -645,6 +701,7 @@ export function ItineraryProvider({ children }) {
         tripmates: [],
         tripCreator: { name: user?.name || '', email: user?.email || '' },
         tripMemories: '',
+        planSharedTripId: '',
         shareSettings: blankShare,
         tripmateShareLink: '',
       });
@@ -878,6 +935,7 @@ export function ItineraryProvider({ children }) {
         tripmates,
         tripCreator,
         tripMemories,
+        planSharedTripId,
         shareSettings,
         tripmateShareLink,
       };
@@ -982,7 +1040,7 @@ export function ItineraryProvider({ children }) {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, shareSettings, tripmateShareLink, user?.id, activePersonalPlanId]);
+  }, [trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, planSharedTripId, shareSettings, tripmateShareLink, user?.id, activePersonalPlanId]);
 
   const value = {
     trip,

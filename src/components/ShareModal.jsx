@@ -25,6 +25,13 @@ export default function ShareModal({ open, onClose }) {
   const hasCorrectTripLink = link.includes('?trip=') || link.includes('trip=');
 
   const handleGenerate = () => generateTripmateLink();
+  const handleRevokeOldLinks = async () => {
+    const ok = window.confirm(
+      'Revoke old links and create a new one?\nPeople using previous links will stop syncing until they rejoin with the new link.'
+    );
+    if (!ok) return;
+    await generateTripmateLink({ forceNew: true, revokeOld: true });
+  };
 
   const handleCopy = () => {
     if (!tripmateShareLink) return;
@@ -83,7 +90,7 @@ export default function ShareModal({ open, onClose }) {
                 style={{ marginBottom: '0.8rem' }}
                 onClick={handleGenerate}
               >
-                Generate new share link
+                Refresh current share link
               </button>
               <label className="share-field">
                 <span>Link</span>
@@ -92,6 +99,14 @@ export default function ShareModal({ open, onClose }) {
                   <button type="button" onClick={handleCopy}>Copy</button>
                 </div>
               </label>
+              <button
+                type="button"
+                className="secondary"
+                style={{ marginBottom: '0.8rem' }}
+                onClick={handleRevokeOldLinks}
+              >
+                Revoke old links and generate new
+              </button>
               <label className="share-toggle">
                 <input
                   type="checkbox"
