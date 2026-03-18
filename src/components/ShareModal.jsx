@@ -1,23 +1,59 @@
-import { useState } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useItinerary } from '../context/ItineraryContext';
 import './ShareModal.css';
 
 export default function ShareModal({ open, onClose }) {
-  const { shareSettings, setShareSettings, generateShareLink } = useItinerary();
-  const [linkGenerated, setLinkGenerated] = useState(!!shareSettings.shareLink);
+  const { user } = useAuth();
+  const { tripCreator, shareSettings, setShareSettings, generateShareLink } = useItinerary();
 
-  const handleGenerate = () => {
-    generateShareLink();
-    setLinkGenerated(true);
-  };
+  const isCreator = useMemo(() => {
+    const creatorEmail = String(tripCreator?.email || '').trim().toLowerCase();
+    const currentEmail = String(user?.email || '').trim().toLowerCase();
+    const creatorId = String(tripCreator?.id || tripCreator?.userId || '').trim();
+    const currentId = String(user?.id || '').trim();
+    return (!!creatorId && !!currentId && creatorId === currentId) || (!!creatorEmail && !!currentEmail && creatorEmail === currentEmail);
+  }, [tripCreator?.email, tripCreator?.id, tripCreator?.userId, user?.email, user?.id]);
+
+  const shareLink = shareSettings?.shareLink || '';
+  const hasCorrectShareLink = shareLink.includes('?share=') || shareLink.includes('share=');
+
+  const handleGenerate = () => generateShareLink();
 
   const handleCopy = () => {
-    if (shareSettings.shareLink) {
-      navigator.clipboard?.writeText(shareSettings.shareLink);
-    }
+    if (!shareSettings?.shareLink) return;
+    navigator.clipboard?.writeText(shareSettings.shareLink);
   };
 
+  // If creator has a cached link but it's not in the expected format,
+  // regenerate so it contains the correct GitHub Pages base path.
+  useEffect(() => {
+    if (!open) return;
+    if (!isCreator) return;
+    if (!shareSettings?.shareLink || !hasCorrectShareLink) {
+      generateShareLink();
+    }
+  }, [open, isCreator, hasCorrectShareLink, shareSettings?.shareLink, generateShareLink]);
+
   if (!open) return null;
+
+  if (!isCreator) {
+    return (
+      <div className="modal-backdrop" onClick={onClose}>
+        <div className="modal share-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <h2>Share itinerary</h2>
+            <button type="button" className="modal-close" onClick={onClose} aria-label="Close">×</button>
+          </div>
+          <div className="modal-body">
+            <p style={{ margin: 0, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+              Only the trip creator can generate the share link.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -27,7 +63,7 @@ export default function ShareModal({ open, onClose }) {
           <button type="button" className="modal-close" onClick={onClose} aria-label="Close">×</button>
         </div>
         <div className="modal-body">
-          {!linkGenerated ? (
+          {!shareSettings?.shareLink || !hasCorrectShareLink ? (
             <button type="button" className="primary" onClick={handleGenerate}>
               Generate share link
             </button>
