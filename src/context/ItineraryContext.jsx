@@ -423,6 +423,19 @@ export function ItineraryProvider({ children }) {
 
     setShareSettings((prev) => ({ ...prev, tripId }));
 
+    // Important: mark the generated shared trip id in the URL (`?trip=`) immediately.
+    // This prevents the shared-trip loader from thinking the row doesn't exist yet (race condition),
+    // which could fall back to the user's latest Japan plan.
+    try {
+      const params = new URLSearchParams(window.location.search);
+      params.set('trip', tripId);
+      params.delete('share');
+      params.delete('invite');
+      params.delete('source');
+      const q = params.toString();
+      navigate(`${location.pathname}${q ? `?${q}` : ''}`, { replace: true });
+    } catch {}
+
     const base = getPublicBaseUrl() || getInviteBaseUrl();
     const link = base ? `${base.replace(/\/$/, '')}/?trip=${encodeURIComponent(tripId)}` : `#trip-${tripId}`;
     setTripmateShareLink(link);
@@ -451,7 +464,7 @@ export function ItineraryProvider({ children }) {
       return { ok: false, link, error: error?.message || String(error) };
     }
     return { ok: true, link };
-  }, [shareSettings, trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories]);
+  }, [shareSettings, trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, navigate, location.pathname]);
 
   const updateTripMemories = useCallback((text) => {
     setTripMemories(text);
