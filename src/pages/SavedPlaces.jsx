@@ -103,6 +103,11 @@ export default function SavedPlaces() {
   const [bulkDayId, setBulkDayId] = useState('');
   const [bulkStart, setBulkStart] = useState(9);
   const [bulkCollection, setBulkCollection] = useState('');
+  const [editOpen, setEditOpen] = useState(false);
+  const [editPlace, setEditPlace] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editCover, setEditCover] = useState('');
+  const [editLink, setEditLink] = useState('');
 
   useEffect(() => {
     if (!isVoyage) return;
@@ -184,6 +189,31 @@ export default function SavedPlaces() {
     setAddStartHour(9);
     setAddEndHour(11);
     setAddModalOpen(true);
+  };
+
+  const openEdit = (place) => {
+    if (!place) return;
+    setEditPlace(place);
+    setEditTitle(String(place.title || place.name || '').trim());
+    setEditCover(String(place.photoUrl || '').trim());
+    setEditLink(String(place.mapUrl || place.embedUrl || '').trim());
+    setEditOpen(true);
+  };
+
+  const saveEdit = () => {
+    if (!editPlace?.id) return;
+    const title = editTitle.trim();
+    const cover = editCover.trim();
+    const link = editLink.trim();
+    updateSavedPlace(editPlace.id, {
+      title: title || editPlace.title || editPlace.name || '',
+      photoUrl: cover || null,
+      mapUrl: link || null,
+      // Keep embedUrl for legacy rendering, but prefer mapUrl for "Open".
+      embedUrl: editPlace.embedUrl || link || '',
+    });
+    setEditOpen(false);
+    setEditPlace(null);
   };
 
   const toggleSelected = (id) => {
@@ -382,23 +412,47 @@ export default function SavedPlaces() {
               const cover = place.photoUrl || '';
               const src = getSource(place);
               const votes = Number(place.votes || 0);
+              const openUrl = place.mapUrl || place.embedUrl || '';
+              const compact = !cover && src.key === 'maps';
               return (
-                <article key={place.id} className="voyage-card" role="listitem">
-                  <div className="voyage-card-media" style={cover ? { backgroundImage: `url(${cover})` } : undefined}>
-                    {!cover && <div className="voyage-card-media-fallback">{title.charAt(0).toUpperCase()}</div>}
-                    <span className={`voyage-badge voyage-badge-${src.key}`}>{src.label}</span>
-                    {votes > 0 && <span className="voyage-votes">▲ {votes}</span>}
-                    <label className="voyage-select">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(place.id)}
-                        onChange={() => toggleSelected(place.id)}
-                      />
-                      <span>Select</span>
-                    </label>
-                  </div>
+                <article key={place.id} className={`voyage-card ${compact ? 'voyage-card-compact' : ''}`} role="listitem">
+                  {!compact && (
+                    <div className="voyage-card-media" style={cover ? { backgroundImage: `url(${cover})` } : undefined}>
+                      {!cover && <div className="voyage-card-media-fallback">{title.charAt(0).toUpperCase()}</div>}
+                      <span className={`voyage-badge voyage-badge-${src.key}`}>{src.label}</span>
+                      {votes > 0 && <span className="voyage-votes">▲ {votes}</span>}
+                      <label className="voyage-select">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(place.id)}
+                          onChange={() => toggleSelected(place.id)}
+                        />
+                        <span>Select</span>
+                      </label>
+                    </div>
+                  )}
                   <div className="voyage-card-body">
-                    <div className="voyage-card-title">{title}</div>
+                    {compact ? (
+                      <div className="voyage-compact-row">
+                        <label className="voyage-compact-select">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(place.id)}
+                            onChange={() => toggleSelected(place.id)}
+                          />
+                        </label>
+                        <span className={`voyage-badge voyage-badge-${src.key}`}>{src.label}</span>
+                        {openUrl ? (
+                          <a className="voyage-card-title voyage-card-title-link" href={openUrl} target="_blank" rel="noreferrer">
+                            {title}
+                          </a>
+                        ) : (
+                          <div className="voyage-card-title">{title}</div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="voyage-card-title">{title}</div>
+                    )}
                     {place.category && <div className="voyage-card-tags"><span className="voyage-tag">{place.category}</span></div>}
                     <div className="voyage-card-actions">
                       <button type="button" className="voyage-btn" onClick={() => openPlanModal(place, 0)}>
@@ -414,11 +468,14 @@ export default function SavedPlaces() {
                           {days[1].label}
                         </button>
                       )}
-                      {place.embedUrl && (
-                        <a className="voyage-btn voyage-btn-ghost" href={place.embedUrl} target="_blank" rel="noreferrer">
+                      {openUrl && (
+                        <a className="voyage-btn voyage-btn-ghost" href={openUrl} target="_blank" rel="noreferrer">
                           Open
                         </a>
                       )}
+                      <button type="button" className="voyage-btn voyage-btn-ghost" onClick={() => openEdit(place)}>
+                        Edit
+                      </button>
                       <button type="button" className="voyage-btn voyage-btn-danger" onClick={() => removeSavedPlace(place.id)}>
                         Remove
                       </button>
@@ -450,6 +507,43 @@ export default function SavedPlaces() {
                   }}
                 />
               )}
+            </div>
+          </div>
+        )}
+
+        {editOpen && (
+          <div className="voyage-import-backdrop" onClick={() => setEditOpen(false)}>
+            <div className="voyage-import-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="voyage-import-header">
+                <div className="voyage-import-title">Edit saved item</div>
+                <button type="button" className="voyage-import-close" onClick={() => setEditOpen(false)} aria-label="Close">×</button>
+              </div>
+              <div className="voyage-link-import">
+                <div className="voyage-link-import-row">
+                  <label className="voyage-link-field" style={{ flex: 1 }}>
+                    <span>Title</span>
+                    <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Place name" />
+                  </label>
+                </div>
+                <div className="voyage-link-import-row">
+                  <label className="voyage-link-field" style={{ flex: 1 }}>
+                    <span>Cover image URL (optional)</span>
+                    <input value={editCover} onChange={(e) => setEditCover(e.target.value)} placeholder="https://..." />
+                  </label>
+                </div>
+                <div className="voyage-link-import-row">
+                  <label className="voyage-link-field" style={{ flex: 1 }}>
+                    <span>Link URL</span>
+                    <input value={editLink} onChange={(e) => setEditLink(e.target.value)} placeholder="https://..." />
+                  </label>
+                </div>
+                <div className="voyage-link-import-actions">
+                  <button type="button" className="primary" onClick={saveEdit} disabled={!editTitle.trim()}>
+                    Save
+                  </button>
+                  <button type="button" onClick={() => setEditOpen(false)}>Cancel</button>
+                </div>
+              </div>
             </div>
           </div>
         )}

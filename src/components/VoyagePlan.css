@@ -26,6 +26,28 @@
   flex: 0 0 140px;
 }
 
+.voyage-plan-daypicker {
+  display: none;
+}
+
+.voyage-days-head {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.voyage-days-cal {
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.65);
+  box-shadow: var(--shadow-sm);
+  border-radius: 12px;
+  padding: 0.35rem 0.55rem;
+  cursor: pointer;
+}
+
+[data-theme="voyage-dark"] .voyage-days-cal {
+  background: rgba(18, 19, 27, 0.55);
+}
+
 .voyage-day-tab {
   text-align: left;
   padding: 0.65rem 0.7rem;
@@ -67,6 +89,47 @@
   .voyage-plan {
     grid-template-columns: 1fr;
     gap: 0.9rem;
+  }
+  .voyage-plan-days {
+    display: none;
+  }
+  .voyage-plan-daypicker {
+    display: block;
+    position: sticky;
+    top: 56px;
+    z-index: 30;
+    padding: 0.25rem 0.1rem 0.4rem;
+    background: linear-gradient(to bottom, rgba(250, 248, 245, 0.92), rgba(250, 248, 245, 0));
+  }
+  [data-theme="voyage-dark"] .voyage-plan-daypicker {
+    background: linear-gradient(to bottom, rgba(14, 15, 21, 0.92), rgba(14, 15, 21, 0));
+  }
+  .voyage-daypicker-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.7rem 0.85rem;
+    border-radius: 16px;
+    border: 1px solid var(--border-soft);
+    background: rgba(255, 255, 255, 0.75);
+    box-shadow: var(--shadow-sm);
+  }
+  [data-theme="voyage-dark"] .voyage-daypicker-btn {
+    background: rgba(18, 19, 27, 0.7);
+  }
+  .voyage-daypicker-label {
+    font-weight: 950;
+    color: var(--text-primary);
+  }
+  .voyage-daypicker-date {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    margin-left: auto;
+  }
+  .voyage-daypicker-icon {
+    opacity: 0.85;
   }
   .voyage-plan-days {
     position: sticky;
@@ -491,5 +554,108 @@
 
 [data-theme="voyage-dark"] .voyage-empty {
   background: rgba(18, 19, 27, 0.45);
+}
+
+/* ── Calendar modal (mobile + desktop) ───────────────────────── */
+.voyage-cal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.voyage-cal {
+  width: min(420px, 94vw);
+  background: var(--bg-main);
+  border: 1px solid var(--border-soft);
+  border-radius: 18px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.voyage-cal-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.voyage-cal-title {
+  flex: 1;
+  text-align: center;
+  font-weight: 950;
+  color: var(--text-primary);
+}
+
+.voyage-cal-nav,
+.voyage-cal-close {
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.65);
+  box-shadow: var(--shadow-sm);
+  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  cursor: pointer;
+}
+
+[data-theme="voyage-dark"] .voyage-cal-nav,
+[data-theme="voyage-dark"] .voyage-cal-close {
+  background: rgba(18, 19, 27, 0.55);
+}
+
+.voyage-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.35rem;
+  padding: 0.75rem;
+}
+
+.voyage-cal-dow {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 900;
+  color: var(--text-muted);
+}
+
+.voyage-cal-day {
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 12px;
+  height: 38px;
+  font-weight: 850;
+  color: var(--text-primary);
+}
+
+.voyage-cal-day.dim {
+  opacity: 0.45;
+}
+
+.voyage-cal-day.in {
+  background: rgba(141, 125, 246, 0.10);
+  border-color: rgba(141, 125, 246, 0.18);
+}
+
+.voyage-cal-day.active {
+  background: rgba(141, 125, 246, 0.22);
+  border-color: rgba(141, 125, 246, 0.35);
+}
+
+.voyage-cal-day:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.voyage-cal-foot {
+  padding: 0.55rem 0.75rem 0.75rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-soft);
+  text-align: center;
 }
 

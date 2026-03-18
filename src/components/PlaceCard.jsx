@@ -8,6 +8,7 @@ export default function PlaceCard({ place, onAddToDay, onAddToSaved, savedFeedba
   const { t } = useLanguage();
   const [expanded, setExpanded] = useState(false);
   const displayEmbedUrl = place.embedUrl ? getDisplayEmbedUrl(place.embedUrl) : null;
+  const openUrl = place.mapUrl || displayEmbedUrl;
 
   return (
     <article className="place-card">
@@ -22,7 +23,7 @@ export default function PlaceCard({ place, onAddToDay, onAddToSaved, savedFeedba
             referrerPolicy="no-referrer-when-downgrade"
           />
           <a
-            href={displayEmbedUrl}
+            href={openUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="place-card-embed-open"

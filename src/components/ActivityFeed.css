@@ -2,6 +2,35 @@
   margin-top: 1rem;
 }
 
+.activity-feed-header-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.activity-feed-expand,
+.activity-feed-expand-inline {
+  border: 1px solid var(--border-soft, #e5e7eb);
+  background: var(--bg, #fff);
+  padding: 0.35rem 0.6rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #555);
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.activity-feed-expand:hover,
+.activity-feed-expand-inline:hover {
+  border-color: var(--border-accent, #c7b8ff);
+  background: rgba(141, 125, 246, 0.08);
+}
+
+.activity-feed-expand-inline {
+  margin-top: 0.6rem;
+}
+
 .activity-feed-loading,
 .activity-feed-empty {
   color: var(--text-muted, #666);

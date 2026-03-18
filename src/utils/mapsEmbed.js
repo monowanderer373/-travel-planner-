@@ -26,6 +26,54 @@ function extractCoordsFromMapsUrl(u) {
   return null;
 }
 
+/**
+ * Best-effort extraction of a human-readable place name from a Google Maps URL.
+ * Works for many `google.com/maps/place/<NAME>` or `q=<NAME>` links.
+ * Short links like `maps.app.goo.gl/...` typically do NOT contain the name.
+ */
+export function extractPlaceNameFromGoogleMapsUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+  const raw = url.trim();
+  if (!raw.startsWith('http')) return null;
+  let u;
+  try {
+    u = new URL(raw);
+  } catch {
+    return null;
+  }
+  const host = u.hostname.toLowerCase();
+  const isMaps = host.includes('google.') || host.includes('g.co') || host.includes('goo.gl') || host.includes('maps');
+  if (!isMaps) return null;
+
+  // google.com/maps/place/<NAME>
+  const placeIdx = u.pathname.toLowerCase().split('/').indexOf('place');
+  if (placeIdx >= 0) {
+    const seg = u.pathname.split('/')[placeIdx + 1] || '';
+    const name = seg ? decodeURIComponent(seg.replace(/\+/g, ' ')) : '';
+    const cleaned = name.replace(/@.*$/, '').replace(/\s+/g, ' ').trim();
+    if (cleaned) return cleaned;
+  }
+
+  // q=<NAME> or query=<NAME>
+  const q = u.searchParams.get('q') || u.searchParams.get('query') || u.searchParams.get('destination') || '';
+  if (q) {
+    const decoded = decodeURIComponent(q.replace(/\+/g, ' ')).trim();
+    // If it looks like coords, skip.
+    if (!decoded.match(/^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/)) {
+      return decoded;
+    }
+  }
+
+  // Fallback: last meaningful path segment
+  const parts = u.pathname.split('/').filter(Boolean);
+  const last = parts[parts.length - 1] || '';
+  const decodedLast = last ? decodeURIComponent(last.replace(/\+/g, ' ')) : '';
+  const cleanedLast = decodedLast.replace(/@.*$/, '').replace(/\s+/g, ' ').trim();
+  if (cleanedLast && cleanedLast.length > 2 && !cleanedLast.includes('maps')) return cleanedLast;
+
+  return null;
+}
+
 export function normalizeToEmbedUrl(url) {
   if (!url || typeof url !== 'string') return null;
   const u = url.trim();

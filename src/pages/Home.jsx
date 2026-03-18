@@ -187,7 +187,7 @@ export default function Home() {
           <TripmatesBoard />
         </DashboardCard>
         <DashboardCard titleKey="home.activity.title" actionLabel="home.activity.viewAll" actionTo="/itinerary">
-          <ActivityFeed />
+          <ActivityFeed limit={5} hideTitle />
         </DashboardCard>
       </div>
       <LeaveSharedTripButton variant="home" />

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useItinerary } from '../context/ItineraryContext';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import TopBar from './TopBar';
 import JoinSharedTripModal from './JoinSharedTripModal';
 import SharedTripGuestBanner from './SharedTripGuestBanner';
@@ -19,6 +20,7 @@ export default function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showJoinShared, setShowJoinShared] = useState(false);
   const location = useLocation();
+  const { t } = useLanguage();
   const { user } = useAuth();
   const { trip, shareSettings, tripmates, tripCreator } = useItinerary();
   const itineraryReady = hasItinerary(trip);
@@ -52,6 +54,32 @@ export default function Layout() {
       setShowJoinShared(false);
     }
   }, [shareSettings.tripId, user?.id, user?.email, tripmates, tripCreator?.email]);
+
+  useEffect(() => {
+    // Keep browser tab title in sync with language + route.
+    const p = (pathname || '').replace(/\/+$/, '');
+    const label =
+      p === '' || p === '/'
+        ? t('nav.home')
+        : p.endsWith('/create')
+          ? t('nav.create')
+          : p.endsWith('/itinerary')
+            ? t('nav.itinerary')
+            : p.endsWith('/saved')
+              ? t('nav.saved')
+              : p.endsWith('/transport')
+                ? t('nav.transport')
+                : p.endsWith('/cost')
+                  ? t('nav.cost')
+                  : p.endsWith('/group')
+                    ? t('home.tripmates.title')
+                    : p.endsWith('/settings')
+                      ? t('nav.settings')
+                      : '';
+    const app = t('app.name');
+    const next = label ? `${app} — ${label}` : app;
+    if (typeof document !== 'undefined') document.title = next;
+  }, [t, pathname]);
 
   const isGuestOnShared =
     !!shareSettings?.tripId && user?.id && String(user.id).startsWith('user-');

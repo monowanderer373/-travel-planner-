@@ -247,6 +247,8 @@ export const translations = {
     'place.saved': 'Saved ✓',
     'place.viewInSaved': 'View in Saved Places',
     'place.openMapNewTab': 'Open map in new tab',
+    'place.namePromptTitle': 'Name this place',
+    'place.namePromptDesc': 'This short Google Maps link does not include a readable place name. Add one once so it looks nice in Saved.',
     'place.addToTimeline': 'Add to timeline',
     'place.timeSlotHint': '→ 1 hour slot (e.g. 9:00–10:00)',
 
@@ -641,6 +643,8 @@ export const translations = {
     'place.saved': '已保存 ✓',
     'place.viewInSaved': '在收藏地点中查看',
     'place.openMapNewTab': '在新标签页打开地图',
+    'place.namePromptTitle': '为地点命名',
+    'place.namePromptDesc': '此类 Google Maps 短链接无法直接解析地点名。你只需填一次，之后在收藏中会更清晰。',
     'place.addToTimeline': '添加到日程',
     'place.timeSlotHint': '→ 1 小时时段（如 9:00–10:00）',
 

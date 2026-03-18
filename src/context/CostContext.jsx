@@ -61,9 +61,16 @@ export async function fetchRate(fromCurrency, toCurrency, date = 'latest') {
 function getInitialCost() {
   const loaded = loadCost();
   if (!loaded) return null;
+  const normalizeExpense = (e, i) => {
+    if (!e || typeof e !== 'object') return null;
+    const id = e.id || `exp-legacy-${Date.now()}-${i}`;
+    const amount = typeof e.amount === 'number' ? e.amount : parseFloat(e.amount || 0) || 0;
+    const splits = Array.isArray(e.splits) ? e.splits : [];
+    return { ...e, id, amount, splits };
+  };
   return {
     people: Array.isArray(loaded.people) ? loaded.people : [],
-    expenses: Array.isArray(loaded.expenses) ? loaded.expenses : [],
+    expenses: Array.isArray(loaded.expenses) ? loaded.expenses.map(normalizeExpense).filter(Boolean) : [],
   };
 }
 
@@ -118,6 +125,7 @@ export function CostProvider({ children }) {
   }, []);
 
   const removeExpense = useCallback((id) => {
+    if (!id) return;
     setExpenses((prev) => prev.filter((e) => e.id !== id));
   }, []);
 

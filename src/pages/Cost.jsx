@@ -1069,7 +1069,7 @@ function ExpenseCard({ exp }) {
             ))}
           </div>
 
-          <button type="button" className="expense-remove-v2" onClick={() => removeExpense(exp.id)}>
+          <button type="button" className="expense-remove-v2" onClick={() => exp?.id && removeExpense(exp.id)} disabled={!exp?.id}>
             {t('cost.removeExpense')}
           </button>
         </div>

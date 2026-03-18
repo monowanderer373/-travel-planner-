@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useItinerary } from '../context/ItineraryContext';
+import { useLanguage } from '../context/LanguageContext';
 import { formatHour } from '../utils/time';
 import './VoyagePlan.css';
 
@@ -20,11 +21,18 @@ function norm(s) {
 }
 
 export default function VoyagePlan({ days }) {
-  const { updateDayTimeline, savedPlaces } = useItinerary();
+  const { updateDayTimeline, savedPlaces, trip } = useItinerary();
+  const { lang } = useLanguage();
   const [selectedDayId, setSelectedDayId] = useState(() => (days?.[0]?.id ?? null));
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [dragId, setDragId] = useState(null);
   const [editItem, setEditItem] = useState(null); // { id, startHour, endHour }
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const s = trip?.startDate;
+    const d = s ? new Date(s) : new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
 
   useEffect(() => {
     if (!days?.length) return;
@@ -35,6 +43,31 @@ export default function VoyagePlan({ days }) {
   }, [days, selectedDayId]);
 
   const selectedDay = days.find((d) => d.id === selectedDayId) || days[0];
+  const selectedDayIndex = Math.max(0, days.findIndex((d) => d.id === selectedDay?.id));
+  const selectedDayDate = useMemo(() => {
+    if (!trip?.startDate) return '';
+    try {
+      const d = new Date(trip.startDate);
+      d.setDate(d.getDate() + selectedDayIndex);
+      return d.toISOString().slice(0, 10);
+    } catch {
+      return '';
+    }
+  }, [trip?.startDate, selectedDayIndex]);
+
+  const tripRange = useMemo(() => {
+    if (!trip?.startDate || !trip?.endDate) return null;
+    try {
+      const start = new Date(trip.startDate);
+      const end = new Date(trip.endDate);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(0, 0, 0, 0);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+      return { start, end };
+    } catch {
+      return null;
+    }
+  }, [trip?.startDate, trip?.endDate]);
   const items = useMemo(() => {
     const tl = Array.isArray(selectedDay?.timeline) ? selectedDay.timeline : [];
     return [...tl].sort(byStart);
@@ -102,9 +135,67 @@ export default function VoyagePlan({ days }) {
     updateDayTimeline(selectedDay.id, next);
   };
 
+  const openCalendar = () => {
+    const base = trip?.startDate ? new Date(trip.startDate) : new Date();
+    setCalendarMonth(new Date(base.getFullYear(), base.getMonth(), 1));
+    setCalendarOpen(true);
+  };
+
+  const monthLabel = (d) => {
+    try {
+      return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    } catch {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+  };
+
+  const dows = useMemo(() => {
+    if (lang === 'zh-CN') return ['日', '一', '二', '三', '四', '五', '六'];
+    return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  }, [lang]);
+
+  const calendarDays = useMemo(() => {
+    const first = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+    const startDow = first.getDay(); // 0 Sun
+    const gridStart = new Date(first);
+    gridStart.setDate(first.getDate() - startDow);
+    const out = [];
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(gridStart);
+      d.setDate(gridStart.getDate() + i);
+      const inMonth = d.getMonth() === first.getMonth();
+      const inRange = !!tripRange && d >= tripRange.start && d <= tripRange.end;
+      out.push({ d, inMonth, inRange });
+    }
+    return out;
+  }, [calendarMonth, tripRange]);
+
+  const selectDate = (d) => {
+    if (!tripRange) return;
+    if (d < tripRange.start || d > tripRange.end) return;
+    const idx = Math.round((d.getTime() - tripRange.start.getTime()) / 86400000);
+    const target = days[idx];
+    if (!target) return;
+    setSelectedDayId(target.id);
+    setSelectedItemId(null);
+    setCalendarOpen(false);
+  };
+
   return (
     <div className="voyage-plan">
+      <div className="voyage-plan-daypicker">
+        <button type="button" className="voyage-daypicker-btn" onClick={openCalendar}>
+          <span className="voyage-daypicker-label">{selectedDay?.label || 'Day'}</span>
+          {selectedDayDate && <span className="voyage-daypicker-date">{selectedDayDate}</span>}
+          <span className="voyage-daypicker-icon" aria-hidden>📅</span>
+        </button>
+      </div>
       <aside className="voyage-plan-days" aria-label="Days">
+        <div className="voyage-days-head">
+          <button type="button" className="voyage-days-cal" onClick={openCalendar} aria-label="Calendar" title="Calendar">
+            📅
+          </button>
+        </div>
         {days.map((d) => (
           <button
             key={d.id}
@@ -313,6 +404,61 @@ export default function VoyagePlan({ days }) {
                 Save
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {calendarOpen && (
+        <div className="voyage-cal-backdrop" onClick={() => setCalendarOpen(false)}>
+          <div className="voyage-cal" onClick={(e) => e.stopPropagation()}>
+            <div className="voyage-cal-head">
+              <button
+                type="button"
+                className="voyage-cal-nav"
+                onClick={() => setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
+                aria-label="Previous month"
+              >
+                ‹
+              </button>
+              <div className="voyage-cal-title">{monthLabel(calendarMonth)}</div>
+              <button
+                type="button"
+                className="voyage-cal-nav"
+                onClick={() => setCalendarMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
+                aria-label="Next month"
+              >
+                ›
+              </button>
+              <button type="button" className="voyage-cal-close" onClick={() => setCalendarOpen(false)} aria-label="Close">
+                ×
+              </button>
+            </div>
+            <div className="voyage-cal-grid">
+              {dows.map((w) => (
+                <div key={w} className="voyage-cal-dow">{w}</div>
+              ))}
+              {calendarDays.map(({ d, inMonth, inRange }, i) => {
+                const iso = d.toISOString().slice(0, 10);
+                const active = iso === selectedDayDate;
+                return (
+                  <button
+                    key={`${iso}-${i}`}
+                    type="button"
+                    className={`voyage-cal-day ${inMonth ? '' : 'dim'} ${inRange ? 'in' : ''} ${active ? 'active' : ''}`}
+                    onClick={() => selectDate(d)}
+                    disabled={!inRange}
+                    aria-label={iso}
+                  >
+                    {d.getDate()}
+                  </button>
+                );
+              })}
+            </div>
+            {tripRange && (
+              <div className="voyage-cal-foot">
+                {tripRange.start.toISOString().slice(0, 10)} → {tripRange.end.toISOString().slice(0, 10)}
+              </div>
+            )}
           </div>
         </div>
       )}

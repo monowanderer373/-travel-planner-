@@ -30,11 +30,12 @@ function formatTime(createdAt) {
   }
 }
 
-export default function ActivityFeed() {
+export default function ActivityFeed({ limit = 50, hideTitle = false, defaultExpanded = false }) {
   const { shareSettings } = useItinerary();
   const { lang } = useLanguage();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const tripId = shareSettings?.tripId;
 
   useEffect(() => {
@@ -84,16 +85,28 @@ export default function ActivityFeed() {
     return label;
   };
 
+  const shown = expanded ? activities : activities.slice(0, Math.max(0, limit));
+  const canExpand = !expanded && limit < activities.length;
+
   return (
     <section className="section activity-feed-section">
-      <h2 className="section-title">{isZh ? '行程动态' : 'Trip activity'}</h2>
+      {!hideTitle && (
+        <div className="activity-feed-header-row">
+          <h2 className="section-title">{isZh ? '行程动态' : 'Trip activity'}</h2>
+          {canExpand && (
+            <button type="button" className="activity-feed-expand" onClick={() => setExpanded(true)}>
+              {isZh ? '查看全部' : 'Show all'}
+            </button>
+          )}
+        </div>
+      )}
       {loading ? (
         <p className="activity-feed-loading">{isZh ? '加载中…' : 'Loading…'}</p>
       ) : activities.length === 0 ? (
         <p className="activity-feed-empty">{isZh ? '暂无动态' : 'No activity yet.'}</p>
       ) : (
         <ul className="activity-feed-list">
-          {activities.map((a) => (
+          {shown.map((a) => (
             <li key={a.id} className="activity-feed-item">
               <span className="activity-feed-user">{a.user_name}</span>
               <span className="activity-feed-action">{getActionLabel(a.action_type, a.details || {})}</span>
@@ -101,6 +114,11 @@ export default function ActivityFeed() {
             </li>
           ))}
         </ul>
+      )}
+      {hideTitle && canExpand && (
+        <button type="button" className="activity-feed-expand-inline" onClick={() => setExpanded(true)}>
+          {isZh ? '查看全部动态' : 'Show all activity'}
+        </button>
       )}
     </section>
   );

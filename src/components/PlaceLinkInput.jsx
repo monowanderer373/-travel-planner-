@@ -1,10 +1,22 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
-import { normalizeToEmbedUrl } from '../utils/mapsEmbed';
+import { extractPlaceNameFromGoogleMapsUrl, normalizeToEmbedUrl } from '../utils/mapsEmbed';
 import PlaceCard from './PlaceCard';
 import { resolveDayForTimelineAdd } from '../lib/itineraryPayloadCompare';
 import './PlaceLinkInput.css';
+
+function extractSourceUrl(input) {
+  if (!input || typeof input !== 'string') return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  let urlToCheck = trimmed;
+  if (trimmed.includes('<iframe') && trimmed.includes('src=')) {
+    const match = trimmed.match(/src=["']([^"']+)["']/i);
+    if (match && match[1]) urlToCheck = match[1].trim();
+  }
+  return urlToCheck.startsWith('http') ? urlToCheck : null;
+}
 
 function extractEmbedUrl(input) {
   if (!input || typeof input !== 'string') return null;
@@ -34,16 +46,19 @@ const TIME_OPTIONS = (() => {
 function buildPlaceFromEmbed(embedInputRaw, manualName, openTime, closeTime, extraNote) {
   const embedUrl = extractEmbedUrl(embedInputRaw);
   if (!embedUrl) return null;
+  const sourceUrl = extractSourceUrl(embedInputRaw) || embedUrl;
+  const inferred = extractPlaceNameFromGoogleMapsUrl(sourceUrl);
   const hours = openTime && closeTime ? `${openTime} – ${closeTime}` : '—';
   return {
     id: `place-${Date.now()}`,
-    title: manualName?.trim() || 'Map location',
+    title: manualName?.trim() || inferred || '',
     hours,
     rating: null,
     category: 'Place',
     photoUrl: null,
     reviews: [],
     embedUrl,
+    mapUrl: sourceUrl,
     extraNote: extraNote?.trim() || '',
   };
 }
@@ -67,8 +82,15 @@ export default function PlaceLinkInput({ initialEmbedUrl = '' }) {
   const [addTimeMode, setAddTimeMode] = useState('specific');
   const [addStartHour, setAddStartHour] = useState(9);
   const [addEndHour, setAddEndHour] = useState(11);
+  const [namePromptOpen, setNamePromptOpen] = useState(false);
+  const [pendingName, setPendingName] = useState('');
+  const [pendingPlace, setPendingPlace] = useState(null);
 
   const canLoad = !!extractEmbedUrl(embedInput);
+  const inferredName = useMemo(() => {
+    const src = extractSourceUrl(embedInput);
+    return src ? extractPlaceNameFromGoogleMapsUrl(src) : null;
+  }, [embedInput]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -77,6 +99,7 @@ export default function PlaceLinkInput({ initialEmbedUrl = '' }) {
     setTimeout(() => {
       const data = buildPlaceFromEmbed(embedInput, manualName, openTime, closeTime, extraNote);
       setPlaceData(data);
+      if (!manualName.trim() && inferredName) setManualName(inferredName);
       setSavedFeedback(false);
       setLoading(false);
     }, 400);
@@ -90,9 +113,35 @@ export default function PlaceLinkInput({ initialEmbedUrl = '' }) {
 
   const handleAddToSaved = () => {
     if (!placeData) return;
-    addSavedPlace(placeData);
+    const title = (placeData.title || '').trim();
+    if (!title) {
+      setPendingPlace(placeData);
+      setPendingName('');
+      setNamePromptOpen(true);
+      return;
+    }
+    addSavedPlace({ ...placeData, title });
     setSavedFeedback(true);
     // Clear form after short delay so user sees "Saved" feedback, then form resets for next place
+    setTimeout(() => {
+      setPlaceData(null);
+      setSavedFeedback(false);
+      setEmbedInput('');
+      setManualName('');
+      setOpenTime('09:00');
+      setCloseTime('18:00');
+      setExtraNote('');
+    }, 1500);
+  };
+
+  const confirmName = () => {
+    const name = (pendingName || '').trim();
+    if (!pendingPlace || !name) return;
+    addSavedPlace({ ...pendingPlace, title: name });
+    setNamePromptOpen(false);
+    setPendingPlace(null);
+    setPendingName('');
+    setSavedFeedback(true);
     setTimeout(() => {
       setPlaceData(null);
       setSavedFeedback(false);
@@ -122,8 +171,8 @@ export default function PlaceLinkInput({ initialEmbedUrl = '' }) {
     const endHour = Math.min(23, end);
     addToTimeline(day.id, {
       id: `tl-${Date.now()}`,
-      name: placeData.title,
-      mapUrl: placeData.embedUrl || '',
+      name: placeData.title || t('place.placeName'),
+      mapUrl: placeData.mapUrl || placeData.embedUrl || '',
       startHour: start,
       endHour: endHour,
       duration: endHour - start,
@@ -203,6 +252,36 @@ export default function PlaceLinkInput({ initialEmbedUrl = '' }) {
             onAddToSaved={handleAddToSaved}
             savedFeedback={savedFeedback}
           />
+        </div>
+      )}
+
+      {namePromptOpen && (
+        <div className="place-modal-backdrop" onClick={() => setNamePromptOpen(false)}>
+          <div className="place-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="place-modal-header">
+              <h3>{t('place.namePromptTitle')}</h3>
+              <button type="button" className="place-modal-close" onClick={() => setNamePromptOpen(false)}>×</button>
+            </div>
+            <div className="place-modal-body">
+              <p className="cost-hint" style={{ marginTop: 0 }}>{t('place.namePromptDesc')}</p>
+              <label className="place-modal-field">
+                <span>{t('place.placeName')}</span>
+                <input
+                  type="text"
+                  value={pendingName}
+                  onChange={(e) => setPendingName(e.target.value)}
+                  placeholder={t('place.placeName')}
+                  autoFocus
+                />
+              </label>
+              <div className="place-modal-actions">
+                <button type="button" className="primary" onClick={confirmName} disabled={!pendingName.trim()}>
+                  {t('place.savePlace')}
+                </button>
+                <button type="button" onClick={() => setNamePromptOpen(false)}>{t('cost.cancel')}</button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
