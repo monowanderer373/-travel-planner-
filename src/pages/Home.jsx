@@ -10,6 +10,7 @@ import TodayAgendaCard from '../components/TodayAgendaCard';
 import UnplannedSavesCard from '../components/UnplannedSavesCard';
 import BudgetSnapshotCard from '../components/BudgetSnapshotCard';
 import DashboardCard from '../components/DashboardCard';
+import ShareItineraryCard from '../components/ShareItineraryCard';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -183,6 +184,9 @@ export default function Home() {
         <TodayAgendaCard />
         <UnplannedSavesCard />
         <BudgetSnapshotCard />
+        <DashboardCard titleKey="home.shareItinerary">
+          <ShareItineraryCard />
+        </DashboardCard>
         <DashboardCard titleKey="home.tripmates.title">
           <TripmatesBoard />
         </DashboardCard>

@@ -1,0 +1,53 @@
+.shareit-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.shareit-hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.shareit-generate {
+  width: 100%;
+}
+
+.shareit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.shareit-link-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.shareit-link-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.shareit-copy {
+  white-space: nowrap;
+  padding: 0.55em 0.75rem;
+  font-size: 0.9rem;
+}
+
+.shareit-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  user-select: none;
+}
+
+.shareit-toggle input {
+  width: auto;
+}
+
