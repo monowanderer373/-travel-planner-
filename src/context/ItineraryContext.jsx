@@ -143,6 +143,14 @@ export function ItineraryProvider({ children }) {
       invitedEmails: [],
     }
   );
+  const planFromUrl = useMemo(() => {
+    try {
+      return new URLSearchParams(location.search).get('plan');
+    } catch {
+      return null;
+    }
+  }, [location.search]);
+
   const resolvedSharedTripId = useMemo(() => {
     try {
       const p = typeof localStorage !== 'undefined' ? localStorage.getItem('pending_trip_id') : null;
@@ -156,14 +164,6 @@ export function ItineraryProvider({ children }) {
       return shareSettings.tripId || tripFromUrl;
     }
   }, [shareSettings.tripId, tripFromUrl, location.search, planFromUrl]);
-
-  const planFromUrl = useMemo(() => {
-    try {
-      return new URLSearchParams(location.search).get('plan');
-    } catch {
-      return null;
-    }
-  }, [location.search]);
 
   const [personalPlans, setPersonalPlans] = useState([]);
   const [activePersonalPlanId, setActivePersonalPlanId] = useState(() => planFromUrl || null);
