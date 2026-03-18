@@ -227,7 +227,7 @@ export default function VoyagePlan({ days }) {
         {items.length === 0 ? (
           <div className="voyage-empty">
             <p>No activities yet for this day.</p>
-            <p>Add from 收藏 or click time slots in the classic timeline.</p>
+            <p>Add from Saved Places or click time slots in the classic timeline.</p>
           </div>
         ) : (
           <ol className="voyage-plan-list">

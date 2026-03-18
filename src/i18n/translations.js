@@ -81,7 +81,7 @@ export const translations = {
     'home.totalDays': 'Total days',
     'home.locations': 'Locations',
     'home.dash': '—',
-    'home.hero.continuePlanning': 'Continue planning',
+    'home.hero.continuePlanning': 'Planning',
     'home.hero.defaultTitle': 'My trip',
     'home.paste.placeholder': 'Paste a place link (Maps, etc.)',
     'home.paste.button': 'Save',

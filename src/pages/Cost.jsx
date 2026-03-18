@@ -864,7 +864,7 @@ function AddExpenseForm() {
 function SplitRepayRow({ exp, splitIndex }) {
   const { t } = useLanguage();
   const { markSplitRepaid, unmarkSplitRepaid, updateExpense, people, CURRENCIES } = useCost();
-  const split = exp.splits[splitIndex];
+  const split = exp.splits?.[splitIndex] || {};
   const person = people.find((p) => p.id === split.personId);
   const isPayer = split.personId === exp.payerId;
 
@@ -1064,8 +1064,8 @@ function ExpenseCard({ exp }) {
           </div>
 
           <div className="split-rows">
-            {exp.splits?.map((_, i) => (
-              <SplitRepayRow key={i} exp={exp} splitIndex={i} />
+            {exp.splits?.map((s, i) => (
+              <SplitRepayRow key={`${s?.personId ?? 'p'}-${i}`} exp={exp} splitIndex={i} />
             ))}
           </div>
 

@@ -241,6 +241,27 @@
     display: flex;
   }
 
+  /* Voyage: keep right-side profile/settings always reachable on narrow screens */
+  .topbar-left {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .topbar-nav {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+  }
+
+  .topbar-actions {
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+
+  .topbar {
+    padding: 0 0.6rem;
+  }
+
   .topbar-menu-btn {
     display: flex;
   }

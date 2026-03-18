@@ -80,6 +80,7 @@
   margin-top: 0.75rem;
   max-width: 820px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .voyage-saved-search {
@@ -103,6 +104,33 @@
   background: rgba(255, 255, 255, 0.65);
   border: 1px solid var(--border-soft);
   box-shadow: var(--shadow-sm);
+}
+
+.voyage-categories-grid {
+  flex: 0 0 220px;
+  max-width: 220px;
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.voyage-categories-grid .voyage-chip {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.78rem;
+}
+
+.voyage-import-category-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.15rem;
+}
+
+.voyage-import-category-grid .voyage-chip {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.78rem;
 }
 
 [data-theme="voyage-dark"] .voyage-saved-filter {
@@ -139,6 +167,16 @@
 }
 @media (min-width: 1040px) {
   .voyage-board { column-count: 3; }
+}
+
+@media (max-width: 520px) {
+  .voyage-categories-grid {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+  .voyage-saved-filter {
+    flex: 0 0 150px;
+  }
 }
 
 .voyage-card {
@@ -355,6 +393,59 @@
 
 .voyage-card-title-link:hover {
   text-decoration: underline;
+}
+
+.voyage-title-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.voyage-title-btn:hover {
+  text-decoration: underline;
+}
+
+.voyage-title-inline-input {
+  width: 100%;
+  display: block;
+  font: inherit;
+  font-weight: 950;
+  color: inherit;
+  background: rgba(141, 125, 246, 0.14);
+  border: 1px solid rgba(141, 125, 246, 0.28);
+  border-radius: 12px;
+  padding: 0.32rem 0.55rem;
+  outline: none;
+}
+
+.voyage-compact-row .voyage-title-inline-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.voyage-open-mini {
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
+  font-weight: 900;
+  border-radius: 999px;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+[data-theme="voyage-dark"] .voyage-open-mini {
+  background: rgba(18, 19, 27, 0.55);
+}
+
+.voyage-badge-link {
+  text-decoration: none;
 }
 
 .voyage-card-compact .voyage-card-tags {

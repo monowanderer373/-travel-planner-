@@ -4,25 +4,38 @@ import { useAuth } from '../context/AuthContext';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
 import { getTotalTravelDays } from '../utils/time';
+import { loadItinerary } from '../utils/storage';
 import './CreateItinerary.css';
 
 export default function CreateItinerary() {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { user } = useAuth();
-  const { trip, updateTrip, addLocation, removeLocation, setTripCreator } = useItinerary();
-  const [newLocation, setNewLocation] = useState('');
+  const { trip, updateTrip, setTripCreator } = useItinerary();
 
-  const handleAddLocation = (e) => {
-    e.preventDefault();
-    if (newLocation.trim()) {
-      addLocation(newLocation.trim());
-      setNewLocation('');
+  const hasStartedKey = 'trip-planner-has-started-planning';
+  const [hasStarted, setHasStarted] = useState(() => {
+    try {
+      if (typeof localStorage === 'undefined') return false;
+      if (localStorage.getItem(hasStartedKey) === '1') return true;
+      // Only decide "already started" once on mount.
+      // After that, label won't flip while user is filling the form.
+      const loaded = loadItinerary();
+      const d = loaded?.trip?.destination;
+      return !!(String(d || '').trim() && loaded?.trip?.startDate && loaded?.trip?.endDate);
+    } catch {
+      return false;
     }
-  };
+  });
 
   const handleStartPlanning = () => {
     if (user) setTripCreator({ name: user.name, id: user.id });
+    try {
+      if (!hasStarted && typeof localStorage !== 'undefined') {
+        localStorage.setItem(hasStartedKey, '1');
+        setHasStarted(true);
+      }
+    } catch {}
     navigate('/', { replace: true });
   };
 
@@ -67,35 +80,6 @@ export default function CreateItinerary() {
             />
           </label>
         </div>
-      </section>
-
-      <section className="section locations-section">
-        <h2 className="section-title">{t('create.locationsTitle')}</h2>
-        <p className="create-hint">{t('create.locationsHint')}</p>
-        <form onSubmit={handleAddLocation} className="locations-form">
-          <input
-            type="text"
-            placeholder={t('create.locationsPlaceholder')}
-            value={newLocation}
-            onChange={(e) => setNewLocation(e.target.value)}
-            className="locations-input"
-          />
-          <button type="submit" className="primary" disabled={!newLocation.trim()}>
-            {t('create.addLocation')}
-          </button>
-        </form>
-        {trip.locations?.length > 0 && (
-          <ul className="locations-list">
-            {trip.locations.map((name) => (
-              <li key={name} className="locations-list-item">
-                <span>{name}</span>
-                <button type="button" className="locations-remove" onClick={() => removeLocation(name)} aria-label={`Remove ${name}`}>
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
       </section>
 
       <section className="section cities-section">
@@ -158,7 +142,7 @@ export default function CreateItinerary() {
 
       <div className="create-actions">
         <button type="button" className="primary primary-large" onClick={handleStartPlanning} disabled={!canStart}>
-          {t('create.startPlanning')}
+          {hasStarted ? 'Save Planning' : t('create.startPlanning')}
         </button>
         <p className="create-dates-note">
           {trip.startDate && trip.endDate

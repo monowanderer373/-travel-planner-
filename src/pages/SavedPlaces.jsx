@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -26,6 +26,19 @@ function parseHours(hours) {
   const close = parts[1]?.trim() && TIME_OPTIONS.includes(parts[1].trim()) ? parts[1].trim() : '18:00';
   return { open, close };
 }
+
+const VOYAGE_CATEGORY_PRESETS = [
+  { key: 'food', label: 'Food', terms: ['food', 'restaurant', 'ramen', 'sushi', 'noodle'] },
+  { key: 'cafe', label: 'Cafe', terms: ['cafe', 'coffee', 'bakery', 'tea'] },
+  { key: 'bistro', label: 'Bistro', terms: ['bistro', 'izakaya', 'tapas', 'bar', 'pub'] },
+  { key: 'shopping', label: 'Shopping', terms: ['shopping', 'shop', 'market', 'mall'] },
+  { key: 'museums', label: 'Museums', terms: ['museum', 'gallery', 'exhibit', 'art'] },
+  { key: 'culture', label: 'Culture', terms: ['culture', 'theater', 'heritage', 'temple', 'museum'] },
+  { key: 'nature', label: 'Nature', terms: ['nature', 'park', 'garden', 'scenic'] },
+  { key: 'nightlife', label: 'Nightlife', terms: ['night', 'nightlife', 'club', 'bar', 'izakaya'] },
+  { key: 'dessert', label: 'Dessert', terms: ['dessert', 'sweet', 'sweets', 'cake'] },
+  { key: 'drinks', label: 'Drinks', terms: ['drink', 'cocktail', 'beer', 'wine'] },
+];
 
 function SavedPlaceEdit({ place, onUpdate }) {
   const [title, setTitle] = useState(place.title || '');
@@ -97,7 +110,8 @@ export default function SavedPlaces() {
   const [importOpen, setImportOpen] = useState(false);
   const [quickPaste, setQuickPaste] = useState(pasteUrl || '');
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all'); // all | food | cafe | museums | shopping | maps | instagram | xhs | blog | link
+  const [filter, setFilter] = useState('all'); // all | maps | instagram | xhs | blog | link
+  const [categoryFilter, setCategoryFilter] = useState('all'); // keys from VOYAGE_CATEGORY_PRESETS
   const [collectionFilter, setCollectionFilter] = useState(''); // exact match (case-insensitive)
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [bulkDayId, setBulkDayId] = useState('');
@@ -105,9 +119,16 @@ export default function SavedPlaces() {
   const [bulkCollection, setBulkCollection] = useState('');
   const [editOpen, setEditOpen] = useState(false);
   const [editPlace, setEditPlace] = useState(null);
+  const [editMode, setEditMode] = useState('full'); // 'full' | 'linkOnly'
   const [editTitle, setEditTitle] = useState('');
   const [editCover, setEditCover] = useState('');
   const [editLink, setEditLink] = useState('');
+
+  // Inline title editing (double-click to edit in-place)
+  const [inlineEditId, setInlineEditId] = useState(null);
+  const [inlineEditValue, setInlineEditValue] = useState('');
+  const clickOpenTimerRef = useRef(null);
+  const inlineInputRef = useRef(null);
 
   useEffect(() => {
     if (!isVoyage) return;
@@ -153,23 +174,27 @@ export default function SavedPlaces() {
         norm(p?.extraNote).includes(q)
       );
     };
-    const matchesFilter = (p) => {
+    const matchesSourceFilter = (p) => {
       if (filter === 'all') return true;
       const src = getSource(p).key;
-      if (['maps', 'instagram', 'xhs', 'blog', 'link'].includes(filter)) return src === filter;
-      const cat = norm(p?.category);
-      if (filter === 'food') return cat.includes('food') || cat.includes('restaurant');
-      if (filter === 'cafe') return cat.includes('cafe') || cat.includes('coffee');
-      if (filter === 'museums') return cat.includes('museum') || cat.includes('culture');
-      if (filter === 'shopping') return cat.includes('shop') || cat.includes('shopping');
-      return true;
+      return ['maps', 'instagram', 'xhs', 'blog', 'link'].includes(filter) ? src === filter : true;
     };
+
+    const matchesCategoryFilter = (p) => {
+      if (categoryFilter === 'all') return true;
+      const preset = VOYAGE_CATEGORY_PRESETS.find((x) => x.key === categoryFilter);
+      if (!preset) return true;
+      const cat = norm(p?.category);
+      return preset.terms.some((term) => cat.includes(term));
+    };
+
+    const matchesFilter = (p) => matchesSourceFilter(p) && matchesCategoryFilter(p);
     const matchesCollection = (p) => {
       if (!collectionFilter) return true;
       return norm(p?.collection) === norm(collectionFilter);
     };
     return (savedPlaces || []).filter((p) => matchesText(p) && matchesFilter(p) && matchesCollection(p));
-  }, [savedPlaces, search, filter, collectionFilter]);
+  }, [savedPlaces, search, filter, categoryFilter, collectionFilter]);
 
   const collections = useMemo(() => {
     const set = new Set();
@@ -191,8 +216,9 @@ export default function SavedPlaces() {
     setAddModalOpen(true);
   };
 
-  const openEdit = (place) => {
+  const openEdit = (place, mode = 'full') => {
     if (!place) return;
+    setEditMode(mode);
     setEditPlace(place);
     setEditTitle(String(place.title || place.name || '').trim());
     setEditCover(String(place.photoUrl || '').trim());
@@ -206,7 +232,7 @@ export default function SavedPlaces() {
     const cover = editCover.trim();
     const link = editLink.trim();
     updateSavedPlace(editPlace.id, {
-      title: title || editPlace.title || editPlace.name || '',
+      title: editMode === 'linkOnly' ? (editPlace.title || editPlace.name || '') : (title || editPlace.title || editPlace.name || ''),
       photoUrl: cover || null,
       mapUrl: link || null,
       // Keep embedUrl for legacy rendering, but prefer mapUrl for "Open".
@@ -215,6 +241,54 @@ export default function SavedPlaces() {
     setEditOpen(false);
     setEditPlace(null);
   };
+
+  const openMap = (openUrl) => {
+    const u = String(openUrl || '').trim();
+    if (!u) return;
+    window.open(u, '_blank', 'noopener,noreferrer');
+  };
+
+  const commitInlineEdit = (place) => {
+    if (!place?.id) return;
+    const next = inlineEditValue.trim();
+    const fallback = String(place.title || place.name || '').trim();
+    const finalTitle = next || fallback;
+    const before = String(place.title || place.name || '').trim();
+    if (finalTitle !== before) {
+      updateSavedPlace(place.id, { title: finalTitle });
+    }
+    setInlineEditId(null);
+    setInlineEditValue('');
+  };
+
+  const cancelInlineEdit = () => {
+    setInlineEditId(null);
+    setInlineEditValue('');
+  };
+
+  const handleTitleClick = (openUrl) => {
+    // Delay opening so a "double click" can cancel the timer.
+    if (!openUrl) return;
+    if (clickOpenTimerRef.current) window.clearTimeout(clickOpenTimerRef.current);
+    clickOpenTimerRef.current = window.setTimeout(() => {
+      clickOpenTimerRef.current = null;
+      openMap(openUrl);
+    }, 260);
+  };
+
+  const handleTitleDoubleClick = (e, place, currentTitle) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (clickOpenTimerRef.current) {
+      window.clearTimeout(clickOpenTimerRef.current);
+      clickOpenTimerRef.current = null;
+    }
+    setInlineEditId(place.id);
+    setInlineEditValue(String(currentTitle || place.title || place.name || ''));
+    setTimeout(() => inlineInputRef.current?.focus(), 0);
+  };
+
+  // Title: single-click opens the link; double-click edits title in-place.
 
   const toggleSelected = (id) => {
     setSelectedIds((prev) => {
@@ -276,7 +350,7 @@ export default function SavedPlaces() {
                 type="url"
                 value={quickPaste}
                 onChange={(e) => setQuickPaste(e.target.value)}
-                placeholder="Paste a link from Google Maps / Instagram / 小红书 / Blog"
+                placeholder="Paste a link"
                 className="voyage-saved-paste-input"
               />
               <button type="submit" className="primary voyage-saved-paste-btn">
@@ -300,6 +374,19 @@ export default function SavedPlaces() {
                 <option value="link">Link</option>
               </select>
               <select
+                className="voyage-saved-filter voyage-categories-select"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                title="Categories"
+              >
+                <option value="all">All</option>
+                {VOYAGE_CATEGORY_PRESETS.map((c) => (
+                  <option key={c.key} value={c.key}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+              <select
                 className="voyage-saved-filter"
                 value={collectionFilter}
                 onChange={(e) => setCollectionFilter(e.target.value)}
@@ -310,13 +397,6 @@ export default function SavedPlaces() {
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
-            </div>
-            <div className="voyage-saved-chips">
-              <button type="button" className={`voyage-chip ${filter === 'all' ? 'voyage-chip-active' : ''}`} onClick={() => setFilter('all')}>All</button>
-              <button type="button" className={`voyage-chip ${filter === 'food' ? 'voyage-chip-active' : ''}`} onClick={() => setFilter('food')}>Food</button>
-              <button type="button" className={`voyage-chip ${filter === 'cafe' ? 'voyage-chip-active' : ''}`} onClick={() => setFilter('cafe')}>Cafe</button>
-              <button type="button" className={`voyage-chip ${filter === 'museums' ? 'voyage-chip-active' : ''}`} onClick={() => setFilter('museums')}>Museums</button>
-              <button type="button" className={`voyage-chip ${filter === 'shopping' ? 'voyage-chip-active' : ''}`} onClick={() => setFilter('shopping')}>Shopping</button>
             </div>
           </div>
         </header>
@@ -419,7 +499,22 @@ export default function SavedPlaces() {
                   {!compact && (
                     <div className="voyage-card-media" style={cover ? { backgroundImage: `url(${cover})` } : undefined}>
                       {!cover && <div className="voyage-card-media-fallback">{title.charAt(0).toUpperCase()}</div>}
-                      <span className={`voyage-badge voyage-badge-${src.key}`}>{src.label}</span>
+                      {openUrl && src.key === 'maps' ? (
+                        <a
+                          className={`voyage-badge voyage-badge-${src.key} voyage-badge-link`}
+                          href={openUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => {
+                            // prevent accidental double-click handlers on the title
+                            e.stopPropagation();
+                          }}
+                        >
+                          {src.label}
+                        </a>
+                      ) : (
+                        <span className={`voyage-badge voyage-badge-${src.key}`}>{src.label}</span>
+                      )}
                       {votes > 0 && <span className="voyage-votes">▲ {votes}</span>}
                       <label className="voyage-select">
                         <input
@@ -441,40 +536,65 @@ export default function SavedPlaces() {
                             onChange={() => toggleSelected(place.id)}
                           />
                         </label>
-                        <span className={`voyage-badge voyage-badge-${src.key}`}>{src.label}</span>
-                        {openUrl ? (
-                          <a className="voyage-card-title voyage-card-title-link" href={openUrl} target="_blank" rel="noreferrer">
-                            {title}
-                          </a>
+                        {inlineEditId === place.id ? (
+                          <input
+                            ref={inlineInputRef}
+                            className="voyage-title-inline-input"
+                            value={inlineEditValue}
+                            onChange={(e) => setInlineEditValue(e.target.value)}
+                            onBlur={() => commitInlineEdit(place)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') commitInlineEdit(place);
+                              if (e.key === 'Escape') cancelInlineEdit();
+                            }}
+                          />
                         ) : (
-                          <div className="voyage-card-title">{title}</div>
+                          <button
+                            type="button"
+                            className="voyage-card-title voyage-title-btn"
+                            onClick={() => handleTitleClick(openUrl)}
+                            onDoubleClick={(e) => handleTitleDoubleClick(e, place, title)}
+                          >
+                            {title}
+                          </button>
+                        )}
+                        {openUrl && src.key === 'maps' && (
+                          <button type="button" className="voyage-open-mini" onClick={() => openMap(openUrl)}>
+                            {src.label}
+                          </button>
                         )}
                       </div>
                     ) : (
-                      <div className="voyage-card-title">{title}</div>
+                      inlineEditId === place.id ? (
+                        <input
+                          ref={inlineInputRef}
+                          className="voyage-title-inline-input"
+                          value={inlineEditValue}
+                          onChange={(e) => setInlineEditValue(e.target.value)}
+                          onBlur={() => commitInlineEdit(place)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') commitInlineEdit(place);
+                            if (e.key === 'Escape') cancelInlineEdit();
+                          }}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          className="voyage-card-title voyage-title-btn"
+                          onClick={() => handleTitleClick(openUrl)}
+                          onDoubleClick={(e) => handleTitleDoubleClick(e, place, title)}
+                        >
+                          {title}
+                        </button>
+                      )
                     )}
                     {place.category && <div className="voyage-card-tags"><span className="voyage-tag">{place.category}</span></div>}
                     <div className="voyage-card-actions">
                       <button type="button" className="voyage-btn" onClick={() => openPlanModal(place, 0)}>
-                        Plan it
+                        plan
                       </button>
-                      {days?.[0] && (
-                        <button type="button" className="voyage-btn voyage-btn-mini" onClick={() => openPlanModal(place, 0)}>
-                          {days[0].label}
-                        </button>
-                      )}
-                      {days?.[1] && (
-                        <button type="button" className="voyage-btn voyage-btn-mini" onClick={() => openPlanModal(place, 1)}>
-                          {days[1].label}
-                        </button>
-                      )}
-                      {openUrl && (
-                        <a className="voyage-btn voyage-btn-ghost" href={openUrl} target="_blank" rel="noreferrer">
-                          Open
-                        </a>
-                      )}
-                      <button type="button" className="voyage-btn voyage-btn-ghost" onClick={() => openEdit(place)}>
-                        Edit
+                      <button type="button" className="voyage-btn voyage-btn-ghost" onClick={() => openEdit(place, 'linkOnly')}>
+                        Link
                       </button>
                       <button type="button" className="voyage-btn voyage-btn-danger" onClick={() => removeSavedPlace(place.id)}>
                         Remove
@@ -515,16 +635,18 @@ export default function SavedPlaces() {
           <div className="voyage-import-backdrop" onClick={() => setEditOpen(false)}>
             <div className="voyage-import-modal" onClick={(e) => e.stopPropagation()}>
               <div className="voyage-import-header">
-                <div className="voyage-import-title">Edit saved item</div>
+                <div className="voyage-import-title">{editMode === 'linkOnly' ? 'Edit link' : 'Edit saved item'}</div>
                 <button type="button" className="voyage-import-close" onClick={() => setEditOpen(false)} aria-label="Close">×</button>
               </div>
               <div className="voyage-link-import">
-                <div className="voyage-link-import-row">
-                  <label className="voyage-link-field" style={{ flex: 1 }}>
-                    <span>Title</span>
-                    <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Place name" />
-                  </label>
-                </div>
+                {editMode === 'full' && (
+                  <div className="voyage-link-import-row">
+                    <label className="voyage-link-field" style={{ flex: 1 }}>
+                      <span>Title</span>
+                      <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Place name" />
+                    </label>
+                  </div>
+                )}
                 <div className="voyage-link-import-row">
                   <label className="voyage-link-field" style={{ flex: 1 }}>
                     <span>Cover image URL (optional)</span>
@@ -538,7 +660,7 @@ export default function SavedPlaces() {
                   </label>
                 </div>
                 <div className="voyage-link-import-actions">
-                  <button type="button" className="primary" onClick={saveEdit} disabled={!editTitle.trim()}>
+                  <button type="button" className="primary" onClick={saveEdit} disabled={editMode === 'full' && !editTitle.trim()}>
                     Save
                   </button>
                   <button type="button" onClick={() => setEditOpen(false)}>Cancel</button>
@@ -746,6 +868,8 @@ function VoyageLinkImport({ initialUrl, detectSource, onSave }) {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
   const [collection, setCollection] = useState('');
+  const [openTime, setOpenTime] = useState('-');
+  const [closeTime, setCloseTime] = useState('-');
   const [coverUrl, setCoverUrl] = useState('');
   const [note, setNote] = useState('');
 
@@ -768,10 +892,12 @@ function VoyageLinkImport({ initialUrl, detectSource, onSave }) {
   const handleSave = () => {
     const u = (url || '').trim();
     if (!u) return;
+    const hours =
+      openTime === '-' || closeTime === '-' ? '—' : `${openTime} – ${closeTime}`;
     const payload = {
       id: `place-${Date.now()}`,
       title: (title || '').trim() || suggestTitle(),
-      hours: '—',
+      hours,
       rating: null,
       category:
         (category || '').trim() ||
@@ -800,12 +926,50 @@ function VoyageLinkImport({ initialUrl, detectSource, onSave }) {
       </label>
       <div className="voyage-link-import-split">
         <label className="voyage-link-field">
-          <span>Category (optional)</span>
-          <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Food / Cafe / Shopping…" />
+          <span>Categories (optional)</span>
+          <div className="voyage-import-category-grid">
+            <button
+              type="button"
+              className={`voyage-chip ${!category ? 'voyage-chip-active' : ''}`}
+              onClick={() => setCategory('')}
+            >
+              All
+            </button>
+            {VOYAGE_CATEGORY_PRESETS.map((c) => (
+              <button
+                key={c.key}
+                type="button"
+                className={`voyage-chip ${category === c.label ? 'voyage-chip-active' : ''}`}
+                onClick={() => setCategory(c.label)}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
         </label>
         <label className="voyage-link-field">
           <span>Collection (optional)</span>
           <input type="text" value={collection} onChange={(e) => setCollection(e.target.value)} placeholder="e.g. Osaka list / Food spots" />
+        </label>
+      </div>
+      <div className="voyage-link-import-split">
+        <label className="voyage-link-field">
+          <span>Open (optional)</span>
+          <select value={openTime} onChange={(e) => setOpenTime(e.target.value)}>
+            <option value="-">-</option>
+            {TIME_OPTIONS.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        </label>
+        <label className="voyage-link-field">
+          <span>Close (optional)</span>
+          <select value={closeTime} onChange={(e) => setCloseTime(e.target.value)}>
+            <option value="-">-</option>
+            {TIME_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
         </label>
       </div>
       <div className="voyage-link-import-split">
