@@ -76,11 +76,20 @@ export default function Home() {
         }
         setSearchParams((prev) => {
           const next = new URLSearchParams(prev);
+          // Keep shared identity in URL so refresh remains in shared mode.
+          next.set('trip', shareId);
+          next.delete('plan');
           next.delete('share');
+          next.delete('invite');
+          next.delete('source');
           return next;
         }, { replace: true });
       })
-      .catch(() => setSearchParams((prev) => { const n = new URLSearchParams(prev); n.delete('share'); return n; }, { replace: true }));
+      .catch(() => setSearchParams((prev) => {
+        const n = new URLSearchParams(prev);
+        n.delete('share');
+        return n;
+      }, { replace: true }));
   }, [shareId, user, replaceItineraryState, setSearchParams]);
 
   // Preferred trip param ?trip=ID (Notion-like stable link)
@@ -118,7 +127,7 @@ export default function Home() {
         } catch {}
         setSearchParams((prev) => {
           const next = new URLSearchParams(prev);
-          next.delete('trip');
+          next.delete('plan');
           next.delete('source');
           return next;
         }, { replace: true });
@@ -164,6 +173,8 @@ export default function Home() {
           } catch {}
           setSearchParams((prev) => {
             const next = new URLSearchParams(prev);
+            next.set('trip', candidateId);
+            next.delete('plan');
             next.delete('invite');
             next.delete('source');
             return next;

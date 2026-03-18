@@ -154,16 +154,14 @@ export function ItineraryProvider({ children }) {
   const resolvedSharedTripId = useMemo(() => {
     try {
       const p = typeof localStorage !== 'undefined' ? localStorage.getItem('pending_trip_id') : null;
-      // If user explicitly selected a personal plan (via ?plan=...), we should not treat
-      // the URL's ?trip=? as an active shared trip source. This prevents the ActivityFeed
-      // from mixing activities from multiple shared trips when switching plans.
-      if (planFromUrl) return shareSettings.tripId || null;
-      return shareSettings.tripId || tripFromUrl || p || null;
+      // Always prioritize explicit shared link in URL.
+      // If ?trip= is present, we are in shared mode regardless of ?plan.
+      if (tripFromUrl) return tripFromUrl;
+      return shareSettings.tripId || p || null;
     } catch {
-      if (planFromUrl) return shareSettings.tripId || null;
-      return shareSettings.tripId || tripFromUrl;
+      return tripFromUrl || shareSettings.tripId;
     }
-  }, [shareSettings.tripId, tripFromUrl, location.search, planFromUrl]);
+  }, [shareSettings.tripId, tripFromUrl, location.search]);
 
   const [personalPlans, setPersonalPlans] = useState([]);
   const [activePersonalPlanId, setActivePersonalPlanId] = useState(() => planFromUrl || null);
@@ -434,6 +432,7 @@ export function ItineraryProvider({ children }) {
     try {
       const params = new URLSearchParams(window.location.search);
       params.set('trip', tripId);
+      params.delete('plan');
       params.delete('share');
       params.delete('invite');
       params.delete('source');
