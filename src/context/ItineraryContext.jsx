@@ -116,6 +116,38 @@ function sharedTripIdCandidates(raw) {
   return [...out].filter(Boolean);
 }
 
+function extractLegacySharedTripIds(data) {
+  const out = new Set();
+  const push = (value) => {
+    for (const candidate of sharedTripIdCandidates(String(value || '').trim())) {
+      out.add(candidate);
+    }
+  };
+
+  if (data?.planSharedTripId) push(data.planSharedTripId);
+  if (data?.shareSettings?.tripId) push(data.shareSettings.tripId);
+
+  const rawLink = String(data?.tripmateShareLink || '').trim();
+  if (rawLink) {
+    try {
+      const url = new URL(rawLink);
+      const tripId = url.searchParams.get('trip');
+      if (tripId) push(tripId);
+    } catch {
+      const match = rawLink.match(/[?&]trip=([^&#]+)/);
+      if (match?.[1]) {
+        try {
+          push(decodeURIComponent(match[1]));
+        } catch {
+          push(match[1]);
+        }
+      }
+    }
+  }
+
+  return [...out].filter(Boolean);
+}
+
 export function ItineraryProvider({ children }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -739,6 +771,39 @@ export function ItineraryProvider({ children }) {
       const q = params.toString();
       navigate(`${location.pathname}${q ? `?${q}` : ''}`, { replace: true });
 
+      if (!planId) {
+        const blankPayload = {
+          trip: { ...defaultTrip },
+          days: JSON.parse(JSON.stringify(defaultDays)),
+          savedPlaces: [],
+          savedTransports: [],
+          tripmates: [],
+          tripCreator: { name: user?.name || '', email: user?.email || '', id: user?.id || '' },
+          tripMemories: '',
+          planSharedTripId: '',
+          shareSettings: {
+            allowVote: false,
+            allowEdit: true,
+            shareLink: '',
+            tripId: null,
+            linkAccess: 'invited',
+            linkPermission: 'edit',
+            invitedEmails: [],
+          },
+          tripmateShareLink: '',
+        };
+        setShareSettings((prev) => ({ ...prev, tripId: null, shareLink: '' }));
+        setTripmateShareLink('');
+        setPlanSharedTripId('');
+        replaceItineraryState(blankPayload);
+        setActivePersonalPlanId(null);
+        supabaseLoadedRef.current = `personal-none-${user.id}`;
+        queueMicrotask(() => {
+          planLoadInProgressRef.current = false;
+        });
+        return;
+      }
+
       if (!hasSupabase() || !supabase) {
         setShareSettings((prev) => ({ ...prev, tripId: null, shareLink: '' }));
         setTripmateShareLink('');
@@ -867,6 +932,19 @@ export function ItineraryProvider({ children }) {
     async (planId) => {
       if (!user?.id || !planId) return;
       if (!hasSupabase() || !supabase) return;
+      const { data: row } = await supabase
+        .from('itineraries')
+        .select('id, data')
+        .eq('id', planId)
+        .maybeSingle();
+
+      const legacySharedIds = extractLegacySharedTripIds(row?.data || {});
+      if (legacySharedIds.length > 0) {
+        try {
+          await supabase.from('shared_itineraries').delete().in('id', legacySharedIds);
+        } catch {}
+      }
+
       await supabase.from('itineraries').delete().eq('id', planId);
       setPersonalPlans((prev) => prev.filter((p) => p.id !== planId));
 
