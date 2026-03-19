@@ -68,6 +68,33 @@ export default function ShareView() {
     };
   }, [shareId]);
 
+  useEffect(() => {
+    if (!authReady || !user || !preview?.plan_id) return;
+    if (!hasSupabase() || !supabase) return;
+
+    let cancelled = false;
+    void supabase
+      .from('plan_members')
+      .select('plan_id')
+      .eq('plan_id', preview.plan_id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) return;
+        const isOwner = String(preview.owner_profile_id || '').trim() === String(user.id || '').trim();
+        const alreadyJoined = !!data?.plan_id || isOwner;
+        if (alreadyJoined) {
+          navigate(`/?plan=${encodeURIComponent(preview.plan_id)}`, { replace: true });
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authReady, user?.id, preview?.plan_id, preview?.owner_profile_id, navigate]);
+
   const handleJoin = async () => {
     if (!shareId) return;
     if (!user) {
