@@ -10,7 +10,7 @@ import { logTripActivity } from '../lib/tripActivity';
 import { ensureProfileExists } from '../lib/ensureProfile';
 import { writeSharedItineraryRow } from '../lib/sharedItineraryWrite';
 import { itineraryPayloadCanonical } from '../lib/itineraryPayloadCompare';
-import { ensureStablePlanShare, listPlansForUser, loadPlanMembers, revokeStablePlanShare } from '../lib/planSharing';
+import { ensureOwnerMembership, ensureStablePlanShare, listPlansForUser, loadPlanMembers, revokeStablePlanShare } from '../lib/planSharing';
 
 const ItineraryContext = createContext(null);
 
@@ -794,6 +794,13 @@ export function ItineraryProvider({ children }) {
       return null;
     }
 
+    try {
+      const { ok } = await ensureProfileExists(supabase, user);
+      if (!ok) return null;
+    } catch {
+      return null;
+    }
+
     const { data: insRow, error } = await supabase
       .from('itineraries')
       .insert({
@@ -810,6 +817,7 @@ export function ItineraryProvider({ children }) {
     if (error || !insRow?.id) return null;
 
     const newId = insRow.id;
+    await ensureOwnerMembership(supabase, newId, user.id).catch(() => {});
     setPersonalPlans((prev) => [
       {
         ...insRow,

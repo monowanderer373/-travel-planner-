@@ -167,22 +167,30 @@ export async function joinPlanMember(
 export async function listPlansForUser(supabase, userId) {
   if (!supabase || !userId) return { owned: [], guest: [], error: new Error('missing list params') };
 
-  const ownedRes = await supabase
-    .from('itineraries')
-    .select('*')
-    .or(`profile_id.eq.${userId},owner_profile_id.eq.${userId}`)
-    .order('updated_at', { ascending: false })
-    .limit(50);
+  const [ownedRes, ownerMemberRes, memberRes] = await Promise.all([
+    supabase
+      .from('itineraries')
+      .select('*')
+      .or(`profile_id.eq.${userId},owner_profile_id.eq.${userId}`)
+      .order('updated_at', { ascending: false })
+      .limit(50),
+    supabase
+      .from('plan_members')
+      .select('plan_id, role, joined_via, updated_at, itineraries!inner(*)')
+      .eq('user_id', userId)
+      .eq('role', 'owner')
+      .order('updated_at', { ascending: false })
+      .limit(50),
+    supabase
+      .from('plan_members')
+      .select('plan_id, role, joined_via, updated_at, itineraries!inner(*)')
+      .eq('user_id', userId)
+      .neq('role', 'owner')
+      .order('updated_at', { ascending: false })
+      .limit(50),
+  ]);
 
-  const memberRes = await supabase
-    .from('plan_members')
-    .select('plan_id, role, joined_via, updated_at, itineraries!inner(*)')
-    .eq('user_id', userId)
-    .neq('role', 'owner')
-    .order('updated_at', { ascending: false })
-    .limit(50);
-
-  const owned = Array.isArray(ownedRes.data)
+  const ownedDirect = Array.isArray(ownedRes.data)
     ? ownedRes.data.map((row) => ({
         ...row,
         owner_profile_id: row.profile_id,
@@ -190,6 +198,28 @@ export async function listPlansForUser(supabase, userId) {
         memberType: 'owner',
       }))
     : [];
+
+  const ownedFromMembers = Array.isArray(ownerMemberRes.data)
+    ? ownerMemberRes.data
+        .map((row) => {
+          const plan = row?.itineraries;
+          if (!plan || typeof plan !== 'object') return null;
+          return {
+            ...plan,
+            owner_profile_id: plan.owner_profile_id || plan.profile_id,
+            membershipRole: 'owner',
+            memberType: 'owner',
+          };
+        })
+        .filter(Boolean)
+    : [];
+
+  const ownedMap = new Map();
+  [...ownedDirect, ...ownedFromMembers].forEach((row) => {
+    if (!row?.id) return;
+    if (!ownedMap.has(row.id)) ownedMap.set(row.id, row);
+  });
+  const owned = [...ownedMap.values()];
 
   const guest = Array.isArray(memberRes.data)
     ? memberRes.data
@@ -209,9 +239,12 @@ export async function listPlansForUser(supabase, userId) {
     : [];
 
   // If the migration hasn't been applied yet, the missing table error is expected.
-  const memberError = memberRes.error && !/plan_members/i.test(String(memberRes.error?.message || ''))
+  const memberError = (memberRes.error && !/plan_members/i.test(String(memberRes.error?.message || '')))
     ? memberRes.error
-    : null;
+    : (ownerMemberRes.error && !/plan_members/i.test(String(ownerMemberRes.error?.message || ''))
+      ? ownerMemberRes.error
+      : null);
+
 
   return {
     owned,
