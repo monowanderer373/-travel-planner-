@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCost, fetchRate } from '../context/CostContext';
 import { useItinerary } from '../context/ItineraryContext';
@@ -362,18 +362,121 @@ function blankForm(people) {
   };
 }
 
+/** Rebuild add-form state from a saved expense (for Edit). */
+function expenseToForm(exp, people, days) {
+  const itemized = {};
+  if (exp.splitMode === 'itemized' && Array.isArray(exp.splits)) {
+    for (const s of exp.splits) {
+      if (!s) continue;
+      if (exp.itemizedInputMode === 'total') {
+        itemized[s.personId] = s.amount != null && Number.isFinite(s.amount) ? String(s.amount) : '';
+      } else {
+        itemized[s.personId] = s.baseAmount != null && Number.isFinite(s.baseAmount) ? String(s.baseAmount) : '';
+      }
+    }
+  }
+  const first = exp.splits?.[0];
+  const manualR = first?.rateSource === 'manual';
+  const day0 = days[0]?.id || 'day-1';
+  return {
+    category: exp.category || 'other',
+    description: exp.description || '',
+    payerId: exp.payerId || people[0]?.id || '',
+    dayTag: exp.dayTag || day0,
+    paymentMethod: exp.paymentMethod === 'cash' ? 'cash' : 'card',
+    amount: exp.amount != null ? String(exp.amount) : '',
+    paidCurrency: exp.paidCurrency || 'JPY',
+    splitPersonIds:
+      Array.isArray(exp.splits) && exp.splits.length > 0
+        ? exp.splits.map((s) => s.personId).filter(Boolean)
+        : people.map((p) => p.id),
+    repayCurrency: exp.repayCurrency || first?.repayCurrency || 'MYR',
+    useCustomDate: !!exp.customDateUsed,
+    customDate: exp.date || new Date().toISOString().slice(0, 10),
+    rateMode: manualR ? 'manual' : 'auto',
+    manualRate: manualR && first?.rate != null ? String(first.rate) : '',
+    splitMode: exp.splitMode === 'itemized' ? 'itemized' : 'equal',
+    itemizedInputMode: exp.itemizedInputMode === 'total' ? 'total' : 'pretax',
+    itemized,
+    serviceTaxPct: exp.serviceTaxPct != null ? String(exp.serviceTaxPct) : '5',
+    salesTaxPct: exp.salesTaxPct != null ? String(exp.salesTaxPct) : '8',
+    tipsPct: exp.tipsPct != null ? String(exp.tipsPct) : '0',
+    receipt: exp.receipt || null,
+  };
+}
+
+/** Set by AddExpenseForm — ExpenseCard calls startEdit / expandNew without prop drilling. */
+const expenseFormControllerRef = { current: null };
+
 function AddExpenseForm() {
   const { t } = useLanguage();
-  const { people, addExpense, getCachedRate, setCachedRate, CURRENCIES, canEditCost } = useCost();
+  const { people, expenses, addExpense, updateExpense, getCachedRate, setCachedRate, CURRENCIES, canEditCost } = useCost();
   const { days, trip } = useItinerary();
   const receiptRef = useRef();
 
   const [form, setForm] = useState(() => blankForm(people));
+  const [formExpanded, setFormExpanded] = useState(false);
+  const [editingExpenseId, setEditingExpenseId] = useState(null);
   const [rateInfo, setRateInfo] = useState(null);
   const [rateLoading, setRateLoading] = useState(false);
   const [rateError, setRateError] = useState('');
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [formError, setFormError] = useState('');
+
+  useLayoutEffect(() => {
+    expenseFormControllerRef.current = {
+      startEdit: (exp) => {
+        if (!exp?.id) return;
+        setForm(expenseToForm(exp, people, days));
+        setEditingExpenseId(exp.id);
+        setFormExpanded(true);
+        setFormError('');
+        setRateError('');
+        const first = exp.splits?.[0];
+        if (exp.paidCurrency === exp.repayCurrency) {
+          setRateInfo({ rate: 1, source: 'same currency', date: 'N/A' });
+        } else if (first?.rateSource === 'manual' && first?.rate != null) {
+          setRateInfo(null);
+        } else if (first?.rate != null) {
+          setRateInfo({
+            rate: first.rate,
+            source: first.rateSource || 'saved',
+            date: first.rateDate || exp.date || 'N/A',
+          });
+        } else {
+          setRateInfo(null);
+        }
+        if (receiptRef.current) receiptRef.current.value = '';
+      },
+      expandNew: () => {
+        setForm(blankForm(people));
+        setEditingExpenseId(null);
+        setFormExpanded(true);
+        setRateInfo(null);
+        setRateError('');
+        setFormError('');
+        if (receiptRef.current) receiptRef.current.value = '';
+      },
+      collapse: () => {
+        setFormExpanded(false);
+        setEditingExpenseId(null);
+        setForm(blankForm(people));
+        setRateInfo(null);
+        setRateError('');
+        setFormError('');
+        if (receiptRef.current) receiptRef.current.value = '';
+      },
+    };
+    return () => {
+      expenseFormControllerRef.current = null;
+    };
+  }, [people, days]);
+
+  useEffect(() => {
+    if (!formExpanded) return;
+    const el = document.querySelector('.cost-add-expense-section');
+    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [formExpanded]);
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
@@ -528,7 +631,27 @@ function AddExpenseForm() {
       }));
     }
 
-    addExpense({
+    if (editingExpenseId) {
+      const prev = expenses.find((e) => e.id === editingExpenseId);
+      if (prev && Array.isArray(prev.splits)) {
+        const repaidByPerson = new Map(
+          prev.splits.filter((s) => s?.repaid).map((s) => [s.personId, s])
+        );
+        splits = splits.map((s) => {
+          const old = repaidByPerson.get(s.personId);
+          if (!old) return s;
+          return {
+            ...s,
+            repaid: true,
+            repaidAt: old.repaidAt,
+            repaidDate: old.repaidDate,
+            repaidAttachment: old.repaidAttachment,
+          };
+        });
+      }
+    }
+
+    const expensePayload = {
       category: form.category,
       description: form.description,
       payerId: form.payerId,
@@ -547,9 +670,17 @@ function AddExpenseForm() {
       tipsPct: form.splitMode === 'itemized' ? parseFloat(form.tipsPct || '0') : null,
       taxPctTotal: form.splitMode === 'itemized' ? totalTaxPct : null,
       receipt: form.receipt,
-    });
+    };
+
+    if (editingExpenseId) {
+      updateExpense(editingExpenseId, expensePayload);
+    } else {
+      addExpense(expensePayload);
+    }
 
     setForm(blankForm(people));
+    setEditingExpenseId(null);
+    setFormExpanded(false);
     setRateInfo(null);
     setRateError('');
     setFormError('');
@@ -569,9 +700,32 @@ function AddExpenseForm() {
   const repaySym = CURRENCIES.find((c) => c.code === form.repayCurrency)?.symbol || '';
 
   return (
-    <section className="section cost-section">
-      <h2 className="section-title">{t('cost.addExpense')}</h2>
+    <section className="section cost-section cost-add-expense-section">
+      <div className="cost-add-expense-toolbar">
+        <h2 className="section-title">
+          {formExpanded && editingExpenseId ? t('cost.editExpenseTitle') : t('cost.addExpense')}
+        </h2>
+        {formExpanded && (
+          <button
+            type="button"
+            className="cost-add-cancel"
+            onClick={() => expenseFormControllerRef.current?.collapse()}
+          >
+            {t('cost.cancel')}
+          </button>
+        )}
+      </div>
       {!canEditCost && <p className="cost-hint">{t('cost.readOnlyHint')}</p>}
+      {!formExpanded ? (
+        <button
+          type="button"
+          className="primary cost-open-add-expense-btn"
+          disabled={!canEditCost}
+          onClick={() => expenseFormControllerRef.current?.expandNew()}
+        >
+          {t('cost.openAddExpense')}
+        </button>
+      ) : (
       <form onSubmit={handleSubmit} className="expense-form">
         <fieldset disabled={!canEditCost} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
 
@@ -900,10 +1054,13 @@ function AddExpenseForm() {
 
         {formError && <p className="ef-form-error">{formError}</p>}
         <div className="ef-actions">
-          <button type="submit" className="primary">{t('cost.addExpenseBtn')}</button>
+          <button type="submit" className="primary">
+            {editingExpenseId ? t('cost.saveExpenseChanges') : t('cost.addExpenseBtn')}
+          </button>
         </div>
         </fieldset>
       </form>
+      )}
     </section>
   );
 }
@@ -1118,9 +1275,30 @@ function ExpenseCard({ exp }) {
             ))}
           </div>
 
-          <button type="button" className="expense-remove-v2" onClick={() => exp?.id && removeExpense(exp.id)} disabled={!canEditCost || !exp?.id}>
-            {t('cost.removeExpense')}
-          </button>
+          <div className="expense-card-actions">
+            <button
+              type="button"
+              className="expense-edit-btn"
+              disabled={!canEditCost || !exp?.id}
+              onClick={(e) => {
+                e.stopPropagation();
+                expenseFormControllerRef.current?.startEdit(exp);
+              }}
+            >
+              {t('cost.editExpense')}
+            </button>
+            <button
+              type="button"
+              className="expense-remove-v2"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (exp?.id) removeExpense(exp.id);
+              }}
+              disabled={!canEditCost || !exp?.id}
+            >
+              {t('cost.removeExpense')}
+            </button>
+          </div>
         </div>
       )}
     </div>

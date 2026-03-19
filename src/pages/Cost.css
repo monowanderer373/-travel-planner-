@@ -1164,6 +1164,70 @@
   transform: none;
 }
 
+.cost-add-expense-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.cost-add-expense-toolbar .section-title {
+  margin-bottom: 0;
+}
+
+.cost-add-cancel {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.88rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.cost-add-cancel:hover {
+  border-color: var(--border-accent);
+  color: var(--text-primary);
+}
+
+.cost-open-add-expense-btn {
+  width: 100%;
+  max-width: 22rem;
+  justify-content: center;
+}
+
+.expense-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px dashed var(--border-soft);
+}
+
+.expense-edit-btn {
+  font-size: 0.85rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-accent);
+  background: var(--pastel-lavender);
+  color: var(--accent-primary);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.expense-edit-btn:hover:not(:disabled) {
+  filter: brightness(0.97);
+}
+
+.expense-edit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* tag */
 .tag {
   font-size: 0.75rem;
