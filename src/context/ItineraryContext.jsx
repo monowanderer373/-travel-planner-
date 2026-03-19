@@ -1851,12 +1851,16 @@ export function ItineraryProvider({ children }) {
               // Prefer updating the currently selected plan, including shared plans
               // that were added into "Your Plan" through plan_members.
               if (activePersonalPlanId) {
-                const { data: upRow, error: upErr } = await supabase
+                // Owner: require row to belong to this user so a wrong id can never overwrite someone else's plan.
+                // Guest/editor on others' plans: only .eq('id') — RLS must allow; profile_id on row is owner's.
+                let upQuery = supabase
                   .from('itineraries')
                   .update(body)
-                  .eq('id', activePersonalPlanId)
-                  .select('id')
-                  .maybeSingle();
+                  .eq('id', activePersonalPlanId);
+                if (isActivePlanOwner) {
+                  upQuery = upQuery.or(`profile_id.eq.${user.id},owner_profile_id.eq.${user.id}`);
+                }
+                const { data: upRow, error: upErr } = await upQuery.select('id').maybeSingle();
                 if (upErr) throw upErr;
 
                 if (upRow?.id) {
