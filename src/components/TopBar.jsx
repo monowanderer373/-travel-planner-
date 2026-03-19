@@ -37,6 +37,7 @@ export default function TopBar({ onMenuClick, menuOpen }) {
     renamePersonalPlan,
     repairPersonalPlan,
     leavePlan,
+    strictNavLocked,
   } = useItinerary();
   const [planOpen, setPlanOpen] = useState(false);
   const planToggleRef = useRef(null);
@@ -113,6 +114,7 @@ export default function TopBar({ onMenuClick, menuOpen }) {
   };
   const handlePlanSwitch = (planId) => {
     if (!planId) return;
+    if (strictNavLocked) return;
     if (isSharedMode) {
       const ok = window.confirm('Switch to this plan and leave the current shared trip?');
       if (!ok) return;
@@ -121,6 +123,7 @@ export default function TopBar({ onMenuClick, menuOpen }) {
     void switchToPersonalPlan(planId);
   };
   const handleCreatePlan = () => {
+    if (strictNavLocked) return;
     if (isSharedMode) {
       const ok = window.confirm('Create a new plan and leave the current shared trip?');
       if (!ok) return;
@@ -175,11 +178,21 @@ export default function TopBar({ onMenuClick, menuOpen }) {
             onClick={onMenuClick}
             aria-label={menuOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={menuOpen}
+            disabled={strictNavLocked}
+            title={strictNavLocked ? t('nav.completeNewTripFirst') : undefined}
           >
             {menuOpen ? '✕' : '☰'}
           </button>
         )}
-        <Link to={toWithPreservedSearch('/', locationSearch)} className="topbar-brand" aria-label="Home">
+        <Link
+          to={toWithPreservedSearch('/', locationSearch)}
+          className={`topbar-brand ${strictNavLocked ? 'topbar-tab-locked' : ''}`}
+          aria-label="Home"
+          onClick={(e) => {
+            if (strictNavLocked) e.preventDefault();
+          }}
+          aria-disabled={strictNavLocked}
+        >
           <span className="topbar-logo">{isVoyage ? 'Voyage' : 'Wander'}</span>
           {!isVoyage && <span className="topbar-tagline">Travel Planner</span>}
         </Link>
@@ -191,7 +204,12 @@ export default function TopBar({ onMenuClick, menuOpen }) {
               className="topbar-voyage-mobile-tabs-btn"
               aria-label={voyageNavOpen ? 'Close tabs' : 'Open tabs'}
               aria-expanded={voyageNavOpen}
-              onClick={() => setVoyageNavOpen((v) => !v)}
+              disabled={strictNavLocked}
+              title={strictNavLocked ? t('nav.completeNewTripFirst') : undefined}
+              onClick={() => {
+                if (strictNavLocked) return;
+                setVoyageNavOpen((v) => !v);
+              }}
             >
               ☰
             </button>
@@ -202,7 +220,14 @@ export default function TopBar({ onMenuClick, menuOpen }) {
                   key={tab.to}
                   to={toWithPreservedSearch(tab.to, locationSearch)}
                   end={tab.end ? true : undefined}
-                  className={({ isActive }) => `topbar-tab ${isActive ? 'topbar-tab-active' : ''}`}
+                  className={({ isActive }) =>
+                    `topbar-tab ${isActive ? 'topbar-tab-active' : ''} ${strictNavLocked ? 'topbar-tab-locked' : ''}`
+                  }
+                  onClick={(e) => {
+                    if (strictNavLocked) e.preventDefault();
+                  }}
+                  aria-disabled={strictNavLocked}
+                  title={strictNavLocked ? t('nav.completeNewTripFirst') : undefined}
                 >
                   {tab.label}
                 </NavLink>
@@ -216,8 +241,18 @@ export default function TopBar({ onMenuClick, menuOpen }) {
                     key={tab.to}
                     to={toWithPreservedSearch(tab.to, locationSearch)}
                     end={tab.end ? true : undefined}
-                    className={({ isActive }) => `topbar-voyage-mobile-item ${isActive ? 'topbar-voyage-mobile-item-active' : ''}`}
-                    onClick={() => setVoyageNavOpen(false)}
+                    className={({ isActive }) =>
+                      `topbar-voyage-mobile-item ${isActive ? 'topbar-voyage-mobile-item-active' : ''} ${strictNavLocked ? 'topbar-tab-locked' : ''}`
+                    }
+                    onClick={(e) => {
+                      if (strictNavLocked) {
+                        e.preventDefault();
+                        return;
+                      }
+                      setVoyageNavOpen(false);
+                    }}
+                    aria-disabled={strictNavLocked}
+                    title={strictNavLocked ? t('nav.completeNewTripFirst') : undefined}
                   >
                     {tab.label}
                   </NavLink>
@@ -233,9 +268,14 @@ export default function TopBar({ onMenuClick, menuOpen }) {
             ref={planToggleRef}
             type="button"
             className={`topbar-link topbar-plan-toggle ${planOpen ? 'topbar-plan-toggle-open' : ''}`}
-            onClick={() => setPlanOpen((v) => !v)}
+            onClick={() => {
+              if (strictNavLocked) return;
+              setPlanOpen((v) => !v);
+            }}
+            disabled={strictNavLocked}
             aria-label="Your Plan"
             aria-expanded={planOpen}
+            title={strictNavLocked ? t('nav.completeNewTripFirst') : undefined}
           >
             Your Plan
           </button>
@@ -358,14 +398,23 @@ export default function TopBar({ onMenuClick, menuOpen }) {
         </div>
         <NavLink
           to={toWithPreservedSearch('/profile', locationSearch)}
-          className={({ isActive }) => `topbar-link ${isActive ? 'topbar-link-active' : ''}`}
+          className={({ isActive }) => `topbar-link ${isActive ? 'topbar-link-active' : ''} ${strictNavLocked ? 'topbar-tab-locked' : ''}`}
+          onClick={(e) => {
+            if (strictNavLocked) e.preventDefault();
+          }}
+          aria-disabled={strictNavLocked}
+          title={strictNavLocked ? t('nav.completeNewTripFirst') : undefined}
         >
           {displayName}
         </NavLink>
         <NavLink
           to={toWithPreservedSearch('/settings', locationSearch)}
-          className={({ isActive }) => `topbar-link topbar-settings ${isActive ? 'topbar-link-active' : ''}`}
+          className={({ isActive }) => `topbar-link topbar-settings ${isActive ? 'topbar-link-active' : ''} ${strictNavLocked ? 'topbar-tab-locked' : ''}`}
           aria-label="Settings"
+          onClick={(e) => {
+            if (strictNavLocked) e.preventDefault();
+          }}
+          title={strictNavLocked ? t('nav.completeNewTripFirst') : undefined}
         >
           <img src={settingsIcon} alt="" aria-hidden />
         </NavLink>

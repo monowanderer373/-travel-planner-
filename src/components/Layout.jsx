@@ -22,7 +22,7 @@ export default function Layout() {
   const location = useLocation();
   const { t } = useLanguage();
   const { user } = useAuth();
-  const { trip, shareSettings, tripmates, tripCreator } = useItinerary();
+  const { trip, shareSettings, tripmates, tripCreator, pendingDraftPlanId, abandonDraftLeavingCreatePage } = useItinerary();
   const itineraryReady = hasItinerary(trip);
   const pathname = location.pathname || '';
   const search = location.search || '';
@@ -81,6 +81,14 @@ export default function Layout() {
     const next = label ? `${app} — ${label}` : app;
     if (typeof document !== 'undefined') document.title = next;
   }, [t, pathname]);
+
+  // Leaving /create without saving (e.g. bottom nav) discards uncommitted + New Plan draft.
+  useEffect(() => {
+    const onCreate = /\/create\/?$/.test(location.pathname || '') || (location.pathname || '').includes('/create');
+    if (onCreate) return;
+    if (!pendingDraftPlanId) return;
+    void abandonDraftLeavingCreatePage();
+  }, [location.pathname, pendingDraftPlanId, abandonDraftLeavingCreatePage]);
 
   const isGuestOnShared =
     !!shareSettings?.tripId && user?.id && String(user.id).startsWith('user-');

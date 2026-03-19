@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
+import { useItinerary } from '../context/ItineraryContext';
 import { toWithPreservedSearch } from '../utils/preserveSearch';
 
 const base = import.meta.env.BASE_URL || '/';
@@ -8,6 +9,7 @@ const icon = (name) => `${base.replace(/\/$/, '')}/icons/${name}`;
 export default function BottomNav() {
   const { t } = useLanguage();
   const { search } = useLocation();
+  const { strictNavLocked } = useItinerary();
   const bottomNavItems = [
     { to: '/', label: t('nav.home'), icon: icon('home.png') },
     { to: '/itinerary', label: t('nav.itinerary'), icon: icon('itinerary.png') },
@@ -21,7 +23,14 @@ export default function BottomNav() {
         <NavLink
           key={to}
           to={toWithPreservedSearch(to, search)}
-          className={({ isActive }) => `bottom-nav-link ${isActive ? 'bottom-nav-link-active' : ''}`}
+          className={({ isActive }) =>
+            `bottom-nav-link ${isActive ? 'bottom-nav-link-active' : ''} ${strictNavLocked ? 'bottom-nav-link-locked' : ''}`
+          }
+          onClick={(e) => {
+            if (strictNavLocked) e.preventDefault();
+          }}
+          aria-disabled={strictNavLocked}
+          title={strictNavLocked ? t('nav.completeNewTripFirst') : undefined}
           aria-current={undefined}
         >
           <span className="bottom-nav-icon">

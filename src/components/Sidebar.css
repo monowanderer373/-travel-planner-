@@ -61,6 +61,12 @@
   font-weight: 500;
 }
 
+.sidebar-link-locked {
+  opacity: 0.45;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
 .sidebar-link-icon {
   font-size: 1.1rem;
   display: flex;

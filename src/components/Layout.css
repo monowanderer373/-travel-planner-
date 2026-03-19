@@ -215,6 +215,12 @@
   font-weight: 500;
 }
 
+.bottom-nav-link-locked {
+  opacity: 0.45;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
 .bottom-nav-icon {
   flex-shrink: 0;
   display: flex;

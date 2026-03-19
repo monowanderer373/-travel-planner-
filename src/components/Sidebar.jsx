@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
+import { useItinerary } from '../context/ItineraryContext';
 import { toWithPreservedSearch } from '../utils/preserveSearch';
 import './Sidebar.css';
 
@@ -20,6 +21,7 @@ const navKeys = [
 export default function Sidebar({ onNavigate }) {
   const { t } = useLanguage();
   const { search } = useLocation();
+  const { strictNavLocked } = useItinerary();
   return (
     <aside className="sidebar" onClick={onNavigate}>
       <div className="sidebar-brand">
@@ -32,8 +34,13 @@ export default function Sidebar({ onNavigate }) {
             key={to}
             to={toWithPreservedSearch(to, search)}
             className={({ isActive }) =>
-              `sidebar-link ${isActive ? 'sidebar-link-active' : ''}`
+              `sidebar-link ${isActive ? 'sidebar-link-active' : ''} ${strictNavLocked ? 'sidebar-link-locked' : ''}`
             }
+            onClick={(e) => {
+              if (strictNavLocked) e.preventDefault();
+            }}
+            aria-disabled={strictNavLocked}
+            title={strictNavLocked ? t('nav.completeNewTripFirst') : undefined}
           >
             <span className="sidebar-link-icon">
               <img src={icon} alt="" aria-hidden />

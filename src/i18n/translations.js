@@ -11,6 +11,7 @@ export const translations = {
     'nav.journal': 'Trip Journal',
     'nav.cost': 'Cost',
     'nav.settings': 'Settings',
+    'nav.completeNewTripFirst': 'Finish and save your new trip first.',
 
     // Welcome
     'welcome.title': 'Welcome to Wander',
@@ -444,6 +445,7 @@ export const translations = {
     'nav.journal': '旅行日记',
     'nav.cost': '花费',
     'nav.settings': '设置',
+    'nav.completeNewTripFirst': '请先完成并保存新行程。',
 
     'welcome.title': '欢迎使用 Wander',
     'welcome.tagline': '你的旅行行程规划助手',

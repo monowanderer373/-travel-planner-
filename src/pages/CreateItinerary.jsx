@@ -11,7 +11,7 @@ export default function CreateItinerary() {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { user } = useAuth();
-  const { trip, updateTrip, setTripCreator } = useItinerary();
+  const { trip, updateTrip, setTripCreator, commitPendingCreateFlow } = useItinerary();
 
   const hasStartedKey = 'trip-planner-has-started-planning';
   const [hasStarted, setHasStarted] = useState(() => {
@@ -36,6 +36,7 @@ export default function CreateItinerary() {
         setHasStarted(true);
       }
     } catch {}
+    commitPendingCreateFlow();
     navigate({ pathname: '/', search: location.search || '' }, { replace: true });
   };
 

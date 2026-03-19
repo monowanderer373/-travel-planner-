@@ -211,6 +211,14 @@ export function ItineraryProvider({ children }) {
   const [plansLoaded, setPlansLoaded] = useState(false);
   const [planDebugInfo, setPlanDebugInfo] = useState(null);
   const [activePersonalPlanId, setActivePersonalPlanId] = useState(() => planFromUrl || null);
+  /** + New Plan row in DB until user saves Create page; discarded when switching plan or leaving /create without save. */
+  const [pendingDraftPlanId, setPendingDraftPlanId] = useState(null);
+  const pendingDraftPlanIdRef = useRef(null);
+  useEffect(() => {
+    pendingDraftPlanIdRef.current = pendingDraftPlanId;
+  }, [pendingDraftPlanId]);
+  /** User had zero plans before + New Plan — block main nav until Create flow is saved. */
+  const [strictNavLocked, setStrictNavLocked] = useState(false);
 
   // Stable plan id for guests: survives tab changes when URL search is briefly missing (session backup).
   useEffect(() => {
@@ -853,6 +861,39 @@ export function ItineraryProvider({ children }) {
     }
   }, []);
 
+  /** Delete a plan row without switching active plan (used to discard uncommitted + New Plan draft). */
+  const deletePersonalPlanSilently = useCallback(
+    async (planId) => {
+      if (!user?.id || !planId) return null;
+      if (!hasSupabase() || !supabase) return null;
+      try {
+        const { data: row } = await supabase
+          .from('itineraries')
+          .select('id, data')
+          .eq('id', planId)
+          .maybeSingle();
+        const legacySharedIds = extractLegacySharedTripIds(row?.data || {});
+        if (legacySharedIds.length > 0) {
+          try {
+            await supabase.from('shared_itineraries').delete().in('id', legacySharedIds);
+          } catch {}
+        }
+        await supabase.from('itineraries').delete().eq('id', planId);
+      } catch (e) {
+        if (import.meta.env.DEV) console.warn('[deletePersonalPlanSilently]', e);
+        return null;
+      }
+      let nextFirstId = null;
+      setPersonalPlans((prev) => {
+        const filtered = prev.filter((p) => p.id !== planId);
+        nextFirstId = filtered[0]?.id ?? null;
+        return filtered;
+      });
+      return nextFirstId;
+    },
+    [user?.id, hasSupabase, supabase]
+  );
+
   const switchToPersonalPlan = useCallback(
     async (planId) => {
       if (!user?.id) return;
@@ -864,10 +905,25 @@ export function ItineraryProvider({ children }) {
         sessionStorage.removeItem('share_join_flow');
       } catch {}
 
+      // Uncommitted + New Plan draft: switching to another plan discards the draft row.
+      const draft = pendingDraftPlanIdRef.current;
+      if (draft && planId && planId !== draft) {
+        await deletePersonalPlanSilently(draft);
+        pendingDraftPlanIdRef.current = null;
+        setPendingDraftPlanId(null);
+        setStrictNavLocked(false);
+      }
+
       const params = clearSharedUrlParams() || new URLSearchParams();
       if (planId) params.set('plan', planId);
       const q = params.toString();
-      navigate(`${location.pathname}${q ? `?${q}` : ''}`, { replace: true });
+      const searchStr = q ? `?${q}` : '';
+      const isCreatePath = /\/create\/?$/.test(location.pathname || '');
+      if (isCreatePath) {
+        navigate({ pathname: '/', search: planId ? searchStr : '' }, { replace: true });
+      } else {
+        navigate(`${location.pathname}${searchStr}`, { replace: true });
+      }
 
       if (!planId) {
         const blankPayload = {
@@ -933,11 +989,28 @@ export function ItineraryProvider({ children }) {
         planLoadInProgressRef.current = false;
       });
     },
-    [user?.id, clearSharedUrlParams, navigate, hasSupabase, supabase, replaceItineraryState, location.pathname]
+    [user?.id, clearSharedUrlParams, navigate, hasSupabase, supabase, replaceItineraryState, location.pathname, deletePersonalPlanSilently]
   );
+
+  const commitPendingCreateFlow = useCallback(() => {
+    pendingDraftPlanIdRef.current = null;
+    setPendingDraftPlanId(null);
+    setStrictNavLocked(false);
+  }, []);
+
+  const abandonDraftLeavingCreatePage = useCallback(async () => {
+    const id = pendingDraftPlanIdRef.current;
+    if (!id) return;
+    const nextId = await deletePersonalPlanSilently(id);
+    pendingDraftPlanIdRef.current = null;
+    setPendingDraftPlanId(null);
+    setStrictNavLocked(false);
+    await switchToPersonalPlan(nextId);
+  }, [deletePersonalPlanSilently, switchToPersonalPlan]);
 
   const createPersonalPlan = useCallback(async () => {
     if (!user) return null;
+    const hadNoPlans = personalPlans.length === 0 && sharedPlans.length === 0;
     // Exit shared mode first so the autosave doesn't write to shared tables.
     try {
       localStorage.removeItem('pending_trip_id');
@@ -1028,15 +1101,23 @@ export function ItineraryProvider({ children }) {
     ]);
     setPlansLoaded(true);
     await switchToPersonalPlan(newId);
+    setPendingDraftPlanId(newId);
+    pendingDraftPlanIdRef.current = newId;
+    if (hadNoPlans) setStrictNavLocked(true);
     // Open Create Itinerary so the user can set destination, dates, and cities for the new plan (then home shows the summary).
     navigate(`/create?plan=${encodeURIComponent(newId)}`, { replace: true });
     return newId;
-  }, [user, hasSupabase, supabase, replaceItineraryState, switchToPersonalPlan, navigate]);
+  }, [user, hasSupabase, supabase, replaceItineraryState, switchToPersonalPlan, navigate, personalPlans.length, sharedPlans.length]);
 
   const deletePersonalPlan = useCallback(
     async (planId) => {
       if (!user?.id || !planId) return;
       if (!hasSupabase() || !supabase) return;
+      if (pendingDraftPlanIdRef.current === planId) {
+        pendingDraftPlanIdRef.current = null;
+        setPendingDraftPlanId(null);
+        setStrictNavLocked(false);
+      }
       const { data: row } = await supabase
         .from('itineraries')
         .select('id, data')
@@ -1975,6 +2056,10 @@ export function ItineraryProvider({ children }) {
     activePersonalPlanId,
     switchToPersonalPlan,
     createPersonalPlan,
+    pendingDraftPlanId,
+    strictNavLocked,
+    commitPendingCreateFlow,
+    abandonDraftLeavingCreatePage,
     deletePersonalPlan,
     renamePersonalPlan,
     repairPersonalPlan,
