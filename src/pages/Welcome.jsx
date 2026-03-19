@@ -26,7 +26,7 @@ export default function Welcome() {
         }
       } catch {}
       const rt = returnTo || '';
-      return rt.includes('trip=') || rt.includes('invite=') || rt.includes('share=');
+      return rt.includes('trip=') || rt.includes('invite=') || rt.includes('share=') || rt.includes('/share/');
     })();
   useEffect(() => {
     if (location.state?.from) {

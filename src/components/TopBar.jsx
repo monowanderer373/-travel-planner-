@@ -94,6 +94,7 @@ export default function TopBar({ onMenuClick, menuOpen }) {
 
   const planTitleText = `${activeTitle}${activeMonthYear ? ` · ${activeMonthYear}` : ''}`;
   const planRows = availablePlans;
+  const highlightedPlanId = isSharedMode ? null : activePersonalPlanId;
   const getPlanTitle = (plan) => {
     const tripData = plan?.data?.trip || {};
     return String(tripData?.destination || tripData?.title || '').trim() || 'Untitled';
@@ -258,7 +259,7 @@ export default function TopBar({ onMenuClick, menuOpen }) {
                 <div className="topbar-plan-list">
                   {planRows.map((p) => {
                     const label = formatPlanLabel(p);
-                    const active = p?.id === activePersonalPlanId;
+                    const active = p?.id === highlightedPlanId;
                     const isGuestPlan = p?.memberType === 'guest';
                     return (
                       <button
@@ -319,37 +320,6 @@ export default function TopBar({ onMenuClick, menuOpen }) {
                   })}
                 </div>
               )}
-              {isSharedMode && (
-                <>
-                  <div className="topbar-plan-divider" />
-                  {!plansLoaded ? (
-                    <div className="topbar-plan-empty">Loading…</div>
-                  ) : planRows.length === 0 ? (
-                    <div className="topbar-plan-empty">No plans yet.</div>
-                  ) : (
-                    <div className="topbar-plan-list">
-                      {planRows.map((p) => {
-                        const pLabel = formatPlanLabel(p);
-                        const active = p?.id === activePersonalPlanId;
-                        return (
-                          <button
-                            key={p?.id}
-                            type="button"
-                            className={`topbar-plan-item ${active ? 'topbar-plan-item-active' : ''}`}
-                            onClick={() => handlePlanSwitch(p?.id)}
-                          >
-                            <span className="topbar-plan-item-label">
-                              <span className="topbar-plan-item-title">{pLabel}</span>
-                              {formatPlanMeta(p) ? <span className="topbar-plan-item-meta">{formatPlanMeta(p)}</span> : null}
-                            </span>
-                            <span className="topbar-plan-item-spacer" />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
-              )}
               <div className="topbar-plan-divider" />
               {isSharedMode ? (
                 <div style={{ display: 'flex', gap: '0.55rem' }}>
@@ -380,7 +350,7 @@ export default function TopBar({ onMenuClick, menuOpen }) {
                   + New Plan
                 </button>
               )}
-              {(isSharedMode || activePlan) ? <div className="topbar-plan-active-hint" aria-hidden="true">{planTitleText}</div> : null}
+              {activePlan ? <div className="topbar-plan-active-hint" aria-hidden="true">{planTitleText}</div> : null}
             </div>
           )}
         </div>

@@ -17,6 +17,14 @@ export default function ShareView() {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
 
+  const clearLegacyPendingShareState = () => {
+    try {
+      localStorage.removeItem('pending_trip_id');
+      localStorage.removeItem('pending_invite_token');
+      sessionStorage.removeItem('share_join_flow');
+    } catch {}
+  };
+
   const title = useMemo(() => {
     const raw = preview?.destination || preview?.plan_title || '';
     return String(raw).trim() || 'Untitled trip';
@@ -85,6 +93,7 @@ export default function ShareView() {
         const isOwner = String(preview.owner_profile_id || '').trim() === String(user.id || '').trim();
         const alreadyJoined = !!data?.plan_id || isOwner;
         if (alreadyJoined) {
+          clearLegacyPendingShareState();
           navigate(`/?plan=${encodeURIComponent(preview.plan_id)}`, { replace: true });
         }
       })
@@ -109,6 +118,7 @@ export default function ShareView() {
         setErrorReason(error?.message || 'join_failed');
         return;
       }
+      clearLegacyPendingShareState();
       navigate(`/?plan=${encodeURIComponent(share.plan_id)}`, { replace: true });
     } finally {
       setJoining(false);

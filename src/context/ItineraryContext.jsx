@@ -31,12 +31,14 @@ const defaultTrip = {
 
 const defaultDays = [{ id: 'day-1', label: 'Day 1', timeline: [] }];
 
-/** Get trip id from URL (?trip=ID preferred, or ?invite=TOKEN), localStorage pending keys, or /join/:id, /share/:id. */
+/** Get legacy shared trip id from URL/query/local pending state. Stable /share/:token links are handled by ShareView. */
 function getTripIdFromUrl() {
   if (typeof window === 'undefined') return null;
   const params = new URLSearchParams(window.location.search);
   const trip = params.get('trip');
   if (trip) return trip;
+  const legacyShare = params.get('share');
+  if (legacyShare) return legacyShare;
   const invite = params.get('invite');
   if (invite) return decodeInviteToken(invite) || invite;
   try {
@@ -48,8 +50,6 @@ function getTripIdFromUrl() {
   const path = window.location.pathname || '';
   const joinMatch = path.match(/\/join\/([^/]+)/);
   if (joinMatch) return joinMatch[1];
-  const shareMatch = path.match(/\/share\/([^/]+)/);
-  if (shareMatch) return shareMatch[1];
   return null;
 }
 
@@ -157,7 +157,8 @@ export function ItineraryProvider({ children }) {
   const location = useLocation();
   const tripFromUrl = useMemo(() => {
     try {
-      return new URLSearchParams(location.search).get('trip');
+      const params = new URLSearchParams(location.search);
+      return params.get('trip') || params.get('share');
     } catch {
       return null;
     }
@@ -1369,7 +1370,11 @@ export function ItineraryProvider({ children }) {
         });
         if (error) console.warn('[Your Plan][listPlansForUser]', error);
         const merged = [...ownedRows, ...guestRows];
-        const desired = planFromUrl || activePersonalPlanId || (merged[0]?.id ?? null);
+        const hasCurrent = !!activePersonalPlanId && merged.some((row) => row?.id === activePersonalPlanId);
+        const desired = planFromUrl
+          || (resolvedSharedTripId
+            ? (hasCurrent ? activePersonalPlanId : null)
+            : (hasCurrent ? activePersonalPlanId : (merged[0]?.id ?? null)));
         setActivePersonalPlanId(desired);
         setPlansLoaded(true);
       })
@@ -1384,7 +1389,7 @@ export function ItineraryProvider({ children }) {
         });
         setPlansLoaded(true);
       });
-  }, [user?.id, planFromUrl, activePersonalPlanId]);
+  }, [user?.id, planFromUrl, activePersonalPlanId, resolvedSharedTripId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

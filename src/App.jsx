@@ -43,8 +43,9 @@ function RequireAuth() {
   useEffect(() => {
     if (!authReady || !user) return;
     const pendingTrip = typeof localStorage !== 'undefined' ? localStorage.getItem('pending_trip_id') : null;
+    const params = new URLSearchParams(location.search);
+    if (params.get('plan')) return;
     if (pendingTrip) {
-      const params = new URLSearchParams(location.search);
       const currentTrip = params.get('trip');
       if (currentTrip !== pendingTrip) {
         navigate(`/?trip=${encodeURIComponent(pendingTrip)}`, { replace: true });
@@ -54,7 +55,6 @@ function RequireAuth() {
     }
     const pendingInvite = typeof localStorage !== 'undefined' ? localStorage.getItem('pending_invite_token') : null;
     if (!pendingInvite) return;
-    const params = new URLSearchParams(location.search);
     const currentInvite = params.get('invite');
     if (currentInvite === pendingInvite) return;
     navigate(`/?invite=${encodeURIComponent(pendingInvite)}`, { replace: true });

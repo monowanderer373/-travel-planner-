@@ -31,11 +31,12 @@ export default function Layout() {
   const allowedWithoutItinerary = isCreate || isSettings;
   const params = new URLSearchParams(search);
   const hasInviteQuery = params.has('invite') || params.has('trip');
+  const hasPlanQuery = params.has('plan');
   let hasPendingInvite = false;
   try {
     hasPendingInvite = !!localStorage.getItem('pending_invite_token') || !!localStorage.getItem('pending_trip_id');
   } catch {}
-  const joiningSharedTrip = !!shareSettings?.tripId || hasInviteQuery || hasPendingInvite;
+  const bootstrappingPlan = !!shareSettings?.tripId || hasInviteQuery || hasPendingInvite || hasPlanQuery;
 
   useEffect(() => {
     try {
@@ -85,7 +86,7 @@ export default function Layout() {
     !!shareSettings?.tripId && user?.id && String(user.id).startsWith('user-');
 
   // Don't redirect to /create while invite/shared-trip bootstrapping is in progress.
-  if (!allowedWithoutItinerary && !itineraryReady && !joiningSharedTrip) {
+  if (!allowedWithoutItinerary && !itineraryReady && !bootstrappingPlan) {
     return <Navigate to="/create" replace />;
   }
 
