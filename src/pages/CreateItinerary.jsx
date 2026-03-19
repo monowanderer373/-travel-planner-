@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -36,7 +36,7 @@ export default function CreateItinerary() {
         setHasStarted(true);
       }
     } catch {}
-    navigate('/', { replace: true });
+    navigate({ pathname: '/', search: location.search || '' }, { replace: true });
   };
 
   const canStart = trip.destination?.trim() && trip.startDate && trip.endDate;

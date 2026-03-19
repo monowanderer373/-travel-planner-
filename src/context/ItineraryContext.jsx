@@ -1028,8 +1028,10 @@ export function ItineraryProvider({ children }) {
     ]);
     setPlansLoaded(true);
     await switchToPersonalPlan(newId);
+    // Open Create Itinerary so the user can set destination, dates, and cities for the new plan (then home shows the summary).
+    navigate(`/create?plan=${encodeURIComponent(newId)}`, { replace: true });
     return newId;
-  }, [user, hasSupabase, supabase, replaceItineraryState, switchToPersonalPlan]);
+  }, [user, hasSupabase, supabase, replaceItineraryState, switchToPersonalPlan, navigate]);
 
   const deletePersonalPlan = useCallback(
     async (planId) => {
