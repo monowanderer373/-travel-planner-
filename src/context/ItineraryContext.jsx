@@ -244,6 +244,8 @@ export function ItineraryProvider({ children }) {
   const lastHiddenAtRef = useRef(0);
   const joinTripmateSyncRef = useRef('');
   const planLoadInProgressRef = useRef(false);
+  /** Bumped on every `replaceItineraryState(..., { full: true })` so debounced saves can detect stale closures after a cloud load. */
+  const dataLoadGenerationRef = useRef(0);
   /** Guards listPlansForUser async: stale responses must not overwrite active plan (fixes wrong guest plan / Japan↔Thailand mix). */
   const listPlansRequestIdRef = useRef(0);
   const availablePlans = useMemo(() => {
@@ -814,6 +816,7 @@ export function ItineraryProvider({ children }) {
         if (data.shareSettings.tripId) sharedTripLoadedRef.current = true;
       }
       if (typeof data.tripmateShareLink === 'string') setTripmateShareLink(data.tripmateShareLink);
+      dataLoadGenerationRef.current += 1;
       return;
     }
 
@@ -1515,6 +1518,7 @@ export function ItineraryProvider({ children }) {
     if (typeof window === 'undefined') return;
     try {
       window.__wanderPlanDebug = {
+        dataLoadGeneration: dataLoadGenerationRef.current,
         plansLoaded,
         activePersonalPlanId,
         availablePlanIds: availablePlans.map((p) => p?.id).filter(Boolean),
@@ -1757,8 +1761,28 @@ export function ItineraryProvider({ children }) {
     const tripId = shareSettings.tripId;
     const debounceMs = tripId ? 1000 : 500;
     reportSaving();
+    const schedGen = dataLoadGenerationRef.current;
+    const schedPlanId = activePersonalPlanId;
+    const schedTripId = shareSettings.tripId || null;
     saveTimeoutRef.current = setTimeout(() => {
       if (planLoadInProgressRef.current) {
+        reportSaved();
+        saveTimeoutRef.current = null;
+        return;
+      }
+      // A full replace (switch plan, Realtime, shared load) happened after this timer was scheduled:
+      // in-memory payload in this closure may belong to the wrong itinerary — never write it to Supabase.
+      if (schedGen !== dataLoadGenerationRef.current) {
+        reportSaved();
+        saveTimeoutRef.current = null;
+        return;
+      }
+      if (schedTripId && schedTripId !== (shareSettings.tripId || null)) {
+        reportSaved();
+        saveTimeoutRef.current = null;
+        return;
+      }
+      if (!schedTripId && schedPlanId && schedPlanId !== activePersonalPlanId) {
         reportSaved();
         saveTimeoutRef.current = null;
         return;
