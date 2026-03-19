@@ -1438,26 +1438,14 @@ export function ItineraryProvider({ children }) {
                 return;
               }
 
-              // Fallback: update the latest personal row.
-              const { data: latestRow, error: selErr } = await supabase
-                .from('itineraries')
-                .select('id')
-                .or(`profile_id.eq.${user.id},owner_profile_id.eq.${user.id}`)
-                .order('updated_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-              if (selErr) throw selErr;
+              // Never guess a "latest row" here. If the active plan id is temporarily
+              // missing during refresh/switch, updating the latest row can overwrite a
+              // different plan with the current in-memory state.
+              if (!plansLoaded) {
+                return;
+              }
 
-              if (latestRow?.id) {
-                const { error: upErr } = await supabase
-                  .from('itineraries')
-                  .update(body)
-                  .eq('id', latestRow.id)
-                  .eq('profile_id', user.id);
-                if (upErr) throw upErr;
-                setActivePersonalPlanId(latestRow.id);
-                lastLocallyWrittenCanonicalRef.current = canon;
-              } else {
+              if (availablePlans.length === 0) {
                 const { data: insRow, error: insErr } = await supabase
                   .from('itineraries')
                   .insert({ profile_id: user.id, owner_profile_id: user.id, ...body })
@@ -1468,6 +1456,8 @@ export function ItineraryProvider({ children }) {
                   setActivePersonalPlanId(insRow.id);
                   lastLocallyWrittenCanonicalRef.current = canon;
                 }
+              } else {
+                return;
               }
             } catch (e) {
               console.warn('[Travel Planner] Cloud save failed (check login & Supabase).', e?.message || e);
@@ -1481,7 +1471,7 @@ export function ItineraryProvider({ children }) {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, planSharedTripId, shareSettings, tripmateShareLink, user?.id, activePersonalPlanId, isActivePlanOwner]);
+  }, [trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, planSharedTripId, shareSettings, tripmateShareLink, user?.id, activePersonalPlanId, isActivePlanOwner, plansLoaded, availablePlans.length]);
 
   const value = {
     trip,
