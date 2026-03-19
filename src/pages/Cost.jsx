@@ -19,7 +19,7 @@ function PeopleManager() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { people, addPerson, updatePerson, removePerson, removeExpensesForPersonId } = useCost();
-  const { tripmates, tripCreator } = useItinerary();
+  const { tripmates, tripCreator, planMembers, shareSettings, isActivePlanOwner } = useItinerary();
   const [nameInput, setNameInput] = useState('');
 
   // Prevent "auto-add newly joined tripmates" effect from immediately restoring travellers you manually removed.
@@ -30,9 +30,10 @@ function PeopleManager() {
   const currentEmail = String(user?.email || '').trim().toLowerCase();
   const creatorId = String(tripCreator?.id || tripCreator?.userId || '').trim();
   const currentId = String(user?.id || '').trim();
-  const isCreator =
+  const isLegacyCreator =
     (!!creatorId && !!currentId && creatorId === currentId) ||
     (!!creatorEmail && !!currentEmail && creatorEmail === currentEmail);
+  const isCreator = shareSettings?.tripId ? isLegacyCreator : !!isActivePlanOwner;
 
   const openMemberProfile = (name) => {
     const n = (name || '').trim();
@@ -49,9 +50,13 @@ function PeopleManager() {
     const existing = new Set(people.map((p) => norm(p.name)));
     const candidates = [];
 
-    const creatorName2 = (tripCreator?.name || '').trim();
-    if (creatorName2) candidates.push(creatorName2);
-    (tripmates || []).forEach((tm) => {
+    const memberSource = Array.isArray(planMembers) && planMembers.length > 0
+      ? planMembers.map((member) => ({ name: member?.name || '' }))
+      : [
+          tripCreator?.name ? { name: tripCreator.name } : null,
+          ...(tripmates || []),
+        ].filter(Boolean);
+    memberSource.forEach((tm) => {
       const n = (tm?.name || '').trim();
       if (n) candidates.push(n);
     });
@@ -67,7 +72,7 @@ function PeopleManager() {
     }
 
     toAdd.forEach((n) => addPerson(n));
-  }, [isCreator, people, tripmates, tripCreator?.name, addPerson]);
+  }, [isCreator, people, planMembers, tripmates, tripCreator?.name, addPerson]);
 
   const handleAdd = (e) => {
     e.preventDefault();
@@ -79,7 +84,11 @@ function PeopleManager() {
   };
 
   const existingNames = new Set(people.map((p) => p.name.trim().toLowerCase()));
-  const tripmatesToAdd = tripmates.filter((t) => t.name && !existingNames.has(t.name.trim().toLowerCase()));
+  const candidateTripmates = (Array.isArray(planMembers) && planMembers.length > 0
+    ? planMembers.map((member) => ({ name: member?.name || '' }))
+    : tripmates
+  ).filter((t) => t?.name && !existingNames.has(t.name.trim().toLowerCase()));
+  const tripmatesToAdd = candidateTripmates;
   const creatorName = tripCreator?.name?.trim();
   const creatorNotInPeople = creatorName && !existingNames.has(creatorName.toLowerCase());
   const canAddAll = people.length === 0 && (tripmatesToAdd.length > 0 || creatorNotInPeople);
@@ -127,7 +136,7 @@ function PeopleManager() {
       {!canAddAll && tripmatesToAdd.length > 0 && (
         <div className="cost-tripmates-row">
           <p className="cost-hint">
-            {t('cost.tripmatesFromTrip')} {tripmates.map((m) => m.name).join(', ')}.
+            {t('cost.tripmatesFromTrip')} {tripmatesToAdd.map((m) => m.name).join(', ')}.
           </p>
           <button type="button" className="primary" onClick={addTripmatesAsTravellers} disabled={!isCreator}>
             {t('cost.addTripmatesAsTravellers')}
@@ -196,7 +205,7 @@ function PeopleManager() {
 // ─── Traveller Payment Details (QR + bank for others to pay) ───
 function TravellerPaymentDetails() {
   const { t } = useLanguage();
-  const { people, updatePersonPayment } = useCost();
+  const { people, updatePersonPayment, canEditCost } = useCost();
 
   if (people.length === 0) return null;
 
@@ -219,6 +228,7 @@ function TravellerPaymentDetails() {
       <p className="cost-hint payment-details-hint">
         {t('cost.paymentHint')}
       </p>
+      {!canEditCost && <p className="cost-hint">{t('cost.readOnlyHint')}</p>}
       <div className="traveller-payment-grid">
         {unsavedPeople.map((p) => {
           const pay = p.paymentInfo || defaultPayment();
@@ -231,7 +241,7 @@ function TravellerPaymentDetails() {
                 <button
                   type="button"
                   className="traveller-payment-save"
-                  disabled={!canSave}
+                  disabled={!canEditCost || !canSave}
                   onClick={() => updatePersonPayment(p.id, { ...(p.paymentInfo || defaultPayment()), saved: true, savedAt: new Date().toISOString() })}
                 >
                   {t('cost.savePayment')}
@@ -247,6 +257,7 @@ function TravellerPaymentDetails() {
                         <button
                           type="button"
                           className="qr-remove"
+                          disabled={!canEditCost}
                           onClick={() => updatePersonPayment(p.id, { qrCode: null, saved: false, savedAt: null })}
                         >
                           {t('cost.remove')}
@@ -257,6 +268,7 @@ function TravellerPaymentDetails() {
                         <input
                           type="file"
                           accept="image/*"
+                          disabled={!canEditCost}
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (!file) return;
@@ -276,6 +288,7 @@ function TravellerPaymentDetails() {
                     type="text"
                     placeholder="e.g. Maybank, CIMB"
                     value={pay.bankName}
+                    disabled={!canEditCost}
                     onChange={(e) => updatePersonPayment(p.id, { bankName: e.target.value, saved: false, savedAt: null })}
                   />
                 </label>
@@ -285,6 +298,7 @@ function TravellerPaymentDetails() {
                     type="text"
                     placeholder={t('cost.nameOnAccount')}
                     value={pay.accountHolder}
+                    disabled={!canEditCost}
                     onChange={(e) => updatePersonPayment(p.id, { accountHolder: e.target.value, saved: false, savedAt: null })}
                   />
                 </label>
@@ -294,6 +308,7 @@ function TravellerPaymentDetails() {
                     type="text"
                     placeholder={t('cost.accountOrCard')}
                     value={pay.accountNumber}
+                    disabled={!canEditCost}
                     onChange={(e) => updatePersonPayment(p.id, { accountNumber: e.target.value, saved: false, savedAt: null })}
                   />
                 </label>
@@ -303,6 +318,7 @@ function TravellerPaymentDetails() {
                     type="text"
                     placeholder={t('cost.optional')}
                     value={pay.notes}
+                    disabled={!canEditCost}
                     onChange={(e) => updatePersonPayment(p.id, { notes: e.target.value, saved: false, savedAt: null })}
                   />
                 </label>
@@ -348,7 +364,7 @@ function blankForm(people) {
 
 function AddExpenseForm() {
   const { t } = useLanguage();
-  const { people, addExpense, getCachedRate, setCachedRate, CURRENCIES } = useCost();
+  const { people, addExpense, getCachedRate, setCachedRate, CURRENCIES, canEditCost } = useCost();
   const { days, trip } = useItinerary();
   const receiptRef = useRef();
 
@@ -391,6 +407,7 @@ function AddExpenseForm() {
   }, [form.useCustomDate, form.customDate, form.dayTag, trip.startDate, days]);
 
   const handleFetchRate = async () => {
+    if (!canEditCost) return;
     if (form.paidCurrency === form.repayCurrency) {
       setRateInfo({ rate: 1, source: 'same currency', date: 'N/A' });
       return;
@@ -467,6 +484,7 @@ function AddExpenseForm() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!canEditCost) return;
     setFormError('');
     if (!form.amount || parseFloat(form.amount) <= 0) {
       setFormError(t('cost.enterValidAmount'));
@@ -553,7 +571,9 @@ function AddExpenseForm() {
   return (
     <section className="section cost-section">
       <h2 className="section-title">{t('cost.addExpense')}</h2>
+      {!canEditCost && <p className="cost-hint">{t('cost.readOnlyHint')}</p>}
       <form onSubmit={handleSubmit} className="expense-form">
+        <fieldset disabled={!canEditCost} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
 
         {/* Category */}
         <div className="ef-row">
@@ -882,6 +902,7 @@ function AddExpenseForm() {
         <div className="ef-actions">
           <button type="submit" className="primary">{t('cost.addExpenseBtn')}</button>
         </div>
+        </fieldset>
       </form>
     </section>
   );
@@ -890,7 +911,7 @@ function AddExpenseForm() {
 // ─── Split Repay Row ──────────────────────────────────────────
 function SplitRepayRow({ exp, splitIndex }) {
   const { t } = useLanguage();
-  const { markSplitRepaid, unmarkSplitRepaid, updateExpense, people, CURRENCIES } = useCost();
+  const { markSplitRepaid, unmarkSplitRepaid, updateExpense, people, CURRENCIES, canEditCost } = useCost();
   const split = exp.splits?.[splitIndex] || {};
   const person = people.find((p) => p.id === split.personId);
   const isPayer = split.personId === exp.payerId;
@@ -977,7 +998,7 @@ function SplitRepayRow({ exp, splitIndex }) {
             📎 {split.repaidAttachment.name}
           </a>
         )}
-        <button type="button" className="undo-repaid-btn" onClick={() => unmarkSplitRepaid(exp.id, splitIndex)}>
+        <button type="button" className="undo-repaid-btn" disabled={!canEditCost} onClick={() => unmarkSplitRepaid(exp.id, splitIndex)}>
           {t('cost.undo')}
         </button>
       </div>
@@ -1001,27 +1022,28 @@ function SplitRepayRow({ exp, splitIndex }) {
                 ? (split.amount != null ? split.amount : '')
                 : (split.baseAmount != null ? split.baseAmount : '')
             }
+            disabled={!canEditCost}
             placeholder={exp.itemizedInputMode === 'total' ? t('cost.totalAmountPh') : t('cost.baseAmountPh')}
             onChange={(e) => handleSetItemizedAmount(e.target.value)}
           />
         </label>
       )}
       {!showForm ? (
-        <button type="button" className="mark-repaid-btn" onClick={() => setShowForm(true)} disabled={!canMarkRepaid}>
+        <button type="button" className="mark-repaid-btn" onClick={() => setShowForm(true)} disabled={!canEditCost || !canMarkRepaid}>
           {t('cost.markRepaid')}
         </button>
       ) : (
         <div className="repay-inline-form animate-in">
           <label className="repay-inline-label">
             <span>{t('cost.repaidOn')}</span>
-            <input type="date" value={repayDate} onChange={(e) => setRepayDate(e.target.value)} />
+            <input type="date" value={repayDate} disabled={!canEditCost} onChange={(e) => setRepayDate(e.target.value)} />
           </label>
           <label className="attach-btn">
-            <input ref={fileRef} type="file" accept="image/*,.pdf" onChange={handleFile} style={{ display: 'none' }} />
+            <input ref={fileRef} type="file" accept="image/*,.pdf" disabled={!canEditCost} onChange={handleFile} style={{ display: 'none' }} />
             <span>{attachment ? `📎 ${attachment.name}` : `📎 ${t('cost.proof')}`}</span>
           </label>
-          <button type="button" className="primary" onClick={handleConfirm}>{t('cost.confirm')}</button>
-          <button type="button" onClick={() => { setShowForm(false); setAttachment(null); }}>{t('cost.cancel')}</button>
+          <button type="button" className="primary" disabled={!canEditCost} onClick={handleConfirm}>{t('cost.confirm')}</button>
+          <button type="button" disabled={!canEditCost} onClick={() => { setShowForm(false); setAttachment(null); }}>{t('cost.cancel')}</button>
         </div>
       )}
     </div>
@@ -1031,7 +1053,7 @@ function SplitRepayRow({ exp, splitIndex }) {
 // ─── Single Expense Card ──────────────────────────────────────
 function ExpenseCard({ exp }) {
   const { t } = useLanguage();
-  const { removeExpense, people, CURRENCIES } = useCost();
+  const { removeExpense, people, CURRENCIES, canEditCost } = useCost();
   const [expanded, setExpanded] = useState(true);
 
   const payer = people.find((p) => p.id === exp.payerId);
@@ -1096,7 +1118,7 @@ function ExpenseCard({ exp }) {
             ))}
           </div>
 
-          <button type="button" className="expense-remove-v2" onClick={() => exp?.id && removeExpense(exp.id)} disabled={!exp?.id}>
+          <button type="button" className="expense-remove-v2" onClick={() => exp?.id && removeExpense(exp.id)} disabled={!canEditCost || !exp?.id}>
             {t('cost.removeExpense')}
           </button>
         </div>

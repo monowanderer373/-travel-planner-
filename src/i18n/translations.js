@@ -425,6 +425,7 @@ export const translations = {
     'cost.other': 'Other',
     'cost.selectCategory': 'Select category',
     'cost.creatorOnlyTravellers': 'Only the trip creator can add or remove travellers. You can tap a member to view their profile.',
+    'cost.readOnlyHint': 'You can view this Cost plan, but only members with edit access can change it.',
     'cost.savePayment': 'Save',
   },
   'zh-CN': {
@@ -840,6 +841,7 @@ export const translations = {
     'cost.other': '其他',
     'cost.selectCategory': '选择分类',
     'cost.creatorOnlyTravellers': '只有行程创建者可以添加或移除成员。你可以点击成员查看资料。',
+    'cost.readOnlyHint': '你可以查看这个 Cost 页面，但只有拥有编辑权限的成员才能修改。',
     'cost.savePayment': '保存',
 
     'tripmates.paymentDetails': '收款信息',

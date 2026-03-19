@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { loadCost, saveCost } from '../utils/storage';
-import { useSaveStatus } from './SaveStatusContext';
+import { createContext, useContext, useState, useCallback } from 'react';
+import { useItinerary } from './ItineraryContext';
+import { defaultPaymentInfo } from '../lib/costData';
 
 const CostContext = createContext(null);
 
@@ -18,53 +18,6 @@ export const CURRENCIES = [
   { code: 'CNY', label: 'Chinese Yuan (¥)', symbol: 'CN¥' },
   { code: 'TWD', label: 'Taiwan Dollar (NT$)', symbol: 'NT$' },
 ];
-
-function toFiniteNumber(val, fallback = 0) {
-  if (typeof val === 'number') return Number.isFinite(val) ? val : fallback;
-  const n = parseFloat(val);
-  return Number.isFinite(n) ? n : fallback;
-}
-
-function normalizeSplit(s) {
-  if (!s || typeof s !== 'object') return { personId: '', repaid: false };
-  const repaid = s.repaid === true || s.repaid === 'true';
-  const amount = s.amount == null ? null : toFiniteNumber(s.amount, NaN);
-  const convertedAmount =
-    s.convertedAmount == null ? null : (Number.isFinite(parseFloat(s.convertedAmount)) ? parseFloat(s.convertedAmount) : null);
-  const rate = s.rate == null ? null : (Number.isFinite(parseFloat(s.rate)) ? parseFloat(s.rate) : null);
-  const baseAmount = s.baseAmount == null ? null : (Number.isFinite(parseFloat(s.baseAmount)) ? parseFloat(s.baseAmount) : null);
-  const taxAmount = s.taxAmount == null ? null : (Number.isFinite(parseFloat(s.taxAmount)) ? parseFloat(s.taxAmount) : null);
-
-  return {
-    ...s,
-    personId: typeof s.personId === 'string' ? s.personId : (s.personId != null ? String(s.personId) : ''),
-    repaid: !!repaid,
-    amount: amount == null || !Number.isFinite(amount) ? null : amount,
-    convertedAmount: convertedAmount == null || !Number.isFinite(convertedAmount) ? null : convertedAmount,
-    rate: rate == null || !Number.isFinite(rate) ? null : rate,
-    baseAmount: baseAmount == null || !Number.isFinite(baseAmount) ? null : baseAmount,
-    taxAmount: taxAmount == null || !Number.isFinite(taxAmount) ? null : taxAmount,
-    repaidDate: s.repaidDate || null,
-    repaidAt: s.repaidAt || null,
-    repaidAttachment: s.repaidAttachment || null,
-    rateSource: s.rateSource || null,
-    rateDate: s.rateDate || null,
-  };
-}
-
-function normalizeExpense(e, i) {
-  if (!e || typeof e !== 'object') return null;
-  const id = e.id || `exp-legacy-${Date.now()}-${i}`;
-  const amount = toFiniteNumber(e.amount, 0);
-  const splitsRaw = Array.isArray(e.splits) ? e.splits : [];
-  const splits = splitsRaw.map((s) => normalizeSplit(s));
-  return {
-    ...e,
-    id,
-    amount,
-    splits,
-  };
-}
 
 /**
  * Fetch exchange rate via Wise (no-auth attempt), then Frankfurter (ECB).
@@ -104,99 +57,96 @@ export async function fetchRate(fromCurrency, toCurrency, date = 'latest') {
 
   return null;
 }
-
-function getInitialCost() {
-  const loaded = loadCost();
-  if (!loaded) return null;
-  return {
-    people: Array.isArray(loaded.people) ? loaded.people : [],
-    expenses: Array.isArray(loaded.expenses)
-      ? loaded.expenses.map((e, i) => normalizeExpense(e, i)).filter(Boolean)
-      : [],
-  };
-}
-
 export function CostProvider({ children }) {
-  const initial = getInitialCost();
-  const [people, setPeople] = useState(initial?.people ?? []);
-  const [expenses, setExpenses] = useState(initial?.expenses ?? []);
+  const { cost, replaceCostState: replaceCloudCostState, updateCostState, canEditCurrentPlan } = useItinerary();
+  const people = cost?.people ?? [];
+  const expenses = cost?.expenses ?? [];
   const [rateCache, setRateCache] = useState({});
-  const { reportSaving, reportSaved } = useSaveStatus();
-  const saveTimeoutRef = useRef(null);
-
-  // ── People ───────────────────────────────────────────────────
-  const defaultPaymentInfo = () => ({
-    qrCode: null,
-    bankName: '',
-    accountHolder: '',
-    accountNumber: '',
-    notes: '',
-    saved: false,
-    savedAt: null,
-  });
 
   const addPerson = useCallback((name) => {
-    setPeople((prev) => [...prev, { id: `person-${Date.now()}`, name, paymentInfo: defaultPaymentInfo() }]);
-  }, []);
+    if (!canEditCurrentPlan) return;
+    const trimmed = String(name || '').trim();
+    if (!trimmed) return;
+    updateCostState((prev) => ({
+      ...prev,
+      people: [
+        ...(prev?.people || []),
+        { id: `person-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, name: trimmed, paymentInfo: defaultPaymentInfo() },
+      ],
+    }));
+  }, [canEditCurrentPlan, updateCostState]);
 
   const updatePerson = useCallback((id, name) => {
-    setPeople((prev) => prev.map((p) => (p.id === id ? { ...p, name } : p)));
-  }, []);
+    if (!canEditCurrentPlan) return;
+    updateCostState((prev) => ({
+      ...prev,
+      people: (prev?.people || []).map((p) => (p.id === id ? { ...p, name } : p)),
+    }));
+  }, [canEditCurrentPlan, updateCostState]);
 
   const updatePersonPayment = useCallback((personId, paymentInfo) => {
-    setPeople((prev) =>
-      prev.map((p) =>
+    if (!canEditCurrentPlan) return;
+    updateCostState((prev) => ({
+      ...prev,
+      people: (prev?.people || []).map((p) =>
         p.id === personId
           ? { ...p, paymentInfo: { ...(p.paymentInfo || defaultPaymentInfo()), ...paymentInfo } }
           : p
-      )
-    );
-  }, []);
+      ),
+    }));
+  }, [canEditCurrentPlan, updateCostState]);
 
   const removePerson = useCallback((id) => {
-    setPeople((prev) => prev.filter((p) => p.id !== id));
-  }, []);
+    if (!canEditCurrentPlan) return;
+    updateCostState((prev) => ({
+      ...prev,
+      people: (prev?.people || []).filter((p) => p.id !== id),
+    }));
+  }, [canEditCurrentPlan, updateCostState]);
 
-  // ── Expenses ─────────────────────────────────────────────────
   const addExpense = useCallback((expense) => {
-    setExpenses((prev) => [...prev, { ...expense, id: `exp-${Date.now()}` }]);
-  }, []);
+    if (!canEditCurrentPlan) return;
+    updateCostState((prev) => ({
+      ...prev,
+      expenses: [...(prev?.expenses || []), { ...expense, id: `exp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` }],
+    }));
+  }, [canEditCurrentPlan, updateCostState]);
 
   const updateExpense = useCallback((id, updates) => {
-    setExpenses((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
-  }, []);
+    if (!canEditCurrentPlan) return;
+    updateCostState((prev) => ({
+      ...prev,
+      expenses: (prev?.expenses || []).map((e) => (e.id === id ? { ...e, ...updates } : e)),
+    }));
+  }, [canEditCurrentPlan, updateCostState]);
 
   const removeExpense = useCallback((id) => {
-    if (!id) return;
-    setExpenses((prev) =>
-      prev
-        .filter((e) => e.id !== id)
-        .map((e, i) => normalizeExpense(e, i))
-        .filter(Boolean)
-    );
-  }, []);
+    if (!canEditCurrentPlan || !id) return;
+    updateCostState((prev) => ({
+      ...prev,
+      expenses: (prev?.expenses || []).filter((e) => e.id !== id),
+    }));
+  }, [canEditCurrentPlan, updateCostState]);
 
   const removeExpensesForPersonId = useCallback((personId) => {
-    if (!personId) return;
-    setExpenses((prev) =>
-      prev
-        .filter((e) => {
+    if (!canEditCurrentPlan || !personId) return;
+    updateCostState((prev) => ({
+      ...prev,
+      expenses: (prev?.expenses || []).filter((e) => {
           if (!e || typeof e !== 'object') return false;
           if (e.payerId === personId) return false;
           const splits = Array.isArray(e.splits) ? e.splits : [];
           const used = splits.some((s) => s && typeof s === 'object' && s.personId === personId);
           return !used;
-        })
-        .map((e, i) => normalizeExpense(e, i))
-        .filter(Boolean)
-    );
-  }, []);
+        }),
+    }));
+  }, [canEditCurrentPlan, updateCostState]);
 
-  // ── Repayment ─────────────────────────────────────────────────
-  /** Mark a single split as repaid. attachment: { name, url } | null */
   const markSplitRepaid = useCallback((expenseId, splitIndex, repaidDate, attachment) => {
-    setExpenses((prev) =>
-      prev.map((e) => {
+    if (!canEditCurrentPlan) return;
+    updateCostState((prev) => ({
+      ...prev,
+      expenses: (prev?.expenses || []).map((e) => {
         if (e.id !== expenseId) return e;
         return {
           ...e,
@@ -212,13 +162,15 @@ export function CostProvider({ children }) {
               : s
           ),
         };
-      })
-    );
-  }, []);
+      }),
+    }));
+  }, [canEditCurrentPlan, updateCostState]);
 
   const unmarkSplitRepaid = useCallback((expenseId, splitIndex) => {
-    setExpenses((prev) =>
-      prev.map((e) => {
+    if (!canEditCurrentPlan) return;
+    updateCostState((prev) => ({
+      ...prev,
+      expenses: (prev?.expenses || []).map((e) => {
         if (e.id !== expenseId) return e;
         return {
           ...e,
@@ -228,11 +180,10 @@ export function CostProvider({ children }) {
               : s
           ),
         };
-      })
-    );
-  }, []);
+      }),
+    }));
+  }, [canEditCurrentPlan, updateCostState]);
 
-  // ── Rate cache ────────────────────────────────────────────────
   const getCachedRate = useCallback(
     (from, to, date) => rateCache[`${from}->${to}@${date}`] || null,
     [rateCache]
@@ -242,8 +193,6 @@ export function CostProvider({ children }) {
     setRateCache((prev) => ({ ...prev, [`${from}->${to}@${date}`]: rateData }));
   }, []);
 
-  // ── Settlements ───────────────────────────────────────────────
-  /** Outstanding debts only (non-repaid splits). */
   const getSettlements = useCallback(() => {
     const debts = {};
     for (const expense of expenses) {
@@ -269,7 +218,6 @@ export function CostProvider({ children }) {
     return settlements;
   }, [expenses]);
 
-  /** Completed repayments for the "settled" section. */
   const getRepaidSummary = useCallback(() => {
     const repaid = [];
     for (const expense of expenses) {
@@ -292,32 +240,8 @@ export function CostProvider({ children }) {
   }, [expenses]);
 
   const replaceCostState = useCallback((data) => {
-    if (!data) return;
-    if (Array.isArray(data.people)) {
-      setPeople(data.people.map((p) => ({
-        ...p,
-        paymentInfo: p.paymentInfo && typeof p.paymentInfo === 'object'
-          ? { ...defaultPaymentInfo(), ...p.paymentInfo }
-          : defaultPaymentInfo(),
-      })));
-    }
-    if (Array.isArray(data.expenses)) {
-      setExpenses(data.expenses.map((e, i) => normalizeExpense(e, i)).filter(Boolean));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    reportSaving();
-    saveTimeoutRef.current = setTimeout(() => {
-      saveCost({ people, expenses });
-      reportSaved();
-      saveTimeoutRef.current = null;
-    }, 500);
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    };
-  }, [people, expenses]);
+    replaceCloudCostState(data);
+  }, [replaceCloudCostState]);
 
   const value = {
     people,
@@ -337,6 +261,7 @@ export function CostProvider({ children }) {
     getSettlements,
     getRepaidSummary,
     replaceCostState,
+    canEditCost: canEditCurrentPlan,
     CURRENCIES,
   };
 

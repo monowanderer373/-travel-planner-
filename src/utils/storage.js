@@ -47,9 +47,11 @@ export function clearAllTripData() {
 }
 
 export function getAllTripData() {
+  const itinerary = safeParse(ITINERARY_KEY, null);
+  const legacyCost = safeParse(COST_KEY, null);
   return {
-    itinerary: safeParse(ITINERARY_KEY, null),
-    cost: safeParse(COST_KEY, null),
+    itinerary,
+    cost: itinerary?.cost ?? legacyCost,
   };
 }
 

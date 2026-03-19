@@ -11,6 +11,7 @@ import { ensureProfileExists } from '../lib/ensureProfile';
 import { writeSharedItineraryRow } from '../lib/sharedItineraryWrite';
 import { itineraryPayloadCanonical } from '../lib/itineraryPayloadCompare';
 import { buildPlanShareSummary, ensureOwnerMembership, ensureStablePlanShare, listPlansForUser, loadPlanMembers, revokeStablePlanShare, syncPlanShareSummary } from '../lib/planSharing';
+import { defaultCostData, normalizeCostData } from '../lib/costData';
 
 const ItineraryContext = createContext(null);
 
@@ -76,6 +77,7 @@ function getInitialItinerary() {
         days: defaultDays,
         savedPlaces: [],
         savedTransports: [],
+        cost: defaultCostData(),
         tripmates: [],
         tripCreator: { name: '' },
         tripMemories: '',
@@ -94,6 +96,7 @@ function getInitialItinerary() {
     days: Array.isArray(loaded.days) && loaded.days.length > 0 ? loaded.days : defaultDays,
     savedPlaces: Array.isArray(loaded.savedPlaces) ? loaded.savedPlaces : [],
     savedTransports: Array.isArray(loaded.savedTransports) ? loaded.savedTransports : [],
+    cost: normalizeCostData(loaded.cost),
     tripmates: Array.isArray(loaded.tripmates) ? loaded.tripmates : [],
     tripCreator: loaded.tripCreator && typeof loaded.tripCreator === 'object' ? loaded.tripCreator : { name: '' },
     tripMemories: typeof loaded.tripMemories === 'string' ? loaded.tripMemories : '',
@@ -164,6 +167,7 @@ export function ItineraryProvider({ children }) {
   const [days, setDays] = useState(initial?.days ?? defaultDays);
   const [savedPlaces, setSavedPlaces] = useState(initial?.savedPlaces ?? []);
   const [savedTransports, setSavedTransports] = useState(initial?.savedTransports ?? []);
+  const [cost, setCost] = useState(normalizeCostData(initial?.cost));
   const [tripmates, setTripmates] = useState(initial?.tripmates ?? []);
   const [tripCreator, setTripCreatorState] = useState(initial?.tripCreator ?? { name: '' });
   const [tripMemories, setTripMemories] = useState(initial?.tripMemories ?? '');
@@ -259,6 +263,21 @@ export function ItineraryProvider({ children }) {
     [availablePlans, activePersonalPlanId]
   );
   const isActivePlanOwner = activePlanRecord?.memberType !== 'guest';
+  const canEditCurrentPlan = useMemo(() => {
+    if (shareSettings?.tripId) {
+      const creatorEmail = String(tripCreator?.email || '').trim().toLowerCase();
+      const currentEmail = String(user?.email || '').trim().toLowerCase();
+      const creatorId = String(tripCreator?.id || tripCreator?.userId || '').trim();
+      const currentId = String(user?.id || '').trim();
+      const isLegacyCreator =
+        (!!creatorId && !!currentId && creatorId === currentId) ||
+        (!!creatorEmail && !!currentEmail && creatorEmail === currentEmail);
+      return isLegacyCreator || (shareSettings.linkPermission || 'edit') === 'edit';
+    }
+    if (!activePlanRecord) return true;
+    if (activePlanRecord?.memberType !== 'guest') return true;
+    return (activePlanRecord?.membershipRole || 'viewer') !== 'viewer';
+  }, [shareSettings?.tripId, shareSettings?.linkPermission, tripCreator?.email, tripCreator?.id, tripCreator?.userId, user?.email, user?.id, activePlanRecord]);
   const currentActivityTripId = useMemo(() => {
     if (shareSettings?.tripId) return shareSettings.tripId;
     if (!activePersonalPlanId) return null;
@@ -266,6 +285,17 @@ export function ItineraryProvider({ children }) {
     if (activePlanRecord?.share_token) return activePersonalPlanId;
     return null;
   }, [shareSettings?.tripId, activePersonalPlanId, activePlanRecord?.memberType, activePlanRecord?.share_token]);
+
+  const replaceCostState = useCallback((data) => {
+    setCost(normalizeCostData(data));
+  }, []);
+
+  const updateCostState = useCallback((updater) => {
+    setCost((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      return normalizeCostData(next);
+    });
+  }, []);
 
   function isTripIdActiveInUrl(tid) {
     if (!tid || typeof window === 'undefined') return false;
@@ -465,6 +495,7 @@ export function ItineraryProvider({ children }) {
         days,
         savedPlaces,
         savedTransports,
+        cost,
         tripmates,
         tripCreator,
         tripMemories,
@@ -476,7 +507,7 @@ export function ItineraryProvider({ children }) {
       });
     }
     return link;
-  }, [trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, shareSettings, tripmateShareLink]);
+  }, [trip, days, savedPlaces, savedTransports, cost, tripmates, tripCreator, tripMemories, shareSettings, tripmateShareLink]);
 
   const addSavedTransport = useCallback((transport) => {
     setSavedTransports((prev) => [...prev, { ...transport, id: `transport-${Date.now()}` }]);
@@ -566,6 +597,7 @@ export function ItineraryProvider({ children }) {
       days,
       savedPlaces,
       savedTransports,
+      cost,
       tripmates,
       tripCreator,
       tripMemories,
@@ -612,7 +644,7 @@ export function ItineraryProvider({ children }) {
       return { ok: false, link, error: error?.message || String(error) };
     }
     return { ok: true, link };
-  }, [shareSettings, trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, planSharedTripId, tripmateShareLink, activePersonalPlanId, user?.id, navigate, location.pathname]);
+  }, [shareSettings, trip, days, savedPlaces, savedTransports, cost, tripmates, tripCreator, tripMemories, planSharedTripId, tripmateShareLink, activePersonalPlanId, user?.id, navigate, location.pathname]);
 
   const stablePlanShareLink = useMemo(() => {
     const token = String(activePlanRecord?.share_token || '').trim();
@@ -640,6 +672,7 @@ export function ItineraryProvider({ children }) {
           days,
           savedPlaces,
           savedTransports,
+          cost,
           tripmates,
           tripCreator,
           tripMemories,
@@ -659,7 +692,7 @@ export function ItineraryProvider({ children }) {
       )));
       return { ok: true, token, link };
     },
-    [user?.id, activePersonalPlanId, activePlanRecord?.share_token, shareSettings, trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, tripmateShareLink]
+    [user?.id, activePersonalPlanId, activePlanRecord?.share_token, shareSettings, trip, days, savedPlaces, savedTransports, cost, tripmates, tripCreator, tripMemories, tripmateShareLink]
   );
 
   const revokeCurrentPlanShareLink = useCallback(async () => {
@@ -700,6 +733,7 @@ export function ItineraryProvider({ children }) {
           days,
           savedPlaces,
           savedTransports,
+          cost,
           tripmates,
           tripCreator,
           tripMemories,
@@ -716,7 +750,7 @@ export function ItineraryProvider({ children }) {
       )));
       return { ok: true, token: res?.token || '' };
     },
-    [user?.id, activePersonalPlanId, isActivePlanOwner, shareSettings, activePlanRecord?.share_token, trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, tripmateShareLink]
+    [user?.id, activePersonalPlanId, isActivePlanOwner, shareSettings, activePlanRecord?.share_token, trip, days, savedPlaces, savedTransports, cost, tripmates, tripCreator, tripMemories, tripmateShareLink]
   );
 
   const updateTripMemories = useCallback((text) => {
@@ -733,6 +767,7 @@ export function ItineraryProvider({ children }) {
     if (data.days && data.days.length > 0) setDays(data.days);
     if (Array.isArray(data.savedPlaces)) setSavedPlaces(data.savedPlaces);
     if (Array.isArray(data.savedTransports)) setSavedTransports(data.savedTransports);
+    setCost(normalizeCostData(data.cost));
     if (Array.isArray(data.tripmates)) setTripmates(data.tripmates);
     if (data.tripCreator) setTripCreatorState((prev) => ({ ...prev, ...data.tripCreator }));
     if (typeof data.tripMemories === 'string') setTripMemories(data.tripMemories);
@@ -783,6 +818,7 @@ export function ItineraryProvider({ children }) {
           days: JSON.parse(JSON.stringify(defaultDays)),
           savedPlaces: [],
           savedTransports: [],
+          cost: defaultCostData(),
           tripmates: [],
           tripCreator: { name: user?.name || '', email: user?.email || '', id: user?.id || '' },
           tripMemories: '',
@@ -858,6 +894,7 @@ export function ItineraryProvider({ children }) {
       days: JSON.parse(JSON.stringify(defaultDays)),
       savedPlaces: [],
       savedTransports: [],
+      cost: defaultCostData(),
       tripmates: [],
       tripCreator: { name: user?.name || '', email: user?.email || '', id: user?.id || '' },
       tripMemories: '',
@@ -1062,6 +1099,7 @@ export function ItineraryProvider({ children }) {
         days: JSON.parse(JSON.stringify(defaultDays)),
         savedPlaces: [],
         savedTransports: [],
+        cost: defaultCostData(),
         tripMemories: '',
         shareSettings: {
           ...currentShareSettings,
@@ -1153,6 +1191,7 @@ export function ItineraryProvider({ children }) {
         days: JSON.parse(JSON.stringify(defaultDays)),
         savedPlaces: [],
         savedTransports: [],
+        cost: defaultCostData(),
         tripmates: [],
         tripCreator: { name: user?.name || '', email: user?.email || '' },
         tripMemories: '',
@@ -1459,6 +1498,7 @@ export function ItineraryProvider({ children }) {
       days,
       savedPlaces,
       savedTransports,
+      cost,
       tripmates: nextTripmates,
       tripCreator,
       tripMemories,
@@ -1482,6 +1522,7 @@ export function ItineraryProvider({ children }) {
     days,
     savedPlaces,
     savedTransports,
+    cost,
     tripMemories,
     planSharedTripId,
     tripmateShareLink,
@@ -1588,6 +1629,7 @@ export function ItineraryProvider({ children }) {
         days,
         savedPlaces,
         savedTransports,
+        cost,
         tripmates,
         tripCreator,
         tripMemories,
@@ -1705,7 +1747,7 @@ export function ItineraryProvider({ children }) {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, planSharedTripId, shareSettings, tripmateShareLink, user?.id, activePersonalPlanId, isActivePlanOwner, plansLoaded, availablePlans.length]);
+  }, [trip, days, savedPlaces, savedTransports, cost, tripmates, tripCreator, tripMemories, planSharedTripId, shareSettings, tripmateShareLink, user?.id, activePersonalPlanId, isActivePlanOwner, plansLoaded, availablePlans.length]);
 
   const value = {
     trip,
@@ -1729,6 +1771,9 @@ export function ItineraryProvider({ children }) {
     savedTransports,
     addSavedTransport,
     removeSavedTransport,
+    cost,
+    replaceCostState,
+    updateCostState,
     tripmates,
     addTripmate,
     updateTripmate,
@@ -1756,6 +1801,7 @@ export function ItineraryProvider({ children }) {
     planMembers,
     plansLoaded,
     isActivePlanOwner,
+    canEditCurrentPlan,
     currentActivityTripId,
     activePersonalPlanId,
     switchToPersonalPlan,

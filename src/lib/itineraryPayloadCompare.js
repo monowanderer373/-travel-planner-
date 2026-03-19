@@ -17,6 +17,7 @@ export function normalizeItineraryPayload(data) {
     days: data.days,
     savedPlaces: data.savedPlaces,
     savedTransports: data.savedTransports,
+    cost: data.cost,
     tripmates: data.tripmates,
     tripCreator: data.tripCreator,
     tripMemories: data.tripMemories,
