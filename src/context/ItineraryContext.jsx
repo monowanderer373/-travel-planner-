@@ -188,6 +188,7 @@ export function ItineraryProvider({ children }) {
   const [personalCloudPullKey, setPersonalCloudPullKey] = useState(0);
   const lastHiddenAtRef = useRef(0);
   const joinTripmateSyncRef = useRef('');
+  const planLoadInProgressRef = useRef(false);
   const availablePlans = useMemo(() => {
     const seen = new Set();
     const merged = [];
@@ -725,6 +726,7 @@ export function ItineraryProvider({ children }) {
   const switchToPersonalPlan = useCallback(
     async (planId) => {
       if (!user?.id) return;
+      planLoadInProgressRef.current = true;
       // Exit shared mode first (URL + state), then load the selected personal plan.
       try {
         localStorage.removeItem('pending_trip_id');
@@ -732,25 +734,37 @@ export function ItineraryProvider({ children }) {
         sessionStorage.removeItem('share_join_flow');
       } catch {}
 
-      setShareSettings((prev) => ({ ...prev, tripId: null, shareLink: '' }));
-      setTripmateShareLink('');
-      setPlanSharedTripId('');
-
       const params = clearSharedUrlParams() || new URLSearchParams();
       if (planId) params.set('plan', planId);
       const q = params.toString();
       navigate(`${location.pathname}${q ? `?${q}` : ''}`, { replace: true });
 
-      setActivePersonalPlanId(planId || null);
-
-      if (!hasSupabase() || !supabase) return;
+      if (!hasSupabase() || !supabase) {
+        setShareSettings((prev) => ({ ...prev, tripId: null, shareLink: '' }));
+        setTripmateShareLink('');
+        setPlanSharedTripId('');
+        setActivePersonalPlanId(planId || null);
+        planLoadInProgressRef.current = false;
+        return;
+      }
       const { data: row, error } = await supabase
         .from('itineraries')
         .select('data')
         .eq('id', planId)
         .maybeSingle();
-      if (error || !row?.data || typeof row.data !== 'object') return;
+      if (error || !row?.data || typeof row.data !== 'object') {
+        planLoadInProgressRef.current = false;
+        return;
+      }
+      setShareSettings((prev) => ({ ...prev, tripId: null, shareLink: '' }));
+      setTripmateShareLink('');
+      setPlanSharedTripId('');
       replaceItineraryState({ ...row.data, shareSettings: { ...(row.data.shareSettings || {}), tripId: null } });
+      setActivePersonalPlanId(planId || null);
+      supabaseLoadedRef.current = planId ? `personal-${user.id}-${planId}` : `personal-latest-${user.id}`;
+      queueMicrotask(() => {
+        planLoadInProgressRef.current = false;
+      });
     },
     [user?.id, clearSharedUrlParams, navigate, hasSupabase, supabase, replaceItineraryState, location.pathname]
   );
@@ -845,7 +859,6 @@ export function ItineraryProvider({ children }) {
       ...prev.filter((p) => p.id !== newId),
     ]);
     setPlansLoaded(true);
-    setActivePersonalPlanId(newId);
     await switchToPersonalPlan(newId);
     return newId;
   }, [user, hasSupabase, supabase, replaceItineraryState, switchToPersonalPlan]);
@@ -1130,6 +1143,27 @@ export function ItineraryProvider({ children }) {
     };
   }, [activePersonalPlanId]);
 
+  useEffect(() => {
+    if (!activePersonalPlanId || !hasSupabase() || !supabase) return;
+    const channel = supabase
+      .channel(`plan-members:${activePersonalPlanId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'plan_members', filter: `plan_id=eq.${activePersonalPlanId}` },
+        () => {
+          void loadPlanMembers(supabase, activePersonalPlanId)
+            .then(({ members }) => {
+              setPlanMembers(Array.isArray(members) ? members : []);
+            })
+            .catch(() => {});
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activePersonalPlanId]);
+
   // Ensure invited user is recorded in tripmates once they join a shared trip.
   // We do an immediate cloud write so closing the browser right away still keeps the record.
   useEffect(() => {
@@ -1302,6 +1336,7 @@ export function ItineraryProvider({ children }) {
   }, [shareSettings.tripId, activePersonalPlanId, replaceItineraryState]);
 
   useEffect(() => {
+    if (planLoadInProgressRef.current) return;
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     const tripId = shareSettings.tripId;
     const debounceMs = tripId ? 1000 : 500;
