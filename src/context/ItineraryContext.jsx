@@ -942,6 +942,87 @@ export function ItineraryProvider({ children }) {
     [user?.id, activePersonalPlanId, replaceItineraryState]
   );
 
+  const repairPersonalPlan = useCallback(
+    async (planId, nextTitle) => {
+      const trimmed = String(nextTitle || '').trim();
+      if (!user?.id || !planId || !trimmed) return { ok: false, error: 'invalid_plan_name' };
+      if (!hasSupabase() || !supabase) return { ok: false, error: 'no_supabase' };
+
+      const { data: row, error } = await supabase
+        .from('itineraries')
+        .select('id, data, owner_profile_id, profile_id')
+        .eq('id', planId)
+        .maybeSingle();
+      if (error || !row?.id || !row?.data || typeof row.data !== 'object') {
+        return { ok: false, error: error?.message || 'plan_not_found' };
+      }
+
+      const ownerId = String(row.owner_profile_id || row.profile_id || '').trim();
+      if (ownerId && ownerId !== String(user.id)) {
+        return { ok: false, error: 'not_plan_owner' };
+      }
+
+      const currentShareSettings = row.data?.shareSettings && typeof row.data.shareSettings === 'object'
+        ? row.data.shareSettings
+        : {};
+      const currentCreator = row.data?.tripCreator && typeof row.data.tripCreator === 'object'
+        ? row.data.tripCreator
+        : { name: user?.name || '', email: user?.email || '', id: user?.id || '' };
+      const updatedData = {
+        ...row.data,
+        trip: {
+          ...defaultTrip,
+          destination: trimmed,
+          title: trimmed,
+        },
+        days: JSON.parse(JSON.stringify(defaultDays)),
+        savedPlaces: [],
+        savedTransports: [],
+        tripMemories: '',
+        shareSettings: {
+          ...currentShareSettings,
+          tripId: null,
+        },
+        tripCreator: {
+          ...currentCreator,
+          id: currentCreator?.id || user?.id || '',
+          email: currentCreator?.email || user?.email || '',
+          name: currentCreator?.name || user?.name || trimmed,
+        },
+      };
+      const updatedAt = new Date().toISOString();
+
+      const { error: upErr } = await supabase
+        .from('itineraries')
+        .update({ data: updatedData, updated_at: updatedAt })
+        .eq('id', planId);
+      if (upErr) return { ok: false, error: upErr?.message || String(upErr) };
+
+      const shareSummary = buildPlanShareSummary(updatedData);
+      try {
+        await supabase
+          .from('plan_shares')
+          .update({ ...shareSummary, updated_at: updatedAt })
+          .eq('plan_id', planId)
+          .eq('owner_profile_id', user.id);
+      } catch {}
+
+      setPersonalPlans((prev) => prev.map((p) => (p.id === planId ? { ...p, data: updatedData } : p)));
+      setSharedPlans((prev) => prev.map((p) => (p.id === planId ? { ...p, data: updatedData } : p)));
+
+      if (activePersonalPlanId === planId) {
+        planLoadInProgressRef.current = true;
+        replaceItineraryState(updatedData);
+        queueMicrotask(() => {
+          planLoadInProgressRef.current = false;
+        });
+      }
+
+      return { ok: true, title: trimmed };
+    },
+    [user?.id, user?.name, user?.email, activePersonalPlanId, replaceItineraryState]
+  );
+
   const leavePlan = useCallback(
     async (planId) => {
       if (!user?.id || !planId) return;
@@ -1590,6 +1671,7 @@ export function ItineraryProvider({ children }) {
     createPersonalPlan,
     deletePersonalPlan,
     renamePersonalPlan,
+    repairPersonalPlan,
     leavePlan,
     TRAVEL_STYLES,
   };

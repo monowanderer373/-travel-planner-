@@ -33,6 +33,7 @@ export default function TopBar({ onMenuClick, menuOpen }) {
     createPersonalPlan,
     deletePersonalPlan,
     renamePersonalPlan,
+    repairPersonalPlan,
     leavePlan,
   } = useItinerary();
   const [planOpen, setPlanOpen] = useState(false);
@@ -138,6 +139,25 @@ export default function TopBar({ onMenuClick, menuOpen }) {
     void renamePersonalPlan(plan.id, trimmed).then((res) => {
       if (!res?.ok) {
         window.alert(t('plan.renameFailed'));
+      }
+    });
+  };
+  const handleRepairPlan = (plan) => {
+    if (!plan?.id || plan?.memberType === 'guest') return;
+    const currentTitle = getPlanTitle(plan);
+    const nextTitle = window.prompt(t('plan.repairPrompt'), currentTitle);
+    if (nextTitle == null) return;
+    const trimmed = String(nextTitle).trim();
+    if (!trimmed) {
+      window.alert(t('plan.renameEmpty'));
+      return;
+    }
+    const ok = window.confirm(t('plan.repairConfirm'));
+    if (!ok) return;
+    setPlanOpen(false);
+    void repairPersonalPlan(plan.id, trimmed).then((res) => {
+      if (!res?.ok) {
+        window.alert(t('plan.repairFailed'));
       }
     });
   };
@@ -253,6 +273,19 @@ export default function TopBar({ onMenuClick, menuOpen }) {
                         </span>
                         <span className="topbar-plan-item-spacer" />
                         <span className="topbar-plan-item-actions">
+                          {!isGuestPlan ? (
+                            <button
+                              type="button"
+                              className="topbar-plan-item-action"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRepairPlan(p);
+                              }}
+                              aria-label={t('plan.repair')}
+                            >
+                              {t('plan.repair')}
+                            </button>
+                          ) : null}
                           {!isGuestPlan ? (
                             <button
                               type="button"
