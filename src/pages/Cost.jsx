@@ -42,7 +42,9 @@ function PeopleManager() {
 
   // Auto-add newly joined tripmates into Cost → Travellers (creator only).
   useEffect(() => {
-    if (!isCreator) return;
+    // Ensure invited guests also see travellers from the shared trip.
+    // We only block removal/editing UI for non-creators, not the initial
+    // local "people" hydration from itinerary members.
     const norm = (s) => String(s || '').trim().toLowerCase();
     const existing = new Set(people.map((p) => norm(p.name)));
     const candidates = [];
@@ -58,7 +60,8 @@ function PeopleManager() {
     for (const n of candidates) {
       const k = norm(n);
       if (!k || existing.has(k)) continue;
-      if (removedNamesRef.current.has(k)) continue;
+      // Only creators can manually remove; prevent re-adding those names for them.
+      if (isCreator && removedNamesRef.current.has(k)) continue;
       existing.add(k);
       toAdd.push(n);
     }
