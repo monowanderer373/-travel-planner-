@@ -32,6 +32,7 @@ export default function TopBar({ onMenuClick, menuOpen }) {
     switchToPersonalPlan,
     createPersonalPlan,
     deletePersonalPlan,
+    renamePersonalPlan,
     leavePlan,
   } = useItinerary();
   const [planOpen, setPlanOpen] = useState(false);
@@ -92,9 +93,12 @@ export default function TopBar({ onMenuClick, menuOpen }) {
 
   const planTitleText = `${activeTitle}${activeMonthYear ? ` · ${activeMonthYear}` : ''}`;
   const planRows = availablePlans;
-  const formatPlanLabel = (plan) => {
+  const getPlanTitle = (plan) => {
     const tripData = plan?.data?.trip || {};
-    const title = String(tripData?.destination || '').trim() || 'Untitled';
+    return String(tripData?.title || tripData?.destination || '').trim() || 'Untitled';
+  };
+  const formatPlanLabel = (plan) => {
+    const title = getPlanTitle(plan);
     const ownerTag = plan?.memberType === 'guest' ? t('plan.guest') : t('plan.you');
     return `${title} (${ownerTag})`;
   };
@@ -119,6 +123,23 @@ export default function TopBar({ onMenuClick, menuOpen }) {
     }
     setPlanOpen(false);
     void createPersonalPlan();
+  };
+  const handleRenamePlan = (plan) => {
+    if (!plan?.id || plan?.memberType === 'guest') return;
+    const currentTitle = getPlanTitle(plan);
+    const nextTitle = window.prompt(t('plan.renamePrompt'), currentTitle);
+    if (nextTitle == null) return;
+    const trimmed = String(nextTitle).trim();
+    if (!trimmed) {
+      window.alert(t('plan.renameEmpty'));
+      return;
+    }
+    setPlanOpen(false);
+    void renamePersonalPlan(plan.id, trimmed).then((res) => {
+      if (!res?.ok) {
+        window.alert(t('plan.renameFailed'));
+      }
+    });
   };
 
   return (
@@ -231,20 +252,35 @@ export default function TopBar({ onMenuClick, menuOpen }) {
                           {formatPlanMeta(p) ? <span className="topbar-plan-item-meta">{formatPlanMeta(p)}</span> : null}
                         </span>
                         <span className="topbar-plan-item-spacer" />
-                        <button
-                          type="button"
-                          className="topbar-plan-item-delete"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const ok = window.confirm(isGuestPlan ? t('plan.leaveConfirm') : t('plan.deleteConfirm'));
-                            if (!ok) return;
-                            if (isGuestPlan) void leavePlan(p?.id);
-                            else void deletePersonalPlan(p?.id);
-                          }}
-                          aria-label={isGuestPlan ? t('plan.leave') : t('plan.delete')}
-                        >
-                          {isGuestPlan ? t('plan.leave') : t('plan.delete')}
-                        </button>
+                        <span className="topbar-plan-item-actions">
+                          {!isGuestPlan ? (
+                            <button
+                              type="button"
+                              className="topbar-plan-item-action"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRenamePlan(p);
+                              }}
+                              aria-label={t('plan.rename')}
+                            >
+                              {t('plan.rename')}
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            className="topbar-plan-item-action"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const ok = window.confirm(isGuestPlan ? t('plan.leaveConfirm') : t('plan.deleteConfirm'));
+                              if (!ok) return;
+                              if (isGuestPlan) void leavePlan(p?.id);
+                              else void deletePersonalPlan(p?.id);
+                            }}
+                            aria-label={isGuestPlan ? t('plan.leave') : t('plan.delete')}
+                          >
+                            {isGuestPlan ? t('plan.leave') : t('plan.delete')}
+                          </button>
+                        </span>
                       </button>
                     );
                   })}

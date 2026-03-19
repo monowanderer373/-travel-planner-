@@ -137,7 +137,15 @@
   flex: 1 1 auto;
 }
 
-.topbar-plan-item-delete {
+.topbar-plan-item-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.topbar-plan-item-action {
   min-width: 30px;
   min-height: 30px;
   border-radius: 10px;
@@ -154,7 +162,7 @@
   white-space: nowrap;
 }
 
-.topbar-plan-item-delete:hover {
+.topbar-plan-item-action:hover {
   border-color: var(--border-accent);
   color: var(--text-primary);
 }
