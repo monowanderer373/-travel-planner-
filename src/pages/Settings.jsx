@@ -48,7 +48,7 @@ export default function Settings() {
       try {
         const raw = reader.result;
         const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
-        if (data.itinerary) replaceItineraryState(data.itinerary);
+        if (data.itinerary) replaceItineraryState(data.itinerary, { full: true });
         if (data.cost) replaceCostState(data.cost);
         if (importInputRef.current) importInputRef.current.value = '';
       } catch (err) {

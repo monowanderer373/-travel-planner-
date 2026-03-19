@@ -782,8 +782,41 @@ export function ItineraryProvider({ children }) {
     setTripCreatorState((prev) => (typeof profile === 'function' ? profile(prev) : { ...prev, ...profile }));
   }, []);
 
-  const replaceItineraryState = useCallback((data) => {
+  /**
+   * @param {object} data
+   * @param {{ full?: boolean }} [options] - Use full:true when replacing from Supabase row or blank slate.
+   *   Without full, days were only applied when length>0, so switching plans could keep the *previous* plan's days/savedPlaces (wrong Japan vs Thailand).
+   */
+  const replaceItineraryState = useCallback((data, options = {}) => {
     if (!data) return;
+    const full = options.full === true;
+
+    if (full) {
+      setTrip({ ...defaultTrip, ...(data.trip && typeof data.trip === 'object' ? data.trip : {}) });
+      const nextDays = Array.isArray(data.days) && data.days.length > 0
+        ? data.days
+        : JSON.parse(JSON.stringify(defaultDays));
+      setDays(nextDays);
+      setSavedPlaces(Array.isArray(data.savedPlaces) ? data.savedPlaces : []);
+      setSavedTransports(Array.isArray(data.savedTransports) ? data.savedTransports : []);
+      setCost(normalizeCostData(data.cost));
+      setTripmates(Array.isArray(data.tripmates) ? data.tripmates : []);
+      setTripCreatorState({
+        name: '',
+        email: '',
+        id: '',
+        ...(data.tripCreator && typeof data.tripCreator === 'object' ? data.tripCreator : {}),
+      });
+      if (typeof data.tripMemories === 'string') setTripMemories(data.tripMemories);
+      if (typeof data.planSharedTripId === 'string') setPlanSharedTripId(data.planSharedTripId);
+      if (data.shareSettings && typeof data.shareSettings === 'object') {
+        setShareSettings((prev) => ({ ...prev, ...data.shareSettings }));
+        if (data.shareSettings.tripId) sharedTripLoadedRef.current = true;
+      }
+      if (typeof data.tripmateShareLink === 'string') setTripmateShareLink(data.tripmateShareLink);
+      return;
+    }
+
     if (data.trip) setTrip((prev) => ({ ...defaultTrip, ...prev, ...data.trip }));
     if (data.days && data.days.length > 0) setDays(data.days);
     if (Array.isArray(data.savedPlaces)) setSavedPlaces(data.savedPlaces);
@@ -858,7 +891,7 @@ export function ItineraryProvider({ children }) {
         setShareSettings((prev) => ({ ...prev, tripId: null, shareLink: '' }));
         setTripmateShareLink('');
         setPlanSharedTripId('');
-        replaceItineraryState(blankPayload);
+        replaceItineraryState(blankPayload, { full: true });
         setActivePersonalPlanId(null);
         supabaseLoadedRef.current = `personal-none-${user.id}`;
         queueMicrotask(() => {
@@ -887,7 +920,10 @@ export function ItineraryProvider({ children }) {
       setShareSettings((prev) => ({ ...prev, tripId: null, shareLink: '' }));
       setTripmateShareLink('');
       setPlanSharedTripId('');
-      replaceItineraryState({ ...row.data, shareSettings: { ...(row.data.shareSettings || {}), tripId: null } });
+      replaceItineraryState(
+        { ...row.data, shareSettings: { ...(row.data.shareSettings || {}), tripId: null } },
+        { full: true }
+      );
       setActivePersonalPlanId(planId || null);
       supabaseLoadedRef.current = planId ? `personal-${user.id}-${planId}` : `personal-latest-${user.id}`;
       queueMicrotask(() => {
@@ -934,7 +970,7 @@ export function ItineraryProvider({ children }) {
 
     if (!hasSupabase() || !supabase) {
       setActivePersonalPlanId(null);
-      replaceItineraryState(blankPayload);
+      replaceItineraryState(blankPayload, { full: true });
       return null;
     }
 
@@ -1073,7 +1109,7 @@ export function ItineraryProvider({ children }) {
 
       if (activePersonalPlanId === planId) {
         planLoadInProgressRef.current = true;
-        replaceItineraryState(updatedData);
+        replaceItineraryState(updatedData, { full: true });
         queueMicrotask(() => {
           planLoadInProgressRef.current = false;
         });
@@ -1155,7 +1191,7 @@ export function ItineraryProvider({ children }) {
 
       if (activePersonalPlanId === planId) {
         planLoadInProgressRef.current = true;
-        replaceItineraryState(updatedData);
+        replaceItineraryState(updatedData, { full: true });
         queueMicrotask(() => {
           planLoadInProgressRef.current = false;
         });
@@ -1207,19 +1243,22 @@ export function ItineraryProvider({ children }) {
     };
 
     const emptyPersonal = () => {
-      replaceItineraryState({
-        trip: { ...defaultTrip },
-        days: JSON.parse(JSON.stringify(defaultDays)),
-        savedPlaces: [],
-        savedTransports: [],
-        cost: defaultCostData(),
-        tripmates: [],
-        tripCreator: { name: user?.name || '', email: user?.email || '' },
-        tripMemories: '',
-        planSharedTripId: '',
-        shareSettings: blankShare,
-        tripmateShareLink: '',
-      });
+      replaceItineraryState(
+        {
+          trip: { ...defaultTrip },
+          days: JSON.parse(JSON.stringify(defaultDays)),
+          savedPlaces: [],
+          savedTransports: [],
+          cost: defaultCostData(),
+          tripmates: [],
+          tripCreator: { name: user?.name || '', email: user?.email || '' },
+          tripMemories: '',
+          planSharedTripId: '',
+          shareSettings: blankShare,
+          tripmateShareLink: '',
+        },
+        { full: true }
+      );
     };
 
     if (hasSupabase() && supabase && user?.id && !String(user.id).startsWith('user-')) {
@@ -1245,7 +1284,7 @@ export function ItineraryProvider({ children }) {
           tripId: null,
         };
         planLoadInProgressRef.current = true;
-        replaceItineraryState(d);
+        replaceItineraryState(d, { full: true });
         setActivePersonalPlanId(row.id);
         queueMicrotask(() => {
           planLoadInProgressRef.current = false;
@@ -1281,10 +1320,13 @@ export function ItineraryProvider({ children }) {
             .eq('id', id)
             .maybeSingle();
           if (error || !row?.data || typeof row.data !== 'object') continue;
-          replaceItineraryState({
-            ...row.data,
-            shareSettings: { ...(row.data.shareSettings || {}), tripId: id },
-          });
+          replaceItineraryState(
+            {
+              ...row.data,
+              shareSettings: { ...(row.data.shareSettings || {}), tripId: id },
+            },
+            { full: true }
+          );
           sharedTripLoadedRef.current = true;
           try {
             const d = row.data;
@@ -1349,7 +1391,7 @@ export function ItineraryProvider({ children }) {
           const d = { ...row.data };
           d.shareSettings = { ...(d.shareSettings && typeof d.shareSettings === 'object' ? d.shareSettings : {}), tripId: null };
           planLoadInProgressRef.current = true;
-          replaceItineraryState(d);
+          replaceItineraryState(d, { full: true });
           setActivePersonalPlanId(row.id);
           queueMicrotask(() => {
             planLoadInProgressRef.current = false;
@@ -1648,7 +1690,7 @@ export function ItineraryProvider({ children }) {
           ) {
             return;
           }
-          replaceItineraryState(data);
+          replaceItineraryState(data, { full: true });
         }
       )
       .subscribe();
@@ -1677,10 +1719,13 @@ export function ItineraryProvider({ children }) {
           ) {
             return;
           }
-          replaceItineraryState({
-            ...data,
-            shareSettings: { ...(data.shareSettings || {}), tripId: null },
-          });
+          replaceItineraryState(
+            {
+              ...data,
+              shareSettings: { ...(data.shareSettings || {}), tripId: null },
+            },
+            { full: true }
+          );
         }
       )
       .subscribe();
