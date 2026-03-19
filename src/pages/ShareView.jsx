@@ -18,9 +18,9 @@ export default function ShareView() {
   const [joining, setJoining] = useState(false);
 
   const title = useMemo(() => {
-    const raw = preview?.plan_title || preview?.destination || '';
+    const raw = preview?.destination || preview?.plan_title || '';
     return String(raw).trim() || 'Untitled trip';
-  }, [preview?.plan_title, preview?.destination]);
+  }, [preview?.destination, preview?.plan_title]);
   const dateText = useMemo(() => {
     const start = preview?.start_date || '';
     const end = preview?.end_date || '';

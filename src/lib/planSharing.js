@@ -15,13 +15,25 @@ function safeDate(value) {
 export function buildPlanShareSummary(data) {
   const trip = data?.trip && typeof data.trip === 'object' ? data.trip : {};
   const destination = String(trip.destination || '').trim();
-  const title = String(trip.title || destination || '').trim() || null;
+  const title = String(destination || trip.title || '').trim() || null;
   return {
     plan_title: title,
     destination: destination || null,
     start_date: safeDate(trip.startDate),
     end_date: safeDate(trip.endDate),
   };
+}
+
+export async function syncPlanShareSummary(supabase, { planId, ownerProfileId, data }) {
+  if (!supabase || !planId || !ownerProfileId || !data) return { error: null };
+  const summary = buildPlanShareSummary(data);
+  const updated_at = new Date().toISOString();
+  const { error } = await supabase
+    .from('plan_shares')
+    .update({ ...summary, updated_at })
+    .eq('plan_id', planId)
+    .eq('owner_profile_id', ownerProfileId);
+  return { error };
 }
 
 export async function ensureOwnerMembership(supabase, planId, ownerId) {

@@ -96,7 +96,7 @@ export default function TopBar({ onMenuClick, menuOpen }) {
   const planRows = availablePlans;
   const getPlanTitle = (plan) => {
     const tripData = plan?.data?.trip || {};
-    return String(tripData?.title || tripData?.destination || '').trim() || 'Untitled';
+    return String(tripData?.destination || tripData?.title || '').trim() || 'Untitled';
   };
   const formatPlanLabel = (plan) => {
     const title = getPlanTitle(plan);

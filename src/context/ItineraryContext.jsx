@@ -10,7 +10,7 @@ import { logTripActivity } from '../lib/tripActivity';
 import { ensureProfileExists } from '../lib/ensureProfile';
 import { writeSharedItineraryRow } from '../lib/sharedItineraryWrite';
 import { itineraryPayloadCanonical } from '../lib/itineraryPayloadCompare';
-import { buildPlanShareSummary, ensureOwnerMembership, ensureStablePlanShare, listPlansForUser, loadPlanMembers, revokeStablePlanShare } from '../lib/planSharing';
+import { buildPlanShareSummary, ensureOwnerMembership, ensureStablePlanShare, listPlansForUser, loadPlanMembers, revokeStablePlanShare, syncPlanShareSummary } from '../lib/planSharing';
 
 const ItineraryContext = createContext(null);
 
@@ -280,7 +280,13 @@ export function ItineraryProvider({ children }) {
   }
 
   const updateTrip = useCallback((updates) => {
-    setTrip((prev) => ({ ...prev, ...updates }));
+    setTrip((prev) => {
+      const next = { ...prev, ...updates };
+      if (Object.prototype.hasOwnProperty.call(updates || {}, 'destination')) {
+        next.title = updates.destination || '';
+      }
+      return next;
+    });
   }, []);
 
   const addLocation = useCallback((name) => {
@@ -1351,7 +1357,7 @@ export function ItineraryProvider({ children }) {
         availablePlanSummaries: availablePlans.map((p) => ({
           id: p?.id || null,
           memberType: p?.memberType || null,
-          title: String(p?.data?.trip?.title || p?.data?.trip?.destination || '').trim() || 'Untitled',
+          title: String(p?.data?.trip?.destination || p?.data?.trip?.title || '').trim() || 'Untitled',
           startDate: p?.data?.trip?.startDate || null,
         })),
         planDebugInfo,
@@ -1649,6 +1655,13 @@ export function ItineraryProvider({ children }) {
                 if (upErr) throw upErr;
 
                 if (upRow?.id) {
+                  if (isActivePlanOwner) {
+                    await syncPlanShareSummary(supabase, {
+                      planId: activePersonalPlanId,
+                      ownerProfileId: user.id,
+                      data: personalPayload,
+                    });
+                  }
                   lastLocallyWrittenCanonicalRef.current = canon;
                   return;
                 }
