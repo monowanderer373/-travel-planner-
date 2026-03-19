@@ -118,6 +118,19 @@
 .topbar-plan-item-label {
   flex: 0 1 auto;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.topbar-plan-item-title {
+  display: block;
+}
+
+.topbar-plan-item-meta {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted);
 }
 
 .topbar-plan-item-spacer {
@@ -125,18 +138,20 @@
 }
 
 .topbar-plan-item-delete {
-  width: 30px;
-  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
   border-radius: 10px;
   border: 1px solid var(--border-soft);
   background: transparent;
   color: var(--text-muted);
-  font-size: 1.05rem;
+  font-size: 0.8rem;
+  font-weight: 700;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  padding: 0.45rem 0.7rem;
+  white-space: nowrap;
 }
 
 .topbar-plan-item-delete:hover {

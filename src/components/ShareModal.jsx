@@ -1,19 +1,27 @@
 import { useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useItinerary } from '../context/ItineraryContext';
 import './ShareModal.css';
 
 export default function ShareModal({ open, onClose }) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const {
     tripCreator,
+    activePlanRecord,
+    isActivePlanOwner,
     shareSettings,
     setShareSettings,
     generateTripmateLink,
     tripmateShareLink,
+    stablePlanShareLink,
+    ensureCurrentPlanShareLink,
+    revokeCurrentPlanShareLink,
+    syncCurrentPlanShareSettings,
   } = useItinerary();
 
-  const isCreator = useMemo(() => {
+  const ownerMatch = useMemo(() => {
     const creatorEmail = String(tripCreator?.email || '').trim().toLowerCase();
     const currentEmail = String(user?.email || '').trim().toLowerCase();
     const creatorId = String(tripCreator?.id || tripCreator?.userId || '').trim();
@@ -21,21 +29,33 @@ export default function ShareModal({ open, onClose }) {
     return (!!creatorId && !!currentId && creatorId === currentId) || (!!creatorEmail && !!currentEmail && creatorEmail === currentEmail);
   }, [tripCreator?.email, tripCreator?.id, tripCreator?.userId, user?.email, user?.id]);
 
-  const link = tripmateShareLink || '';
+  const isCreator = isActivePlanOwner && ownerMatch;
+  const link = stablePlanShareLink || tripmateShareLink || '';
+  const hasStablePlanLink = !!stablePlanShareLink;
   const hasCorrectTripLink = link.includes('?trip=') || link.includes('trip=');
 
-  const handleGenerate = () => generateTripmateLink();
+  const handleGenerate = async () => {
+    if (hasStablePlanLink) return;
+    const res = await ensureCurrentPlanShareLink();
+    if (res?.ok) return;
+    return generateTripmateLink();
+  };
   const handleRevokeOldLinks = async () => {
     const ok = window.confirm(
       'Revoke old links and create a new one?\nPeople using previous links will stop syncing until they rejoin with the new link.'
     );
     if (!ok) return;
+    if (hasStablePlanLink || activePlanRecord?.id) {
+      await revokeCurrentPlanShareLink();
+      await ensureCurrentPlanShareLink({ forceNew: true });
+      return;
+    }
     await generateTripmateLink({ forceNew: true, revokeOld: true });
   };
 
   const handleCopy = () => {
-    if (!tripmateShareLink) return;
-    navigator.clipboard?.writeText(tripmateShareLink);
+    if (!link) return;
+    navigator.clipboard?.writeText(link);
   };
 
   // If creator has a cached link but it's not in the expected format,
@@ -43,12 +63,16 @@ export default function ShareModal({ open, onClose }) {
   useEffect(() => {
     if (!open) return;
     if (!isCreator) return;
-    // We intentionally generate the sync-able `/?trip=...` link here.
-    // (Your older working link is exactly this format.)
-    if (!tripmateShareLink || !hasCorrectTripLink) {
-      generateTripmateLink();
+    if (!stablePlanShareLink && !tripmateShareLink) {
+      void ensureCurrentPlanShareLink().then((res) => {
+        if (!res?.ok) void generateTripmateLink();
+      });
+      return;
     }
-  }, [open, isCreator, hasCorrectTripLink, tripmateShareLink, generateTripmateLink]);
+    if (!stablePlanShareLink && tripmateShareLink && !hasCorrectTripLink) {
+      void generateTripmateLink();
+    }
+  }, [open, isCreator, stablePlanShareLink, tripmateShareLink, hasCorrectTripLink, ensureCurrentPlanShareLink, generateTripmateLink]);
 
   if (!open) return null;
 
@@ -62,7 +86,7 @@ export default function ShareModal({ open, onClose }) {
           </div>
           <div className="modal-body">
             <p style={{ margin: 0, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              Only the trip creator can generate the share link.
+              {t('share.creatorOnly')}
             </p>
           </div>
         </div>
@@ -78,40 +102,68 @@ export default function ShareModal({ open, onClose }) {
           <button type="button" className="modal-close" onClick={onClose} aria-label="Close">×</button>
         </div>
         <div className="modal-body">
-          {!tripmateShareLink || !hasCorrectTripLink ? (
+          {!link || (!hasStablePlanLink && !hasCorrectTripLink) ? (
             <button type="button" className="primary" onClick={handleGenerate}>
-              Generate share link
+              {t('share.createLink')}
             </button>
           ) : (
             <>
-              <button
-                type="button"
-                className="primary"
-                style={{ marginBottom: '0.8rem' }}
-                onClick={handleGenerate}
-              >
-                Refresh current share link
-              </button>
+              <label className="share-field">
+                <span>{t('tripmate.whoCanAccess')}</span>
+                <select
+                  value={shareSettings.linkAccess || 'invited'}
+                  onChange={(e) => {
+                    void syncCurrentPlanShareSettings({ linkAccess: e.target.value });
+                  }}
+                >
+                  <option value="invited">{t('tripmate.onlyInvited')}</option>
+                  <option value="web">{t('tripmate.anyoneWithLink')}</option>
+                </select>
+              </label>
+              <label className="share-field">
+                <span>{t('tripmate.permission')}</span>
+                <select
+                  value={shareSettings.linkPermission || 'edit'}
+                  onChange={(e) => {
+                    void syncCurrentPlanShareSettings({
+                      linkPermission: e.target.value,
+                      allowEdit: e.target.value === 'edit',
+                    });
+                  }}
+                >
+                  <option value="edit">{t('tripmate.canEdit')}</option>
+                  <option value="view">{t('tripmate.canView')}</option>
+                </select>
+              </label>
               <label className="share-field">
                 <span>Link</span>
                 <div className="share-link-row">
-                  <input type="text" readOnly value={tripmateShareLink} />
-                  <button type="button" onClick={handleCopy}>Copy</button>
+                  <input type="text" readOnly value={link} />
+                  <button type="button" onClick={handleCopy}>{t('share.copyLink')}</button>
                 </div>
               </label>
-              <button
-                type="button"
-                className="secondary"
-                style={{ marginBottom: '0.8rem' }}
-                onClick={handleRevokeOldLinks}
-              >
-                Revoke old links and generate new
-              </button>
+              {hasStablePlanLink ? (
+                <p style={{ marginTop: 0, marginBottom: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                  {t('share.stableHint')}
+                </p>
+              ) : null}
+              {isCreator && (
+                <button
+                  type="button"
+                  className="secondary"
+                  style={{ marginBottom: '0.8rem' }}
+                  onClick={handleRevokeOldLinks}
+                >
+                  {t('share.revokeCreate')}
+                </button>
+              )}
               <label className="share-toggle">
                 <input
                   type="checkbox"
                   checked={shareSettings.allowVote}
-                  onChange={(e) => setShareSettings((s) => ({ ...s, allowVote: e.target.checked }))}
+                  onChange={(e) => {
+                    void syncCurrentPlanShareSettings({ allowVote: e.target.checked });
+                  }}
                 />
                 <span>Others with this link can vote</span>
               </label>
@@ -119,7 +171,12 @@ export default function ShareModal({ open, onClose }) {
                 <input
                   type="checkbox"
                   checked={shareSettings.allowEdit}
-                  onChange={(e) => setShareSettings((s) => ({ ...s, allowEdit: e.target.checked }))}
+                  onChange={(e) => {
+                    void syncCurrentPlanShareSettings({
+                      allowEdit: e.target.checked,
+                      linkPermission: e.target.checked ? 'edit' : 'view',
+                    });
+                  }}
                 />
                 <span>Others with this link can edit</span>
               </label>

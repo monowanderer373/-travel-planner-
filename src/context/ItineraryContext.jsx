@@ -10,6 +10,7 @@ import { logTripActivity } from '../lib/tripActivity';
 import { ensureProfileExists } from '../lib/ensureProfile';
 import { writeSharedItineraryRow } from '../lib/sharedItineraryWrite';
 import { itineraryPayloadCanonical } from '../lib/itineraryPayloadCompare';
+import { ensureStablePlanShare, listPlansForUser, loadPlanMembers, revokeStablePlanShare } from '../lib/planSharing';
 
 const ItineraryContext = createContext(null);
 
@@ -167,6 +168,8 @@ export function ItineraryProvider({ children }) {
   }, [shareSettings.tripId, tripFromUrl, location.search]);
 
   const [personalPlans, setPersonalPlans] = useState([]);
+  const [sharedPlans, setSharedPlans] = useState([]);
+  const [planMembers, setPlanMembers] = useState([]);
   const [activePersonalPlanId, setActivePersonalPlanId] = useState(() => planFromUrl || null);
   const [tripmateShareLink, setTripmateShareLink] = useState(initial?.tripmateShareLink ?? '');
   const { reportSaving, reportSaved } = useSaveStatus();
@@ -183,6 +186,28 @@ export function ItineraryProvider({ children }) {
   const [personalCloudPullKey, setPersonalCloudPullKey] = useState(0);
   const lastHiddenAtRef = useRef(0);
   const joinTripmateSyncRef = useRef('');
+  const availablePlans = useMemo(() => {
+    const seen = new Set();
+    const merged = [];
+    for (const row of [...personalPlans, ...sharedPlans]) {
+      if (!row?.id || seen.has(row.id)) continue;
+      seen.add(row.id);
+      merged.push(row);
+    }
+    return merged;
+  }, [personalPlans, sharedPlans]);
+  const activePlanRecord = useMemo(
+    () => availablePlans.find((p) => p?.id === activePersonalPlanId) || availablePlans[0] || null,
+    [availablePlans, activePersonalPlanId]
+  );
+  const isActivePlanOwner = activePlanRecord?.memberType !== 'guest';
+  const currentActivityTripId = useMemo(() => {
+    if (shareSettings?.tripId) return shareSettings.tripId;
+    if (!activePersonalPlanId) return null;
+    if (activePlanRecord?.memberType === 'guest') return activePersonalPlanId;
+    if (activePlanRecord?.share_token) return activePersonalPlanId;
+    return null;
+  }, [shareSettings?.tripId, activePersonalPlanId, activePlanRecord?.memberType, activePlanRecord?.share_token]);
 
   function isTripIdActiveInUrl(tid) {
     if (!tid || typeof window === 'undefined') return false;
@@ -292,10 +317,10 @@ export function ItineraryProvider({ children }) {
 
   const addSavedPlace = useCallback((place) => {
     setSavedPlaces((prev) => [...prev, { ...place, id: `place-${Date.now()}` }]);
-    if (shareSettings.tripId && hasSupabase() && supabase) {
-      logTripActivity(supabase, shareSettings.tripId, user?.name, user?.id, 'added_saved_place', { placeName: place?.title || place?.name || 'Place' });
+    if (currentActivityTripId && hasSupabase() && supabase) {
+      logTripActivity(supabase, currentActivityTripId, user?.name, user?.id, 'added_saved_place', { placeName: place?.title || place?.name || 'Place' });
     }
-  }, [shareSettings.tripId, user?.name, user?.id]);
+  }, [currentActivityTripId, user?.name, user?.id]);
 
   const removeSavedPlace = useCallback((id) => {
     setSavedPlaces((prev) => prev.filter((p) => p.id !== id));
@@ -391,13 +416,13 @@ export function ItineraryProvider({ children }) {
 
   const addSavedTransport = useCallback((transport) => {
     setSavedTransports((prev) => [...prev, { ...transport, id: `transport-${Date.now()}` }]);
-    if (shareSettings.tripId && hasSupabase() && supabase) {
-      logTripActivity(supabase, shareSettings.tripId, user?.name, user?.id, 'added_transport', {
+    if (currentActivityTripId && hasSupabase() && supabase) {
+      logTripActivity(supabase, currentActivityTripId, user?.name, user?.id, 'added_transport', {
         lineName: transport?.lineName,
         route: transport?.locationA && transport?.locationB ? `${transport.locationA} → ${transport.locationB}` : null,
       });
     }
-  }, [shareSettings.tripId, user?.name, user?.id]);
+  }, [currentActivityTripId, user?.name, user?.id]);
 
   const removeSavedTransport = useCallback((id) => {
     setSavedTransports((prev) => prev.filter((t) => t.id !== id));
@@ -525,6 +550,111 @@ export function ItineraryProvider({ children }) {
     return { ok: true, link };
   }, [shareSettings, trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, planSharedTripId, tripmateShareLink, activePersonalPlanId, user?.id, navigate, location.pathname]);
 
+  const stablePlanShareLink = useMemo(() => {
+    const token = String(activePlanRecord?.share_token || '').trim();
+    if (!token) return '';
+    const base = getPublicBaseUrl() || getInviteBaseUrl();
+    return base ? `${base.replace(/\/$/, '')}/share/${encodeURIComponent(token)}` : `/share/${encodeURIComponent(token)}`;
+  }, [activePlanRecord?.share_token]);
+
+  const ensureCurrentPlanShareLink = useCallback(
+    async ({ forceNew = false } = {}) => {
+      if (!user?.id || !activePersonalPlanId || !hasSupabase() || !supabase) {
+        return { ok: false, error: 'no_supabase' };
+      }
+      const nextAccess = (shareSettings.linkAccess || 'invited') === 'web' ? 'link' : (shareSettings.linkAccess || 'invited');
+      const nextPermission = shareSettings.linkPermission || (shareSettings.allowEdit ? 'edit' : 'view');
+      const res = await ensureStablePlanShare(supabase, {
+        planId: activePersonalPlanId,
+        ownerProfileId: user.id,
+        existingToken: activePlanRecord?.share_token || '',
+        sharingEnabled: true,
+        linkAccess: nextAccess,
+        linkPermission: nextPermission,
+        data: {
+          trip,
+          days,
+          savedPlaces,
+          savedTransports,
+          tripmates,
+          tripCreator,
+          tripMemories,
+          shareSettings,
+          tripmateShareLink,
+        },
+        forceNewToken: forceNew,
+      });
+      if (res?.error) return { ok: false, error: res.error?.message || String(res.error) };
+      const token = res?.token || '';
+      const base = getPublicBaseUrl() || getInviteBaseUrl();
+      const link = token ? `${(base || '').replace(/\/$/, '')}/share/${encodeURIComponent(token)}` : '';
+      setPersonalPlans((prev) => prev.map((p) => (
+        p.id === activePersonalPlanId
+          ? { ...p, share_token: token, sharing_enabled: true, link_access: nextAccess, link_permission: nextPermission }
+          : p
+      )));
+      return { ok: true, token, link };
+    },
+    [user?.id, activePersonalPlanId, activePlanRecord?.share_token, shareSettings, trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, tripmateShareLink]
+  );
+
+  const revokeCurrentPlanShareLink = useCallback(async () => {
+    if (!user?.id || !activePersonalPlanId || !hasSupabase() || !supabase) {
+      return { ok: false, error: 'no_supabase' };
+    }
+    const res = await revokeStablePlanShare(supabase, {
+      planId: activePersonalPlanId,
+      ownerProfileId: user.id,
+    });
+    if (res?.error) return { ok: false, error: res.error?.message || String(res.error) };
+    setPersonalPlans((prev) => prev.map((p) => (
+      p.id === activePersonalPlanId
+        ? { ...p, share_token: '', sharing_enabled: false }
+        : p
+    )));
+    return { ok: true };
+  }, [user?.id, activePersonalPlanId]);
+
+  const syncCurrentPlanShareSettings = useCallback(
+    async (patch = {}) => {
+      setShareSettings((prev) => ({ ...prev, ...patch }));
+      if (!user?.id || !activePersonalPlanId || !hasSupabase() || !supabase || !isActivePlanOwner) {
+        return { ok: false, error: 'no_supabase' };
+      }
+      const merged = { ...shareSettings, ...patch };
+      const nextAccess = (merged.linkAccess || 'invited') === 'web' ? 'link' : (merged.linkAccess || 'invited');
+      const nextPermission = merged.linkPermission || (merged.allowEdit ? 'edit' : 'view');
+      const res = await ensureStablePlanShare(supabase, {
+        planId: activePersonalPlanId,
+        ownerProfileId: user.id,
+        existingToken: activePlanRecord?.share_token || '',
+        sharingEnabled: true,
+        linkAccess: nextAccess,
+        linkPermission: nextPermission,
+        data: {
+          trip,
+          days,
+          savedPlaces,
+          savedTransports,
+          tripmates,
+          tripCreator,
+          tripMemories,
+          shareSettings: merged,
+          tripmateShareLink,
+        },
+        forceNewToken: false,
+      });
+      if (res?.error) return { ok: false, error: res.error?.message || String(res.error) };
+      setPersonalPlans((prev) => prev.map((p) => (
+        p.id === activePersonalPlanId
+          ? { ...p, share_token: res.token || p.share_token, sharing_enabled: true, link_access: nextAccess, link_permission: nextPermission }
+          : p
+      )));
+      return { ok: true, token: res?.token || '' };
+    },
+    [user?.id, activePersonalPlanId, isActivePlanOwner, shareSettings, activePlanRecord?.share_token, trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, tripmateShareLink]
+  );
+
   const updateTripMemories = useCallback((text) => {
     setTripMemories(text);
   }, []);
@@ -593,7 +723,6 @@ export function ItineraryProvider({ children }) {
         .from('itineraries')
         .select('data')
         .eq('id', planId)
-        .eq('profile_id', user.id)
         .maybeSingle();
       if (error || !row?.data || typeof row.data !== 'object') return;
       replaceItineraryState({ ...row.data, shareSettings: { ...(row.data.shareSettings || {}), tripId: null } });
@@ -667,6 +796,25 @@ export function ItineraryProvider({ children }) {
         const next = personalPlans.filter((p) => p.id !== planId);
         const nextId = next[0]?.id ?? null;
         await switchToPersonalPlan(nextId);
+      }
+    },
+    [user?.id, hasSupabase, supabase, activePersonalPlanId, personalPlans, switchToPersonalPlan]
+  );
+
+  const leavePlan = useCallback(
+    async (planId) => {
+      if (!user?.id || !planId) return;
+      if (!hasSupabase() || !supabase) return;
+      const res = await supabase
+        .from('plan_members')
+        .delete()
+        .eq('plan_id', planId)
+        .eq('user_id', user.id);
+      if (res?.error) return;
+      setSharedPlans((prev) => prev.filter((p) => p.id !== planId));
+      if (activePersonalPlanId === planId) {
+        const next = personalPlans[0]?.id ?? null;
+        await switchToPersonalPlan(next);
       }
     },
     [user?.id, hasSupabase, supabase, activePersonalPlanId, personalPlans, switchToPersonalPlan]
@@ -816,7 +964,7 @@ export function ItineraryProvider({ children }) {
         return;
       }
       const q = desiredPlanId
-        ? supabase.from('itineraries').select('id, data').eq('id', desiredPlanId).eq('profile_id', user.id).maybeSingle()
+        ? supabase.from('itineraries').select('id, data').eq('id', desiredPlanId).maybeSingle()
         : supabase
           .from('itineraries')
           .select('id, data')
@@ -838,32 +986,51 @@ export function ItineraryProvider({ children }) {
     }
   }, [user?.id, shareSettings.tripId, resolvedSharedTripId, personalCloudPullKey, replaceItineraryState, planFromUrl, activePersonalPlanId]);
 
-  // Load user's personal plans list for the "Your Plan" dropdown.
+  // Load owned + shared plans list for the "Your Plan" dropdown.
   useEffect(() => {
     if (!user) {
       setPersonalPlans([]);
+      setSharedPlans([]);
+      setPlanMembers([]);
       setActivePersonalPlanId(null);
       return;
     }
     if (!hasSupabase() || !supabase || !isSupabaseUser(user)) return;
 
-    void supabase
-      .from('itineraries')
-      .select('id, data, updated_at')
-      .eq('profile_id', user.id)
-      .order('updated_at', { ascending: false })
-      .limit(20)
-      .then(({ data: rows }) => {
-        const next = Array.isArray(rows) ? rows : [];
-        setPersonalPlans(next);
-        // If there's a URL plan, prefer it; otherwise fall back to first plan.
-        const desired = planFromUrl || (next[0]?.id ?? null);
+    void listPlansForUser(supabase, user.id)
+      .then(({ owned, guest }) => {
+        const ownedRows = Array.isArray(owned) ? owned : [];
+        const guestRows = Array.isArray(guest) ? guest : [];
+        setPersonalPlans(ownedRows);
+        setSharedPlans(guestRows);
+        const merged = [...ownedRows, ...guestRows];
+        const desired = planFromUrl || activePersonalPlanId || (merged[0]?.id ?? null);
         setActivePersonalPlanId(desired);
       })
       .catch(() => {
         setPersonalPlans([]);
+        setSharedPlans([]);
       });
-  }, [user?.id, planFromUrl]);
+  }, [user?.id, planFromUrl, activePersonalPlanId]);
+
+  useEffect(() => {
+    if (!activePersonalPlanId || !hasSupabase() || !supabase) {
+      setPlanMembers([]);
+      return;
+    }
+    let cancelled = false;
+    void loadPlanMembers(supabase, activePersonalPlanId)
+      .then(({ members }) => {
+        if (cancelled) return;
+        setPlanMembers(Array.isArray(members) ? members : []);
+      })
+      .catch(() => {
+        if (!cancelled) setPlanMembers([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activePersonalPlanId]);
 
   // Ensure invited user is recorded in tripmates once they join a shared trip.
   // We do an immediate cloud write so closing the browser right away still keeps the record.
@@ -1004,6 +1171,38 @@ export function ItineraryProvider({ children }) {
     };
   }, [shareSettings.tripId, replaceItineraryState]);
 
+  // Realtime for stable shared plans (plan_members + itineraries model).
+  useEffect(() => {
+    if (shareSettings.tripId) return;
+    if (!activePersonalPlanId || !hasSupabase() || !supabase) return;
+    const channel = supabase
+      .channel(`plan:${activePersonalPlanId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'itineraries', filter: `id=eq.${activePersonalPlanId}` },
+        (payload) => {
+          const data = payload?.new?.data;
+          if (!data || typeof data !== 'object') return;
+          const inc = itineraryPayloadCanonical(data);
+          if (
+            inc &&
+            (inc === pendingSharedWriteCanonicalRef.current ||
+              inc === lastLocallyWrittenCanonicalRef.current)
+          ) {
+            return;
+          }
+          replaceItineraryState({
+            ...data,
+            shareSettings: { ...(data.shareSettings || {}), tripId: null },
+          });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [shareSettings.tripId, activePersonalPlanId, replaceItineraryState]);
+
   useEffect(() => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     const tripId = shareSettings.tripId;
@@ -1070,18 +1269,26 @@ export function ItineraryProvider({ children }) {
               };
               const body = { data: personalPayload, updated_at: updatedAt };
 
-              // Prefer updating the active personal plan.
+              // Prefer updating the currently selected plan, including shared plans
+              // that were added into "Your Plan" through plan_members.
               if (activePersonalPlanId) {
                 const { data: upRow, error: upErr } = await supabase
                   .from('itineraries')
                   .update(body)
                   .eq('id', activePersonalPlanId)
-                  .eq('profile_id', user.id)
                   .select('id')
                   .maybeSingle();
                 if (upErr) throw upErr;
 
-                if (upRow?.id) return;
+                if (upRow?.id) {
+                  lastLocallyWrittenCanonicalRef.current = canon;
+                  return;
+                }
+              }
+
+              if (!isActivePlanOwner) {
+                // Guest members should never create a new personal copy when the shared plan update misses.
+                return;
               }
 
               // Fallback: update the latest personal row.
@@ -1102,6 +1309,7 @@ export function ItineraryProvider({ children }) {
                   .eq('profile_id', user.id);
                 if (upErr) throw upErr;
                 setActivePersonalPlanId(latestRow.id);
+                lastLocallyWrittenCanonicalRef.current = canon;
               } else {
                 const { data: insRow, error: insErr } = await supabase
                   .from('itineraries')
@@ -1109,7 +1317,10 @@ export function ItineraryProvider({ children }) {
                   .select('id')
                   .maybeSingle();
                 if (insErr) throw insErr;
-                if (insRow?.id) setActivePersonalPlanId(insRow.id);
+                if (insRow?.id) {
+                  setActivePersonalPlanId(insRow.id);
+                  lastLocallyWrittenCanonicalRef.current = canon;
+                }
               }
             } catch (e) {
               console.warn('[Travel Planner] Cloud save failed (check login & Supabase).', e?.message || e);
@@ -1123,7 +1334,7 @@ export function ItineraryProvider({ children }) {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, planSharedTripId, shareSettings, tripmateShareLink, user?.id, activePersonalPlanId]);
+  }, [trip, days, savedPlaces, savedTransports, tripmates, tripCreator, tripMemories, planSharedTripId, shareSettings, tripmateShareLink, user?.id, activePersonalPlanId, isActivePlanOwner]);
 
   const value = {
     trip,
@@ -1154,6 +1365,10 @@ export function ItineraryProvider({ children }) {
     tripmateShareLink,
     setTripmateShareLink,
     generateTripmateLink,
+    stablePlanShareLink,
+    ensureCurrentPlanShareLink,
+    revokeCurrentPlanShareLink,
+    syncCurrentPlanShareSettings,
     tripCreator,
     setTripCreator,
     tripMemories,
@@ -1164,10 +1379,17 @@ export function ItineraryProvider({ children }) {
     activeTripId: shareSettings.tripId,
     // Personal multi-plan support (Your Plan dropdown)
     personalPlans,
+    sharedPlans,
+    availablePlans,
+    activePlanRecord,
+    planMembers,
+    isActivePlanOwner,
+    currentActivityTripId,
     activePersonalPlanId,
     switchToPersonalPlan,
     createPersonalPlan,
     deletePersonalPlan,
+    leavePlan,
     TRAVEL_STYLES,
   };
 

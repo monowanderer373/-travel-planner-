@@ -6,7 +6,7 @@ import { useCost } from '../context/CostContext';
 import './TripmatesBoard.css';
 
 export default function TripmatesBoard() {
-  const { tripCreator, tripmates, shareSettings } = useItinerary();
+  const { tripCreator, tripmates, planMembers, shareSettings } = useItinerary();
   const { lang, t } = useLanguage();
   const { people } = useCost();
   const location = useLocation();
@@ -16,6 +16,18 @@ export default function TripmatesBoard() {
   const isZh = lang === 'zh-CN';
 
   const members = useMemo(() => {
+    if (Array.isArray(planMembers) && planMembers.length > 0) {
+      return planMembers
+        .filter((m) => m?.name?.trim())
+        .map((m, i) => ({
+          key: m.userId ? `u-${m.userId}` : `pm-${i}`,
+          name: m.name.trim(),
+          email: (m.email || '').trim(),
+          bio: (m.bio || '').trim(),
+          avatarUrl: (m.avatarUrl || '').trim(),
+          isCreator: m.role === 'owner',
+        }));
+    }
     const list = [];
     if (tripCreator?.name?.trim()) {
       list.push({
@@ -40,7 +52,7 @@ export default function TripmatesBoard() {
       });
     });
     return list;
-  }, [tripCreator, tripmates]);
+  }, [planMembers, tripCreator, tripmates]);
 
   const selectedMember = selectedKey ? members.find((m) => m.key === selectedKey) : null;
 

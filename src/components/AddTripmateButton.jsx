@@ -16,6 +16,9 @@ export default function AddTripmateButton() {
     setShareSettings,
     tripmateShareLink,
     generateTripmateLink,
+    stablePlanShareLink,
+    ensureCurrentPlanShareLink,
+    syncCurrentPlanShareSettings,
     tripCreator,
     setTripCreator,
   } = useItinerary();
@@ -30,10 +33,17 @@ export default function AddTripmateButton() {
     setLinkGenerated(true);
     setCloudMsg(null);
     try {
-      const res = await generateTripmateLink();
-      if (res?.ok) setCloudMsg('ok');
-      else if (res?.error === 'no_supabase') setCloudMsg('no_keys');
+      const res = await ensureCurrentPlanShareLink();
+      if (res?.ok) {
+        setCloudMsg('ok');
+        return;
+      }
+      const legacy = await generateTripmateLink();
+      const resToUse = legacy;
+      if (resToUse?.ok) setCloudMsg('ok');
+      else if (resToUse?.error === 'no_supabase') setCloudMsg('no_keys');
       else setCloudMsg('err');
+      return;
     } catch {
       setCloudMsg('err');
     }
@@ -62,9 +72,10 @@ export default function AddTripmateButton() {
   };
 
   const copyLinkWithSource = () => {
-    if (!tripmateShareLink) return;
-    const sep = tripmateShareLink.includes('?') ? '&' : '?';
-    const withSource = `${tripmateShareLink}${sep}source=copy_link`;
+    const currentLink = stablePlanShareLink || tripmateShareLink;
+    if (!currentLink) return;
+    const sep = currentLink.includes('?') ? '&' : '?';
+    const withSource = `${currentLink}${sep}source=copy_link`;
     navigator.clipboard?.writeText(withSource);
   };
 
@@ -111,7 +122,9 @@ export default function AddTripmateButton() {
                       <select
                         className="tripmate-access-select"
                         value={shareSettings.linkAccess || 'invited'}
-                        onChange={(e) => setShareSettings((s) => ({ ...s, linkAccess: e.target.value }))}
+                        onChange={(e) => {
+                          void syncCurrentPlanShareSettings({ linkAccess: e.target.value });
+                        }}
                       >
                         <option value="invited">{t('tripmate.onlyInvited')}</option>
                         <option value="web">{t('tripmate.anyoneWithLink')}</option>
@@ -122,11 +135,12 @@ export default function AddTripmateButton() {
                       <select
                         className="tripmate-access-select"
                         value={shareSettings.linkPermission || 'edit'}
-                        onChange={(e) => setShareSettings((s) => ({
-                          ...s,
-                          linkPermission: e.target.value,
-                          allowEdit: e.target.value === 'edit',
-                        }))}
+                        onChange={(e) => {
+                          void syncCurrentPlanShareSettings({
+                            linkPermission: e.target.value,
+                            allowEdit: e.target.value === 'edit',
+                          });
+                        }}
                       >
                         <option value="edit">{t('tripmate.canEdit')}</option>
                         <option value="view">{t('tripmate.canView')}</option>
@@ -135,7 +149,7 @@ export default function AddTripmateButton() {
                   </div>
                   <label className="tripmate-link-label">{t('tripmate.shareLinkLabel')}</label>
                   <div className="tripmate-link-row">
-                    <input type="text" readOnly value={tripmateShareLink} className="tripmate-link-input" />
+                    <input type="text" readOnly value={stablePlanShareLink || tripmateShareLink} className="tripmate-link-input" />
                     <button type="button" onClick={copyLinkWithSource}>{t('tripmate.copy')}</button>
                   </div>
                   {(shareSettings.linkAccess || 'invited') === 'invited' && (

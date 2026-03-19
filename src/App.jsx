@@ -112,6 +112,8 @@ export default function App() {
           <CostProvider>
           <Routes>
             <Route path="/welcome" element={<Welcome />} />
+            <Route path="/share/:shareId" element={<ShareView />} />
+            <Route path="/join/:joinId" element={<ShareView />} />
             <Route element={<RequireAuth />}>
               <Route path="/" element={<Layout />}>
                 <Route index element={<Home />} />
@@ -125,8 +127,6 @@ export default function App() {
                 <Route path="settings" element={<Settings />} />
                 <Route path="profile" element={<Profile />} />
               </Route>
-              <Route path="/share/:shareId" element={<ShareView />} />
-              <Route path="/join/:joinId" element={<ShareView />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

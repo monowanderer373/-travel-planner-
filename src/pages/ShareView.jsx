@@ -1,21 +1,101 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { hasSupabase, supabase } from '../lib/supabase';
+import { joinPlanMember, loadPlanSharePreview } from '../lib/planSharing';
 import './ShareView.css';
 
 export default function ShareView() {
   const params = useParams();
   const shareId = params.shareId || params.joinId;
   const navigate = useNavigate();
+  const { user, authReady } = useAuth();
+  const { t } = useLanguage();
   const [errorReason, setErrorReason] = useState('');
+  const [preview, setPreview] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [joining, setJoining] = useState(false);
 
-  // Backwards compatibility: /join/:id and /share/:id redirect to /?trip=id so Home handles join.
+  const title = useMemo(() => {
+    const raw = preview?.plan_title || preview?.destination || '';
+    return String(raw).trim() || 'Untitled trip';
+  }, [preview?.plan_title, preview?.destination]);
+  const dateText = useMemo(() => {
+    const start = preview?.start_date || '';
+    const end = preview?.end_date || '';
+    return start && end ? `${start} - ${end}` : '';
+  }, [preview?.start_date, preview?.end_date]);
+
   useEffect(() => {
-    if (shareId) {
+    if (!shareId) {
+      setErrorReason('no_id');
+      setLoading(false);
+      return;
+    }
+    if (!hasSupabase() || !supabase) {
+      setErrorReason('no_supabase');
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    loadPlanSharePreview(supabase, shareId)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          setErrorReason(error?.message || 'preview_failed');
+          setLoading(false);
+          return;
+        }
+        if (!data?.plan_id || !data?.is_active) {
+          setErrorReason('legacy_or_missing');
+          setLoading(false);
+          return;
+        }
+        setPreview(data);
+        setErrorReason('');
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setErrorReason(err?.message || 'preview_failed');
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [shareId]);
+
+  const handleJoin = async () => {
+    if (!shareId) return;
+    if (!user) {
+      navigate('/welcome', { state: { from: `/share/${encodeURIComponent(shareId)}` } });
+      return;
+    }
+    if (!hasSupabase() || !supabase) return;
+    setJoining(true);
+    try {
+      const { error, share } = await joinPlanMember(supabase, { token: shareId, userId: user.id, joinedVia: 'link' });
+      if (error || !share?.plan_id) {
+        setErrorReason(error?.message || 'join_failed');
+        return;
+      }
+      navigate(`/?plan=${encodeURIComponent(share.plan_id)}`, { replace: true });
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  const openLegacyLink = () => {
+    if (!shareId) return;
+    if (!authReady || user) {
       navigate(`/?trip=${encodeURIComponent(shareId)}`, { replace: true });
       return;
     }
-    setErrorReason('no_id');
-  }, [shareId, navigate]);
+    navigate('/welcome', { state: { from: `/?trip=${encodeURIComponent(shareId)}` } });
+  };
 
   if (!shareId) {
     const reasonText =
@@ -51,11 +131,60 @@ export default function ShareView() {
     );
   }
 
-  return (
-    <div className="page share-view-page">
-      <div className="share-view-loading">
-        <p>Loading shared itinerary…</p>
+  if (loading) {
+    return (
+      <div className="page share-view-page">
+        <div className="share-view-loading">
+          <p>Loading shared itinerary…</p>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (preview?.plan_id) {
+    return (
+      <div className="page share-view-page">
+        <div className="share-view-message">
+          <h2>{title}</h2>
+          {dateText ? <p>{dateText}</p> : null}
+          <p>
+            {user
+              ? t('share.previewSignedIn')
+              : t('share.previewNeedSignIn')}
+          </p>
+          <div className="share-view-actions">
+            <button type="button" className="primary" onClick={handleJoin} disabled={joining}>
+              {joining ? t('share.joining') : t('share.join')}
+            </button>
+            {!user && (
+              <button type="button" onClick={() => navigate('/welcome', { state: { from: `/share/${encodeURIComponent(shareId)}` } })}>
+                Sign in
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (errorReason === 'legacy_or_missing') {
+    return (
+      <div className="page share-view-page">
+        <div className="share-view-message">
+          <h2>Open shared trip</h2>
+          <p>This looks like an older share link. You can still try opening it with the legacy shared-trip flow.</p>
+          <div className="share-view-actions">
+            <button type="button" className="primary" onClick={openLegacyLink}>
+              {t('share.openLegacy')}
+            </button>
+            <button type="button" onClick={() => navigate('/')}>
+              Go to home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }

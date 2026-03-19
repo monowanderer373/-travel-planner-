@@ -31,12 +31,12 @@ function formatTime(createdAt) {
 }
 
 export default function ActivityFeed({ limit = 50, hideTitle = false, defaultExpanded = false }) {
-  const { shareSettings } = useItinerary();
+  const { currentActivityTripId } = useItinerary();
   const { lang } = useLanguage();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const tripId = shareSettings?.tripId;
+  const tripId = currentActivityTripId;
 
   useEffect(() => {
     if (!tripId || !hasSupabase() || !supabase) {
