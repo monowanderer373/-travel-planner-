@@ -1135,8 +1135,6 @@ function DayExpenseView() {
   const [collapsedDays, setCollapsedDays] = useState({});
   const [categoryFilter, setCategoryFilter] = useState('all');
 
-  if (expenses.length === 0) return null;
-
   const toggleDay = (dayId) =>
     setCollapsedDays((prev) => ({ ...prev, [dayId]: !prev[dayId] }));
 
@@ -1166,6 +1164,8 @@ function DayExpenseView() {
     const entries = Object.entries(byDate).sort((a, b) => (a[0] < b[0] ? 1 : -1));
     return entries;
   }, [expenses, categoryFilter, dayDateMap]);
+
+  if (expenses.length === 0) return null;
 
   return (
     <section className="section cost-section">
