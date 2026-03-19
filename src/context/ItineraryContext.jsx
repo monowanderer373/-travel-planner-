@@ -952,13 +952,17 @@ export function ItineraryProvider({ children }) {
           .maybeSingle();
 
       if (row?.data && typeof row.data === 'object') {
-        setActivePersonalPlanId(row.id);
         const d = { ...row.data };
         d.shareSettings = {
           ...(d.shareSettings && typeof d.shareSettings === 'object' ? d.shareSettings : {}),
           tripId: null,
         };
+        planLoadInProgressRef.current = true;
         replaceItineraryState(d);
+        setActivePersonalPlanId(row.id);
+        queueMicrotask(() => {
+          planLoadInProgressRef.current = false;
+        });
       } else {
         emptyPersonal();
       }
@@ -1054,11 +1058,15 @@ export function ItineraryProvider({ children }) {
       void q
         .then(({ data: row }) => {
           if (!row?.data || typeof row.data !== 'object') return;
-          setActivePersonalPlanId(row.id);
           // Old rows often still had tripId in JSON → next effect run would load shared_itineraries and overwrite this with empty/stale data (breaks phone sync).
           const d = { ...row.data };
           d.shareSettings = { ...(d.shareSettings && typeof d.shareSettings === 'object' ? d.shareSettings : {}), tripId: null };
+          planLoadInProgressRef.current = true;
           replaceItineraryState(d);
+          setActivePersonalPlanId(row.id);
+          queueMicrotask(() => {
+            planLoadInProgressRef.current = false;
+          });
         })
         .catch(() => {});
     }
@@ -1119,6 +1127,12 @@ export function ItineraryProvider({ children }) {
         plansLoaded,
         activePersonalPlanId,
         availablePlanIds: availablePlans.map((p) => p?.id).filter(Boolean),
+        availablePlanSummaries: availablePlans.map((p) => ({
+          id: p?.id || null,
+          memberType: p?.memberType || null,
+          title: String(p?.data?.trip?.title || p?.data?.trip?.destination || '').trim() || 'Untitled',
+          startDate: p?.data?.trip?.startDate || null,
+        })),
         planDebugInfo,
       };
     } catch {}
