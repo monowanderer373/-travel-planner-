@@ -244,6 +244,8 @@ export function ItineraryProvider({ children }) {
   const lastHiddenAtRef = useRef(0);
   const joinTripmateSyncRef = useRef('');
   const planLoadInProgressRef = useRef(false);
+  /** Guards listPlansForUser async: stale responses must not overwrite active plan (fixes wrong guest plan / Japan↔Thailand mix). */
+  const listPlansRequestIdRef = useRef(0);
   const availablePlans = useMemo(() => {
     const seen = new Set();
     const merged = [];
@@ -1357,7 +1359,7 @@ export function ItineraryProvider({ children }) {
     }
   }, [user?.id, shareSettings.tripId, resolvedSharedTripId, personalCloudPullKey, replaceItineraryState, planFromUrl, activePersonalPlanId]);
 
-  // Load owned + shared plans list for the "Your Plan" dropdown.
+  // Load owned + shared plans list for the "Your Plan" dropdown (fetch only — selection is a separate effect).
   useEffect(() => {
     if (!user) {
       setPersonalPlans([]);
@@ -1371,10 +1373,12 @@ export function ItineraryProvider({ children }) {
       setPlansLoaded(true);
       return;
     }
+    const requestId = ++listPlansRequestIdRef.current;
     setPlansLoaded(false);
 
     void listPlansForUser(supabase, user.id, user.email || '')
       .then(({ owned, guest, error, debug }) => {
+        if (requestId !== listPlansRequestIdRef.current) return;
         const ownedRows = Array.isArray(owned) ? owned : [];
         const guestRows = Array.isArray(guest) ? guest : [];
         setPersonalPlans(ownedRows);
@@ -1387,31 +1391,10 @@ export function ItineraryProvider({ children }) {
           ...(debug || {}),
         });
         if (error) console.warn('[Your Plan][listPlansForUser]', error);
-        const merged = [...ownedRows, ...guestRows];
-        const hasCurrent = !!activePersonalPlanId && merged.some((row) => row?.id === activePersonalPlanId);
-        // Legacy shared trip: URL ?trip / ?share, or in-memory shared row. Do NOT use resolvedSharedTripId
-        // (it includes pending_trip_id) — that wrongly cleared stable-plan guests' active id.
-        const legacySharedMode = !!(tripFromUrl || shareSettings?.tripId);
-        let sessionPlan = null;
-        try {
-          sessionPlan = sessionStorage.getItem(ACTIVE_PLAN_SESSION_KEY);
-        } catch {}
-        const sessionInList = !!(sessionPlan && merged.some((r) => r?.id === sessionPlan));
-
-        let desired = planFromUrl || (sessionInList ? sessionPlan : null);
-        if (!desired) {
-          if (legacySharedMode) {
-            desired = hasCurrent ? activePersonalPlanId : null;
-          } else {
-            desired = hasCurrent
-              ? activePersonalPlanId
-              : (merged[0]?.id ?? activePersonalPlanId ?? null);
-          }
-        }
-        setActivePersonalPlanId(desired);
         setPlansLoaded(true);
       })
       .catch(() => {
+        if (requestId !== listPlansRequestIdRef.current) return;
         setPersonalPlans([]);
         setSharedPlans([]);
         setPlanDebugInfo({
@@ -1422,7 +1405,58 @@ export function ItineraryProvider({ children }) {
         });
         setPlansLoaded(true);
       });
-  }, [user?.id, planFromUrl, activePersonalPlanId, tripFromUrl, shareSettings?.tripId]);
+  }, [user?.id]);
+
+  // Keep activePersonalPlanId aligned with ?plan=, session backup, and list — without racing in-flight list fetches.
+  useEffect(() => {
+    if (!user || !plansLoaded) return;
+    if (!hasSupabase() || !supabase || !isSupabaseUser(user)) return;
+
+    const seen = new Set();
+    const merged = [];
+    for (const row of [...personalPlans, ...sharedPlans]) {
+      if (!row?.id || seen.has(row.id)) continue;
+      seen.add(row.id);
+      merged.push(row);
+    }
+
+    // Prefer live URL so we never snap back to the previous plan on the render before Router updates.
+    let planFromUrlLive = planFromUrl;
+    try {
+      const w = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('plan') : null;
+      if (w) planFromUrlLive = w;
+    } catch {}
+
+    const legacySharedMode = !!(tripFromUrl || shareSettings?.tripId);
+    let sessionPlan = null;
+    try {
+      sessionPlan = sessionStorage.getItem(ACTIVE_PLAN_SESSION_KEY);
+    } catch {}
+    const sessionInList = !!(sessionPlan && merged.some((r) => r?.id === sessionPlan));
+
+    let desired = planFromUrlLive || (sessionInList ? sessionPlan : null);
+    if (!desired) {
+      if (activePersonalPlanId) {
+        // Keep current plan while list is still catching up (avoids wrong merged[0] country after switching guest plans).
+        desired = activePersonalPlanId;
+      } else {
+        desired = legacySharedMode ? null : (merged[0]?.id ?? null);
+      }
+    }
+
+    if ((desired ?? null) !== (activePersonalPlanId ?? null)) {
+      setActivePersonalPlanId(desired ?? null);
+    }
+  }, [
+    user?.id,
+    plansLoaded,
+    personalPlans,
+    sharedPlans,
+    planFromUrl,
+    tripFromUrl,
+    shareSettings?.tripId,
+    activePersonalPlanId,
+  ]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
