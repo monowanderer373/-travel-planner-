@@ -1,4 +1,5 @@
 import { NavLink, Link, useLocation } from 'react-router-dom';
+import { toWithPreservedSearch } from '../utils/preserveSearch';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -17,6 +18,7 @@ export default function TopBar({ onMenuClick, menuOpen }) {
   const isVoyage = themeId === 'voyage-light' || themeId === 'voyage-dark';
 
   const location = useLocation();
+  const { search: locationSearch } = location;
   const [voyageNavOpen, setVoyageNavOpen] = useState(false);
   const voyageToggleRef = useRef(null);
   const voyagePanelRef = useRef(null);
@@ -177,7 +179,7 @@ export default function TopBar({ onMenuClick, menuOpen }) {
             {menuOpen ? '✕' : '☰'}
           </button>
         )}
-        <Link to="/" className="topbar-brand" aria-label="Home">
+        <Link to={toWithPreservedSearch('/', locationSearch)} className="topbar-brand" aria-label="Home">
           <span className="topbar-logo">{isVoyage ? 'Voyage' : 'Wander'}</span>
           {!isVoyage && <span className="topbar-tagline">Travel Planner</span>}
         </Link>
@@ -198,7 +200,7 @@ export default function TopBar({ onMenuClick, menuOpen }) {
               {voyageTabs.map((tab) => (
                 <NavLink
                   key={tab.to}
-                  to={tab.to}
+                  to={toWithPreservedSearch(tab.to, locationSearch)}
                   end={tab.end ? true : undefined}
                   className={({ isActive }) => `topbar-tab ${isActive ? 'topbar-tab-active' : ''}`}
                 >
@@ -212,7 +214,7 @@ export default function TopBar({ onMenuClick, menuOpen }) {
                 {voyageTabs.map((tab) => (
                   <NavLink
                     key={tab.to}
-                    to={tab.to}
+                    to={toWithPreservedSearch(tab.to, locationSearch)}
                     end={tab.end ? true : undefined}
                     className={({ isActive }) => `topbar-voyage-mobile-item ${isActive ? 'topbar-voyage-mobile-item-active' : ''}`}
                     onClick={() => setVoyageNavOpen(false)}
@@ -355,13 +357,13 @@ export default function TopBar({ onMenuClick, menuOpen }) {
           )}
         </div>
         <NavLink
-          to="/profile"
+          to={toWithPreservedSearch('/profile', locationSearch)}
           className={({ isActive }) => `topbar-link ${isActive ? 'topbar-link-active' : ''}`}
         >
           {displayName}
         </NavLink>
         <NavLink
-          to="/settings"
+          to={toWithPreservedSearch('/settings', locationSearch)}
           className={({ isActive }) => `topbar-link topbar-settings ${isActive ? 'topbar-link-active' : ''}`}
           aria-label="Settings"
         >

@@ -1,5 +1,6 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
+import { toWithPreservedSearch } from '../utils/preserveSearch';
 import './Sidebar.css';
 
 const base = import.meta.env.BASE_URL || '/';
@@ -18,6 +19,7 @@ const navKeys = [
 
 export default function Sidebar({ onNavigate }) {
   const { t } = useLanguage();
+  const { search } = useLocation();
   return (
     <aside className="sidebar" onClick={onNavigate}>
       <div className="sidebar-brand">
@@ -28,7 +30,7 @@ export default function Sidebar({ onNavigate }) {
         {navKeys.map(({ to, key, icon }) => (
           <NavLink
             key={to}
-            to={to}
+            to={toWithPreservedSearch(to, search)}
             className={({ isActive }) =>
               `sidebar-link ${isActive ? 'sidebar-link-active' : ''}`
             }

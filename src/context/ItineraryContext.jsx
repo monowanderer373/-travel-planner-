@@ -12,6 +12,7 @@ import { writeSharedItineraryRow } from '../lib/sharedItineraryWrite';
 import { itineraryPayloadCanonical } from '../lib/itineraryPayloadCompare';
 import { buildPlanShareSummary, ensureOwnerMembership, ensureStablePlanShare, listPlansForUser, loadPlanMembers, revokeStablePlanShare, syncPlanShareSummary } from '../lib/planSharing';
 import { defaultCostData, normalizeCostData } from '../lib/costData';
+import { ACTIVE_PLAN_SESSION_KEY } from '../utils/preserveSearch';
 
 const ItineraryContext = createContext(null);
 
@@ -210,6 +211,23 @@ export function ItineraryProvider({ children }) {
   const [plansLoaded, setPlansLoaded] = useState(false);
   const [planDebugInfo, setPlanDebugInfo] = useState(null);
   const [activePersonalPlanId, setActivePersonalPlanId] = useState(() => planFromUrl || null);
+
+  // Stable plan id for guests: survives tab changes when URL search is briefly missing (session backup).
+  useEffect(() => {
+    if (!activePersonalPlanId || String(activePersonalPlanId).startsWith('current-')) return;
+    try {
+      sessionStorage.setItem(ACTIVE_PLAN_SESSION_KEY, activePersonalPlanId);
+    } catch {}
+  }, [activePersonalPlanId]);
+
+  // Entering via ?plan= means stable plan flow — stale pending_* keys must not hijack resolvedSharedTripId logic.
+  useEffect(() => {
+    if (!planFromUrl) return;
+    try {
+      localStorage.removeItem('pending_trip_id');
+      localStorage.removeItem('pending_invite_token');
+    } catch {}
+  }, [planFromUrl]);
   const [tripmateShareLink, setTripmateShareLink] = useState(initial?.tripmateShareLink ?? '');
   const { reportSaving, reportSaved } = useSaveStatus();
   const saveTimeoutRef = useRef(null);
@@ -1371,10 +1389,25 @@ export function ItineraryProvider({ children }) {
         if (error) console.warn('[Your Plan][listPlansForUser]', error);
         const merged = [...ownedRows, ...guestRows];
         const hasCurrent = !!activePersonalPlanId && merged.some((row) => row?.id === activePersonalPlanId);
-        const desired = planFromUrl
-          || (resolvedSharedTripId
-            ? (hasCurrent ? activePersonalPlanId : null)
-            : (hasCurrent ? activePersonalPlanId : (merged[0]?.id ?? null)));
+        // Legacy shared trip: URL ?trip / ?share, or in-memory shared row. Do NOT use resolvedSharedTripId
+        // (it includes pending_trip_id) — that wrongly cleared stable-plan guests' active id.
+        const legacySharedMode = !!(tripFromUrl || shareSettings?.tripId);
+        let sessionPlan = null;
+        try {
+          sessionPlan = sessionStorage.getItem(ACTIVE_PLAN_SESSION_KEY);
+        } catch {}
+        const sessionInList = !!(sessionPlan && merged.some((r) => r?.id === sessionPlan));
+
+        let desired = planFromUrl || (sessionInList ? sessionPlan : null);
+        if (!desired) {
+          if (legacySharedMode) {
+            desired = hasCurrent ? activePersonalPlanId : null;
+          } else {
+            desired = hasCurrent
+              ? activePersonalPlanId
+              : (merged[0]?.id ?? activePersonalPlanId ?? null);
+          }
+        }
         setActivePersonalPlanId(desired);
         setPlansLoaded(true);
       })
@@ -1389,7 +1422,7 @@ export function ItineraryProvider({ children }) {
         });
         setPlansLoaded(true);
       });
-  }, [user?.id, planFromUrl, activePersonalPlanId, resolvedSharedTripId]);
+  }, [user?.id, planFromUrl, activePersonalPlanId, tripFromUrl, shareSettings?.tripId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

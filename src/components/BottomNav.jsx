@@ -1,11 +1,13 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
+import { toWithPreservedSearch } from '../utils/preserveSearch';
 
 const base = import.meta.env.BASE_URL || '/';
 const icon = (name) => `${base.replace(/\/$/, '')}/icons/${name}`;
 
 export default function BottomNav() {
   const { t } = useLanguage();
+  const { search } = useLocation();
   const bottomNavItems = [
     { to: '/', label: t('nav.home'), icon: icon('home.png') },
     { to: '/itinerary', label: t('nav.itinerary'), icon: icon('itinerary.png') },
@@ -18,7 +20,7 @@ export default function BottomNav() {
       {bottomNavItems.map(({ to, label, icon: iconSrc }) => (
         <NavLink
           key={to}
-          to={to}
+          to={toWithPreservedSearch(to, search)}
           className={({ isActive }) => `bottom-nav-link ${isActive ? 'bottom-nav-link-active' : ''}`}
           aria-current={undefined}
         >
