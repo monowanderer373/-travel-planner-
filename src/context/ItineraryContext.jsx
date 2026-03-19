@@ -171,6 +171,7 @@ export function ItineraryProvider({ children }) {
   const [sharedPlans, setSharedPlans] = useState([]);
   const [planMembers, setPlanMembers] = useState([]);
   const [plansLoaded, setPlansLoaded] = useState(false);
+  const [planDebugInfo, setPlanDebugInfo] = useState(null);
   const [activePersonalPlanId, setActivePersonalPlanId] = useState(() => planFromUrl || null);
   const [tripmateShareLink, setTripmateShareLink] = useState(initial?.tripmateShareLink ?? '');
   const { reportSaving, reportSaved } = useSaveStatus();
@@ -814,10 +815,27 @@ export function ItineraryProvider({ children }) {
       .select('id, profile_id, owner_profile_id, data, updated_at')
       .maybeSingle();
 
-    if (error || !insRow?.id) return null;
+    if (error || !insRow?.id) {
+      console.warn('[Your Plan][createPersonalPlan][insert]', error || 'missing_insert_row');
+      setPlanDebugInfo({
+        at: new Date().toISOString(),
+        userId: user?.id || '',
+        userEmail: user?.email || '',
+        createError: error?.message || 'missing_insert_row',
+      });
+      return null;
+    }
 
     const newId = insRow.id;
-    await ensureOwnerMembership(supabase, newId, user.id).catch(() => {});
+    await ensureOwnerMembership(supabase, newId, user.id).catch((err) => {
+      console.warn('[Your Plan][createPersonalPlan][ownerMembership]', err);
+      setPlanDebugInfo({
+        at: new Date().toISOString(),
+        userId: user?.id || '',
+        userEmail: user?.email || '',
+        createError: err?.message || 'owner_membership_failed',
+      });
+    });
     setPersonalPlans((prev) => [
       {
         ...insRow,
@@ -1049,12 +1067,20 @@ export function ItineraryProvider({ children }) {
     }
     setPlansLoaded(false);
 
-    void listPlansForUser(supabase, user.id)
-      .then(({ owned, guest }) => {
+    void listPlansForUser(supabase, user.id, user.email || '')
+      .then(({ owned, guest, error, debug }) => {
         const ownedRows = Array.isArray(owned) ? owned : [];
         const guestRows = Array.isArray(guest) ? guest : [];
         setPersonalPlans(ownedRows);
         setSharedPlans(guestRows);
+        setPlanDebugInfo({
+          at: new Date().toISOString(),
+          userId: user.id,
+          userEmail: user.email || '',
+          error: error?.message || null,
+          ...(debug || {}),
+        });
+        if (error) console.warn('[Your Plan][listPlansForUser]', error);
         const merged = [...ownedRows, ...guestRows];
         const desired = planFromUrl || activePersonalPlanId || (merged[0]?.id ?? null);
         setActivePersonalPlanId(desired);
@@ -1063,9 +1089,27 @@ export function ItineraryProvider({ children }) {
       .catch(() => {
         setPersonalPlans([]);
         setSharedPlans([]);
+        setPlanDebugInfo({
+          at: new Date().toISOString(),
+          userId: user.id,
+          userEmail: user.email || '',
+          error: 'listPlansForUser_failed',
+        });
         setPlansLoaded(true);
       });
   }, [user?.id, planFromUrl, activePersonalPlanId]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.__wanderPlanDebug = {
+        plansLoaded,
+        activePersonalPlanId,
+        availablePlanIds: availablePlans.map((p) => p?.id).filter(Boolean),
+        planDebugInfo,
+      };
+    } catch {}
+  }, [plansLoaded, activePersonalPlanId, availablePlans, planDebugInfo]);
 
   useEffect(() => {
     if (!activePersonalPlanId || !hasSupabase() || !supabase) {

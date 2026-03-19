@@ -164,10 +164,10 @@ export async function joinPlanMember(
   return { error, share };
 }
 
-export async function listPlansForUser(supabase, userId) {
+export async function listPlansForUser(supabase, userId, userEmail = '') {
   if (!supabase || !userId) return { owned: [], guest: [], error: new Error('missing list params') };
 
-  const [ownedRes, ownerMemberRes, memberRes] = await Promise.all([
+  const [ownedRes, ownerMemberRes, memberRes, emailFallbackRes] = await Promise.all([
     supabase
       .from('itineraries')
       .select('*')
@@ -188,6 +188,13 @@ export async function listPlansForUser(supabase, userId) {
       .neq('role', 'owner')
       .order('updated_at', { ascending: false })
       .limit(50),
+    userEmail
+      ? supabase
+          .from('itineraries')
+          .select('*')
+          .order('updated_at', { ascending: false })
+          .limit(100)
+      : Promise.resolve({ data: [], error: null }),
   ]);
 
   const ownedDirect = Array.isArray(ownedRes.data)
@@ -214,8 +221,25 @@ export async function listPlansForUser(supabase, userId) {
         .filter(Boolean)
     : [];
 
+  const ownedFromEmail = Array.isArray(emailFallbackRes.data)
+    ? emailFallbackRes.data
+        .filter((row) => {
+          const email = String(row?.data?.tripCreator?.email || '').trim().toLowerCase();
+          const creatorId = String(row?.data?.tripCreator?.id || row?.data?.tripCreator?.userId || '').trim();
+          const targetEmail = String(userEmail || '').trim().toLowerCase();
+          return (!!targetEmail && email === targetEmail) || (!!creatorId && creatorId === String(userId));
+        })
+        .map((row) => ({
+          ...row,
+          owner_profile_id: row.owner_profile_id || row.profile_id,
+          membershipRole: 'owner',
+          memberType: 'owner',
+          recoveredBy: 'tripCreator',
+        }))
+    : [];
+
   const ownedMap = new Map();
-  [...ownedDirect, ...ownedFromMembers].forEach((row) => {
+  [...ownedDirect, ...ownedFromMembers, ...ownedFromEmail].forEach((row) => {
     if (!row?.id) return;
     if (!ownedMap.has(row.id)) ownedMap.set(row.id, row);
   });
@@ -249,7 +273,19 @@ export async function listPlansForUser(supabase, userId) {
   return {
     owned,
     guest,
-    error: ownedRes.error || memberError || null,
+    error: ownedRes.error || memberError || emailFallbackRes.error || null,
+    debug: {
+      ownedDirect: ownedDirect.length,
+      ownedFromMembers: ownedFromMembers.length,
+      ownedFromEmail: ownedFromEmail.length,
+      guest: guest.length,
+      errors: {
+        owned: ownedRes.error?.message || null,
+        ownerMembers: ownerMemberRes.error?.message || null,
+        guests: memberRes.error?.message || null,
+        emailFallback: emailFallbackRes.error?.message || null,
+      },
+    },
   };
 }
 
