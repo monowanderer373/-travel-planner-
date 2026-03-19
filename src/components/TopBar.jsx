@@ -27,6 +27,7 @@ export default function TopBar({ onMenuClick, menuOpen }) {
     leaveSharedTrip,
     availablePlans,
     activePlanRecord,
+    plansLoaded,
     activePersonalPlanId,
     switchToPersonalPlan,
     createPersonalPlan,
@@ -208,8 +209,10 @@ export default function TopBar({ onMenuClick, menuOpen }) {
                     <span className="topbar-plan-item-spacer" />
                   </button>
                 </div>
-              ) : planRows.length === 0 ? (
+              ) : !plansLoaded ? (
                 <div className="topbar-plan-empty">Loading…</div>
+              ) : planRows.length === 0 ? (
+                <div className="topbar-plan-empty">No plans yet.</div>
               ) : (
                 <div className="topbar-plan-list">
                   {planRows.map((p) => {
@@ -250,8 +253,10 @@ export default function TopBar({ onMenuClick, menuOpen }) {
               {isSharedMode && (
                 <>
                   <div className="topbar-plan-divider" />
-                  {planRows.length === 0 ? (
+                  {!plansLoaded ? (
                     <div className="topbar-plan-empty">Loading…</div>
+                  ) : planRows.length === 0 ? (
+                    <div className="topbar-plan-empty">No plans yet.</div>
                   ) : (
                     <div className="topbar-plan-list">
                       {planRows.map((p) => {

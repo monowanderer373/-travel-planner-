@@ -170,6 +170,7 @@ export function ItineraryProvider({ children }) {
   const [personalPlans, setPersonalPlans] = useState([]);
   const [sharedPlans, setSharedPlans] = useState([]);
   const [planMembers, setPlanMembers] = useState([]);
+  const [plansLoaded, setPlansLoaded] = useState(false);
   const [activePersonalPlanId, setActivePersonalPlanId] = useState(() => planFromUrl || null);
   const [tripmateShareLink, setTripmateShareLink] = useState(initial?.tripmateShareLink ?? '');
   const { reportSaving, reportSaved } = useSaveStatus();
@@ -194,8 +195,31 @@ export function ItineraryProvider({ children }) {
       seen.add(row.id);
       merged.push(row);
     }
+    if (merged.length === 0) {
+      const currentId = activePersonalPlanId || planFromUrl || null;
+      const currentTitle = String(trip?.destination || '').trim();
+      const creatorId = String(tripCreator?.id || tripCreator?.userId || '').trim();
+      const creatorEmail = String(tripCreator?.email || '').trim().toLowerCase();
+      const currentUserId = String(user?.id || '').trim();
+      const currentUserEmail = String(user?.email || '').trim().toLowerCase();
+      const isOwner =
+        (!!creatorId && !!currentUserId && creatorId === currentUserId) ||
+        (!!creatorEmail && !!currentUserEmail && creatorEmail === currentUserEmail) ||
+        !shareSettings?.tripId;
+      if (currentId || currentTitle || trip?.startDate || trip?.endDate) {
+        merged.push({
+          id: currentId || `current-${isOwner ? 'owner' : 'guest'}`,
+          data: {
+            trip,
+          },
+          memberType: isOwner ? 'owner' : 'guest',
+          membershipRole: isOwner ? 'owner' : 'viewer',
+          fallback: true,
+        });
+      }
+    }
     return merged;
-  }, [personalPlans, sharedPlans]);
+  }, [personalPlans, sharedPlans, activePersonalPlanId, planFromUrl, trip, tripCreator, user?.id, user?.email, shareSettings?.tripId]);
   const activePlanRecord = useMemo(
     () => availablePlans.find((p) => p?.id === activePersonalPlanId) || availablePlans[0] || null,
     [availablePlans, activePersonalPlanId]
@@ -992,10 +1016,15 @@ export function ItineraryProvider({ children }) {
       setPersonalPlans([]);
       setSharedPlans([]);
       setPlanMembers([]);
+      setPlansLoaded(true);
       setActivePersonalPlanId(null);
       return;
     }
-    if (!hasSupabase() || !supabase || !isSupabaseUser(user)) return;
+    if (!hasSupabase() || !supabase || !isSupabaseUser(user)) {
+      setPlansLoaded(true);
+      return;
+    }
+    setPlansLoaded(false);
 
     void listPlansForUser(supabase, user.id)
       .then(({ owned, guest }) => {
@@ -1006,10 +1035,12 @@ export function ItineraryProvider({ children }) {
         const merged = [...ownedRows, ...guestRows];
         const desired = planFromUrl || activePersonalPlanId || (merged[0]?.id ?? null);
         setActivePersonalPlanId(desired);
+        setPlansLoaded(true);
       })
       .catch(() => {
         setPersonalPlans([]);
         setSharedPlans([]);
+        setPlansLoaded(true);
       });
   }, [user?.id, planFromUrl, activePersonalPlanId]);
 
@@ -1383,6 +1414,7 @@ export function ItineraryProvider({ children }) {
     availablePlans,
     activePlanRecord,
     planMembers,
+    plansLoaded,
     isActivePlanOwner,
     currentActivityTripId,
     activePersonalPlanId,
