@@ -170,7 +170,7 @@ export async function listPlansForUser(supabase, userId) {
   const ownedRes = await supabase
     .from('itineraries')
     .select('*')
-    .eq('profile_id', userId)
+    .or(`profile_id.eq.${userId},owner_profile_id.eq.${userId}`)
     .order('updated_at', { ascending: false })
     .limit(50);
 

@@ -796,13 +796,29 @@ export function ItineraryProvider({ children }) {
 
     const { data: insRow, error } = await supabase
       .from('itineraries')
-      .insert({ profile_id: user.id, data: blankPayload })
-      .select('id')
+      .insert({
+        profile_id: user.id,
+        owner_profile_id: user.id,
+        sharing_enabled: false,
+        link_access: 'invited',
+        link_permission: 'edit',
+        data: blankPayload,
+      })
+      .select('id, profile_id, owner_profile_id, data, updated_at')
       .maybeSingle();
 
     if (error || !insRow?.id) return null;
 
     const newId = insRow.id;
+    setPersonalPlans((prev) => [
+      {
+        ...insRow,
+        membershipRole: 'owner',
+        memberType: 'owner',
+      },
+      ...prev.filter((p) => p.id !== newId),
+    ]);
+    setPlansLoaded(true);
     setActivePersonalPlanId(newId);
     await switchToPersonalPlan(newId);
     return newId;
@@ -812,7 +828,7 @@ export function ItineraryProvider({ children }) {
     async (planId) => {
       if (!user?.id || !planId) return;
       if (!hasSupabase() || !supabase) return;
-      await supabase.from('itineraries').delete().eq('id', planId).eq('profile_id', user.id);
+      await supabase.from('itineraries').delete().eq('id', planId);
       setPersonalPlans((prev) => prev.filter((p) => p.id !== planId));
 
       // If we deleted the active plan, switch to the newest remaining plan.
@@ -887,12 +903,11 @@ export function ItineraryProvider({ children }) {
           .from('itineraries')
           .select('id, data')
           .eq('id', desired)
-          .eq('profile_id', user.id)
           .maybeSingle()
         : await supabase
           .from('itineraries')
           .select('id, data')
-          .eq('profile_id', user.id)
+          .or(`profile_id.eq.${user.id},owner_profile_id.eq.${user.id}`)
           .order('updated_at', { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -992,7 +1007,7 @@ export function ItineraryProvider({ children }) {
         : supabase
           .from('itineraries')
           .select('id, data')
-          .eq('profile_id', user.id)
+          .or(`profile_id.eq.${user.id},owner_profile_id.eq.${user.id}`)
           .order('updated_at', { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -1326,7 +1341,7 @@ export function ItineraryProvider({ children }) {
               const { data: latestRow, error: selErr } = await supabase
                 .from('itineraries')
                 .select('id')
-                .eq('profile_id', user.id)
+                .or(`profile_id.eq.${user.id},owner_profile_id.eq.${user.id}`)
                 .order('updated_at', { ascending: false })
                 .limit(1)
                 .maybeSingle();
@@ -1344,7 +1359,7 @@ export function ItineraryProvider({ children }) {
               } else {
                 const { data: insRow, error: insErr } = await supabase
                   .from('itineraries')
-                  .insert({ profile_id: user.id, ...body })
+                  .insert({ profile_id: user.id, owner_profile_id: user.id, ...body })
                   .select('id')
                   .maybeSingle();
                 if (insErr) throw insErr;
