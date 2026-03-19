@@ -1374,6 +1374,9 @@ export function ItineraryProvider({ children }) {
         supabaseLoadedRef.current = loadKey;
         return;
       }
+      // Critical: set BEFORE the async query resolves. Otherwise autosave can run while URL/?plan= already
+      // points at the new row but in-memory trip/days still belong to the previous plan → corrupts DB (Japan wiped by Thailand).
+      planLoadInProgressRef.current = true;
       const q = desiredPlanId
         ? supabase.from('itineraries').select('id, data').eq('id', desiredPlanId).maybeSingle()
         : supabase
@@ -1386,18 +1389,26 @@ export function ItineraryProvider({ children }) {
 
       void q
         .then(({ data: row }) => {
-          if (!row?.data || typeof row.data !== 'object') return;
+          if (!row?.data || typeof row.data !== 'object') {
+            queueMicrotask(() => {
+              planLoadInProgressRef.current = false;
+            });
+            return;
+          }
           // Old rows often still had tripId in JSON → next effect run would load shared_itineraries and overwrite this with empty/stale data (breaks phone sync).
           const d = { ...row.data };
           d.shareSettings = { ...(d.shareSettings && typeof d.shareSettings === 'object' ? d.shareSettings : {}), tripId: null };
-          planLoadInProgressRef.current = true;
           replaceItineraryState(d, { full: true });
           setActivePersonalPlanId(row.id);
           queueMicrotask(() => {
             planLoadInProgressRef.current = false;
           });
         })
-        .catch(() => {});
+        .catch(() => {
+          queueMicrotask(() => {
+            planLoadInProgressRef.current = false;
+          });
+        });
     }
   }, [user?.id, shareSettings.tripId, resolvedSharedTripId, personalCloudPullKey, replaceItineraryState, planFromUrl, activePersonalPlanId]);
 
@@ -1735,12 +1746,23 @@ export function ItineraryProvider({ children }) {
   }, [shareSettings.tripId, activePersonalPlanId, replaceItineraryState]);
 
   useEffect(() => {
-    if (planLoadInProgressRef.current) return;
+    if (planLoadInProgressRef.current) {
+      // Cancel any pending debounced save — otherwise a timer from the *previous* plan can fire
+      // after ?plan= switched but before new row data is in state, corrupting the wrong itinerary row.
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+      return;
+    }
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     const tripId = shareSettings.tripId;
     const debounceMs = tripId ? 1000 : 500;
     reportSaving();
     saveTimeoutRef.current = setTimeout(() => {
+      if (planLoadInProgressRef.current) {
+        reportSaved();
+        saveTimeoutRef.current = null;
+        return;
+      }
       const payload = {
         trip,
         days,

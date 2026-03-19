@@ -1,0 +1,14 @@
+---
+description: 代码修改后自动提交并推送以触发 GitHub Pages 部署
+alwaysApply: true
+---
+
+# 部署流程（本仓库）
+
+- 本项目的生产站点通过 **推送到 `origin/main`** 触发 `.github/workflows/deploy.yml`（GitHub Pages）。
+- **在完成对用户有意义的代码修改后**（修复、功能、文档等），除非用户明确说不要提交：
+  1. 运行 `npm run build` 确认构建通过（若刚改过前端/配置）。
+  2. `git add` 相关文件，`git commit -m "简短英文说明"`。
+  3. `git push origin main`。
+- **不要**提交 `.env.local` 或含密钥的文件（应已被 `.gitignore` 忽略）。
+- 若仅有未完成/实验性改动，先询问用户是否提交。
