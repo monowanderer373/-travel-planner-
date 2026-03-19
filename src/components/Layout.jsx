@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useItinerary } from '../context/ItineraryContext';
@@ -16,6 +16,11 @@ function hasItinerary(trip) {
   return !!(trip?.destination?.trim() && trip?.startDate && trip?.endDate);
 }
 
+function pathLooksCreate(p) {
+  const s = p || '';
+  return /\/create\/?$/.test(s) || s.includes('/create');
+}
+
 export default function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showJoinShared, setShowJoinShared] = useState(false);
@@ -23,6 +28,7 @@ export default function Layout() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const { trip, shareSettings, tripmates, tripCreator, pendingDraftPlanId, abandonDraftLeavingCreatePage } = useItinerary();
+  const createPathPrevRef = useRef(null);
   const itineraryReady = hasItinerary(trip);
   const pathname = location.pathname || '';
   const search = location.search || '';
@@ -82,10 +88,20 @@ export default function Layout() {
     if (typeof document !== 'undefined') document.title = next;
   }, [t, pathname]);
 
-  // Leaving /create without saving (e.g. bottom nav) discards uncommitted + New Plan draft.
+  // Only abandon draft when route *leaves* /create. If we only check "not on create" + pendingDraftPlanId,
+  // we race: pending is set before navigate to /create finishes → draft was deleted immediately (+ New Plan flash).
   useEffect(() => {
-    const onCreate = /\/create\/?$/.test(location.pathname || '') || (location.pathname || '').includes('/create');
-    if (onCreate) return;
+    const curr = location.pathname || '';
+    const prev = createPathPrevRef.current;
+    if (prev === null) {
+      createPathPrevRef.current = curr;
+      return;
+    }
+    createPathPrevRef.current = curr;
+
+    const wasCreate = pathLooksCreate(prev);
+    const nowCreate = pathLooksCreate(curr);
+    if (!wasCreate || nowCreate) return;
     if (!pendingDraftPlanId) return;
     void abandonDraftLeavingCreatePage();
   }, [location.pathname, pendingDraftPlanId, abandonDraftLeavingCreatePage]);
