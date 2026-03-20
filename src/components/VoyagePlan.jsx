@@ -12,11 +12,6 @@ function byStart(a, b) {
   return String(a?.id || '').localeCompare(String(b?.id || ''));
 }
 
-function getMapUrl(item) {
-  const u = (item?.mapUrl || '').trim();
-  return u || '';
-}
-
 function norm(s) {
   return String(s || '').trim().toLowerCase();
 }
@@ -92,15 +87,19 @@ export default function VoyagePlan({ days }) {
     const map = new Map();
     (savedPlaces || []).forEach((p) => {
       const nameKey = norm(p?.title || p?.name);
-      const urlKey = norm(p?.embedUrl);
+      const embedKey = norm(p?.embedUrl);
+      const mapUrlKey = norm(p?.mapUrl);
       if (nameKey && !map.has(`n:${nameKey}`)) map.set(`n:${nameKey}`, p);
-      if (urlKey && !map.has(`u:${urlKey}`)) map.set(`u:${urlKey}`, p);
+      if (embedKey && !map.has(`u:${embedKey}`)) map.set(`u:${embedKey}`, p);
+      if (mapUrlKey && !map.has(`u:${mapUrlKey}`)) map.set(`u:${mapUrlKey}`, p);
     });
     return map;
   }, [savedPlaces]);
 
   const enrich = (item) => {
-    if (!item || typeof item !== 'object') return { thumb: '', category: '', source: '', sourceKey: 'link' };
+    if (!item || typeof item !== 'object') {
+      return { thumb: '', category: '', source: '', sourceKey: 'link', openInMapsHref: '' };
+    }
     const url = norm(item.mapUrl);
     const nameKey = norm(item.name);
     const byUrl = url ? savedIndex.get(`u:${url}`) : null;
@@ -110,7 +109,9 @@ export default function VoyagePlan({ days }) {
     const category = (p?.category || '').trim();
     const sourceKey = url ? 'maps' : 'link';
     const source = sourceKey === 'maps' ? 'Google Maps' : 'Activity';
-    return { thumb, category, source, sourceKey };
+    const preferredRaw = (p?.mapUrl || p?.embedUrl || item.mapUrl || '').trim();
+    const openInMapsHref = getOpenInGoogleMapsUrl(preferredRaw);
+    return { thumb, category, source, sourceKey, openInMapsHref };
   };
 
   const TIME_OPTS = useMemo(() => {
@@ -235,9 +236,8 @@ export default function VoyagePlan({ days }) {
               const active = item.id === selectedItemId;
               const time = `${formatHour(item.startHour)} – ${formatHour(item.endHour)}`;
               const title = isTransport ? `🚆 ${item.lineName || item.name}` : item.name;
-              const url = getMapUrl(item);
-              const openMapsUrl = getOpenInGoogleMapsUrl(url);
               const meta = enrich(item);
+              const openMapsUrl = meta.openInMapsHref;
               return (
                 <li
                   key={item.id}

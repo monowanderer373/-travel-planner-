@@ -137,7 +137,14 @@ export function getOpenInGoogleMapsUrl(url) {
         return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q.trim())}`;
       }
       const pb = u.searchParams.get('pb');
-      if (pb) return `https://www.google.com/maps?pb=${encodeURIComponent(pb)}`;
+      if (pb) {
+        // iframe 里常见的占位/极简 pb（如 !1m0!7b1）无法在新标签页打开为有效地点页
+        const trimmed = pb.trim();
+        if (trimmed.length < 40 || /^!1m\d+!7b\d+$/i.test(trimmed)) {
+          return '';
+        }
+        return `https://www.google.com/maps?pb=${encodeURIComponent(pb)}`;
+      }
       return 'https://www.google.com/maps/';
     }
 

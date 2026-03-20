@@ -470,7 +470,7 @@ export function ItineraryProvider({ children }) {
       const placeByName = new Map();
       for (const p of savedPlaces) {
         const key = norm(p?.title || p?.name);
-        const url = (p?.embedUrl || '').trim();
+        const url = (p?.mapUrl || p?.embedUrl || '').trim();
         if (key && url && !placeByName.has(key)) placeByName.set(key, url);
       }
       if (placeByName.size === 0) return prev;

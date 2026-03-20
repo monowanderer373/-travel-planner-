@@ -421,7 +421,7 @@ export default function SavedPlaces() {
     addToTimeline(day.id, {
       id: `tl-${Date.now()}`,
       name: addModalPlace.title || 'Saved place',
-      mapUrl: src === 'maps' ? (addModalPlace.embedUrl || '') : '',
+      mapUrl: src === 'maps' ? (addModalPlace.mapUrl || addModalPlace.embedUrl || '').trim() : '',
       startHour: start,
       endHour: endHour,
       duration: endHour - start,
@@ -547,7 +547,7 @@ export default function SavedPlaces() {
                     addToTimeline(day.id, {
                       id: `tl-${Date.now()}-${Math.random().toString(16).slice(2)}`,
                       name: p.title || p.name || 'Saved item',
-                      mapUrl: src === 'maps' ? (p.embedUrl || '') : '',
+                      mapUrl: src === 'maps' ? (p.mapUrl || p.embedUrl || '').trim() : '',
                       startHour: start,
                       endHour: end,
                       duration: end - start,
