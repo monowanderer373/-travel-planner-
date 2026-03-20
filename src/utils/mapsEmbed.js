@@ -114,3 +114,74 @@ export function getDisplayEmbedUrl(embedUrl) {
   if (!embedUrl) return null;
   return normalizeToEmbedUrl(embedUrl) || embedUrl;
 }
+
+/** Share / open-in-app URL (not necessarily embed). */
+export function extractSourceUrl(input) {
+  if (!input || typeof input !== 'string') return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  let urlToCheck = trimmed;
+  if (trimmed.includes('<iframe') && trimmed.includes('src=')) {
+    const match = trimmed.match(/src=["']([^"']+)["']/i);
+    if (match && match[1]) urlToCheck = match[1].trim();
+  }
+  return urlToCheck.startsWith('http') ? urlToCheck : null;
+}
+
+/** Best embeddable URL for iframe + duplicate checks. */
+export function extractEmbedUrl(input) {
+  if (!input || typeof input !== 'string') return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  let urlToCheck = trimmed;
+  if (trimmed.includes('<iframe') && trimmed.includes('src=')) {
+    const match = trimmed.match(/src=["']([^"']+)["']/i);
+    if (match && match[1]) urlToCheck = match[1].trim();
+  }
+  if (urlToCheck.startsWith('http') && urlToCheck.includes('maps/embed')) return urlToCheck;
+  const normalized = normalizeToEmbedUrl(urlToCheck);
+  if (normalized) return normalized;
+  return urlToCheck.startsWith('http') ? urlToCheck : null;
+}
+
+export function normalizeMapsUrlForCompare(url) {
+  if (!url || typeof url !== 'string') return '';
+  const t = url.trim();
+  if (!t) return '';
+  try {
+    const u = new URL(t);
+    const host = u.hostname.toLowerCase().replace(/^www\./, '');
+    const path = (u.pathname || '').replace(/\/+$/, '') || '';
+    const search = u.search || '';
+    return `${host}${path}${search}`;
+  } catch {
+    return t.toLowerCase();
+  }
+}
+
+export function urlsProbablySameMapsLink(a, b) {
+  if (!a || !b) return false;
+  const sa = String(a).trim();
+  const sb = String(b).trim();
+  if (sa === sb) return true;
+  return normalizeMapsUrlForCompare(sa) === normalizeMapsUrlForCompare(sb);
+}
+
+/**
+ * @returns {object | null} first saved place whose embed/map URL matches the pasted input
+ */
+export function findSavedPlaceByDuplicateLink(embedInputRaw, savedPlaces) {
+  const embed = extractEmbedUrl(embedInputRaw);
+  const source = extractSourceUrl(embedInputRaw) || embed;
+  const raw = String(embedInputRaw || '').trim();
+  const candidates = [embed, source, raw].filter(Boolean);
+  if (candidates.length === 0) return null;
+  for (const p of savedPlaces || []) {
+    const pe = (p.embedUrl || '').trim();
+    const pm = (p.mapUrl || '').trim();
+    for (const c of candidates) {
+      if (urlsProbablySameMapsLink(c, pe) || urlsProbablySameMapsLink(c, pm)) return p;
+    }
+  }
+  return null;
+}

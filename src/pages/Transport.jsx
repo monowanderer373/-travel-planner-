@@ -17,7 +17,7 @@ function extractEmbedUrl(input) {
   return trimmed.startsWith('http') ? trimmed : null;
 }
 
-const HOURS = Array.from({ length: 16 }, (_, i) => i + 8);
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = [0, 15, 30, 45];
 
 export default function Transport() {
@@ -91,7 +91,7 @@ export default function Transport() {
     const startHour = leaveHour + leaveMin / 60;
     let endHour = arriveHour + arriveMin / 60;
     if (endHour <= startHour) endHour = startHour + (transport.durationMinutes ?? 45) / 60;
-    endHour = Math.min(23 + 59/60, endHour);
+    endHour = Math.min(24, endHour);
     const duration = endHour - startHour;
     const durationMinutes = transport.durationMinutes ?? Math.round(duration * 60);
     addToTimeline(day.id, {

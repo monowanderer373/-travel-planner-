@@ -157,16 +157,23 @@
   color: var(--text-primary);
 }
 
+/* Row-major grid: fill left→right, then next row (not CSS columns which fill top→bottom per column) */
 .voyage-board {
-  column-count: 1;
-  column-gap: var(--dashboard-gap, 1.15rem);
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--dashboard-gap, 1.15rem);
 }
 
 @media (min-width: 720px) {
-  .voyage-board { column-count: 2; }
+  .voyage-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
+
 @media (min-width: 1040px) {
-  .voyage-board { column-count: 3; }
+  .voyage-board {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 520px) {
@@ -181,7 +188,7 @@
 
 .voyage-card {
   break-inside: avoid;
-  margin: 0 0 var(--dashboard-gap, 1.15rem) 0;
+  margin: 0;
   border-radius: 18px;
   overflow: hidden;
   border: 1px solid var(--border-soft);
@@ -540,6 +547,8 @@
   position: fixed;
   width: max-content;
   max-width: 260px;
+  max-height: min(50vh, 360px);
+  overflow-y: auto;
   z-index: 9999;
   padding: 0.65rem 0.75rem;
   border-radius: 16px;
@@ -550,6 +559,10 @@
   flex-wrap: wrap;
   gap: 0.45rem;
   align-items: center;
+}
+
+.voyage-category-picker--above {
+  box-shadow: var(--shadow-lg, 0 -8px 40px rgba(0, 0, 0, 0.14));
 }
 
 [data-theme="voyage-dark"] .voyage-category-picker {

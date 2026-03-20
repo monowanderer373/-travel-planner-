@@ -1,60 +1,48 @@
 import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
-import { extractPlaceNameFromGoogleMapsUrl, normalizeToEmbedUrl } from '../utils/mapsEmbed';
+import {
+  extractPlaceNameFromGoogleMapsUrl,
+  extractEmbedUrl,
+  extractSourceUrl,
+  findSavedPlaceByDuplicateLink,
+} from '../utils/mapsEmbed';
 import PlaceCard from './PlaceCard';
 import { resolveDayForTimelineAdd } from '../lib/itineraryPayloadCompare';
+import { formatHour, formatHourDropdownLabel } from '../utils/time';
 import './PlaceLinkInput.css';
 
-function extractSourceUrl(input) {
-  if (!input || typeof input !== 'string') return null;
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-  let urlToCheck = trimmed;
-  if (trimmed.includes('<iframe') && trimmed.includes('src=')) {
-    const match = trimmed.match(/src=["']([^"']+)["']/i);
-    if (match && match[1]) urlToCheck = match[1].trim();
-  }
-  return urlToCheck.startsWith('http') ? urlToCheck : null;
-}
-
-function extractEmbedUrl(input) {
-  if (!input || typeof input !== 'string') return null;
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-  let urlToCheck = trimmed;
-  if (trimmed.includes('<iframe') && trimmed.includes('src=')) {
-    const match = trimmed.match(/src=["']([^"']+)["']/i);
-    if (match && match[1]) urlToCheck = match[1].trim();
-  }
-  if (urlToCheck.startsWith('http') && urlToCheck.includes('maps/embed')) return urlToCheck;
-  const normalized = normalizeToEmbedUrl(urlToCheck);
-  if (normalized) return normalized;
-  return urlToCheck.startsWith('http') ? urlToCheck : null;
-}
-
-// 24hr options: 00:00 to 23:30 in 30-min steps
-const TIME_OPTIONS = (() => {
-  const opts = [];
-  for (let h = 0; h < 24; h++) {
-    opts.push(`${String(h).padStart(2, '0')}:00`);
-    opts.push(`${String(h).padStart(2, '0')}:30`);
-  }
-  return opts;
-})();
+// "-" = unspecified; then 00:00–23:30 in 30-min steps
+const TIME_OPTIONS = [
+  '-',
+  ...(() => {
+    const opts = [];
+    for (let h = 0; h < 24; h++) {
+      opts.push(`${String(h).padStart(2, '0')}:00`);
+      opts.push(`${String(h).padStart(2, '0')}:30`);
+    }
+    return opts;
+  })(),
+];
 
 function buildPlaceFromEmbed(embedInputRaw, manualName, openTime, closeTime, extraNote) {
   const embedUrl = extractEmbedUrl(embedInputRaw);
   if (!embedUrl) return null;
   const sourceUrl = extractSourceUrl(embedInputRaw) || embedUrl;
   const inferred = extractPlaceNameFromGoogleMapsUrl(sourceUrl);
-  const hours = openTime && closeTime ? `${openTime} – ${closeTime}` : '—';
+  const hasHours =
+    openTime &&
+    closeTime &&
+    openTime !== '-' &&
+    closeTime !== '-';
+  const hours = hasHours ? `${openTime} – ${closeTime}` : '—';
   return {
     id: `place-${Date.now()}`,
     title: manualName?.trim() || inferred || '',
     hours,
     rating: null,
-    category: 'Place',
+    category: '',
     photoUrl: null,
     reviews: [],
     embedUrl,
@@ -63,17 +51,24 @@ function buildPlaceFromEmbed(embedInputRaw, manualName, openTime, closeTime, ext
   };
 }
 
-const HOURS = Array.from({ length: 16 }, (_, i) => i + 8); // 8–23
+/** Whole hours 0–23 (full day) */
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
-export default function PlaceLinkInput({ initialEmbedUrl = '' }) {
+export default function PlaceLinkInput({
+  initialEmbedUrl = '',
+  /** Import modal: one-click save, close parent, duplicate notice */
+  importDirectSave = false,
+  onImportDone,
+  onDuplicateDismiss,
+}) {
   const { t } = useLanguage();
-  const { addSavedPlace, days, addToTimeline } = useItinerary();
+  const { addSavedPlace, days, addToTimeline, savedPlaces } = useItinerary();
   const [placeData, setPlaceData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [embedInput, setEmbedInput] = useState(initialEmbedUrl || '');
   const [manualName, setManualName] = useState('');
-  const [openTime, setOpenTime] = useState('09:00');
-  const [closeTime, setCloseTime] = useState('18:00');
+  const [openTime, setOpenTime] = useState('-');
+  const [closeTime, setCloseTime] = useState('-');
   const [extraNote, setExtraNote] = useState('');
   const [savedFeedback, setSavedFeedback] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -85,6 +80,7 @@ export default function PlaceLinkInput({ initialEmbedUrl = '' }) {
   const [namePromptOpen, setNamePromptOpen] = useState(false);
   const [pendingName, setPendingName] = useState('');
   const [pendingPlace, setPendingPlace] = useState(null);
+  const [duplicateNotice, setDuplicateNotice] = useState(false);
 
   const canLoad = !!extractEmbedUrl(embedInput);
   const inferredName = useMemo(() => {
@@ -92,9 +88,49 @@ export default function PlaceLinkInput({ initialEmbedUrl = '' }) {
     return src ? extractPlaceNameFromGoogleMapsUrl(src) : null;
   }, [embedInput]);
 
+  const resetFormFields = () => {
+    setPlaceData(null);
+    setSavedFeedback(false);
+    setEmbedInput('');
+    setManualName('');
+    setOpenTime('-');
+    setCloseTime('-');
+    setExtraNote('');
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!canLoad) return;
+
+    if (importDirectSave) {
+      const dup = findSavedPlaceByDuplicateLink(embedInput, savedPlaces);
+      if (dup) {
+        setDuplicateNotice(true);
+        return;
+      }
+      setLoading(true);
+      setTimeout(() => {
+        const data = buildPlaceFromEmbed(embedInput, manualName, openTime, closeTime, extraNote);
+        if (!data) {
+          setLoading(false);
+          return;
+        }
+        const resolvedTitle = (manualName.trim() || inferredName || data.title || '').trim();
+        if (!resolvedTitle) {
+          setPendingPlace(data);
+          setPendingName('');
+          setNamePromptOpen(true);
+          setLoading(false);
+          return;
+        }
+        addSavedPlace({ ...data, title: resolvedTitle });
+        setLoading(false);
+        resetFormFields();
+        onImportDone?.();
+      }, 400);
+      return;
+    }
+
     setLoading(true);
     setTimeout(() => {
       const data = buildPlaceFromEmbed(embedInput, manualName, openTime, closeTime, extraNote);
@@ -124,13 +160,7 @@ export default function PlaceLinkInput({ initialEmbedUrl = '' }) {
     setSavedFeedback(true);
     // Clear form after short delay so user sees "Saved" feedback, then form resets for next place
     setTimeout(() => {
-      setPlaceData(null);
-      setSavedFeedback(false);
-      setEmbedInput('');
-      setManualName('');
-      setOpenTime('09:00');
-      setCloseTime('18:00');
-      setExtraNote('');
+      resetFormFields();
     }, 1500);
   };
 
@@ -142,14 +172,13 @@ export default function PlaceLinkInput({ initialEmbedUrl = '' }) {
     setPendingPlace(null);
     setPendingName('');
     setSavedFeedback(true);
+    if (importDirectSave) {
+      resetFormFields();
+      onImportDone?.();
+      return;
+    }
     setTimeout(() => {
-      setPlaceData(null);
-      setSavedFeedback(false);
-      setEmbedInput('');
-      setManualName('');
-      setOpenTime('09:00');
-      setCloseTime('18:00');
-      setExtraNote('');
+      resetFormFields();
     }, 1500);
   };
 
@@ -168,7 +197,7 @@ export default function PlaceLinkInput({ initialEmbedUrl = '' }) {
     if (!day?.id) return;
     const start = addTimeMode === 'specific' ? addStartHour : addStartHour;
     const end = addTimeMode === 'specific' ? addStartHour + 1 : Math.max(addStartHour + 1, addEndHour);
-    const endHour = Math.min(23, end);
+    const endHour = Math.min(24, end);
     addToTimeline(day.id, {
       id: `tl-${Date.now()}`,
       name: placeData.title || t('place.placeName'),
@@ -237,7 +266,7 @@ export default function PlaceLinkInput({ initialEmbedUrl = '' }) {
           />
         </label>
         <button type="submit" className="primary" disabled={loading || !canLoad}>
-          {loading ? t('place.loading') : t('place.loadPlace')}
+          {loading ? t('place.loading') : importDirectSave ? t('place.savePlace') : t('place.previewPlace')}
         </button>
         {!canLoad && (
           <p className="place-link-hint">{t('place.pasteEmbed')}</p>
@@ -285,6 +314,25 @@ export default function PlaceLinkInput({ initialEmbedUrl = '' }) {
         </div>
       )}
 
+      {duplicateNotice &&
+        createPortal(
+          <div
+            className="place-duplicate-overlay"
+            role="alertdialog"
+            aria-live="polite"
+            onClick={() => {
+              setDuplicateNotice(false);
+              onDuplicateDismiss?.();
+            }}
+          >
+            <div className="place-duplicate-card">
+              <p className="place-duplicate-text">{t('place.importDuplicateNotice')}</p>
+              <p className="place-duplicate-hint">{t('place.importDuplicateTap')}</p>
+            </div>
+          </div>,
+          document.body
+        )}
+
       {addModalOpen && placeData && (
         <div className="place-modal-backdrop" onClick={() => setAddModalOpen(false)}>
           <div className="place-modal" onClick={(e) => e.stopPropagation()}>
@@ -325,7 +373,7 @@ export default function PlaceLinkInput({ initialEmbedUrl = '' }) {
                   <span>{t('saved.hour')}</span>
                   <select value={addStartHour} onChange={(e) => setAddStartHour(Number(e.target.value))}>
                     {HOURS.map((h) => (
-                      <option key={h} value={h}>{h === 12 ? '12:00' : h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`}</option>
+                      <option key={h} value={h}>{formatHourDropdownLabel(h)}</option>
                     ))}
                   </select>
                   <span className="place-modal-time-hint">{t('place.timeSlotHint')}</span>
@@ -336,15 +384,15 @@ export default function PlaceLinkInput({ initialEmbedUrl = '' }) {
                     <span>{t('saved.start')}</span>
                     <select value={addStartHour} onChange={(e) => { const v = Number(e.target.value); setAddStartHour(v); if (addEndHour <= v) setAddEndHour(v + 1); }}>
                       {HOURS.map((h) => (
-                        <option key={h} value={h}>{h === 12 ? '12:00' : h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`}</option>
+                        <option key={h} value={h}>{formatHourDropdownLabel(h)}</option>
                       ))}
                     </select>
                   </label>
                   <label className="place-modal-field">
                     <span>{t('saved.end')}</span>
                     <select value={addEndHour} onChange={(e) => setAddEndHour(Number(e.target.value))}>
-                      {HOURS.filter((h) => h > addStartHour).map((h) => (
-                        <option key={h} value={h}>{h === 12 ? '12:00' : h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`}</option>
+                      {Array.from({ length: 24 - addStartHour }, (_, i) => addStartHour + 1 + i).map((h) => (
+                        <option key={h} value={h}>{h <= 23 ? formatHourDropdownLabel(h) : formatHour(24)}</option>
                       ))}
                     </select>
                   </label>

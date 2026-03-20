@@ -1,44 +1,49 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
-import { formatHour } from '../utils/time';
+import { formatHour, formatHourDropdownLabel } from '../utils/time';
 import PlaceCard from '../components/PlaceCard';
 import PlaceLinkInput from '../components/PlaceLinkInput';
 import VotingUI from '../components/VotingUI';
 import { resolveDayForTimelineAdd } from '../lib/itineraryPayloadCompare';
 import './SavedPlaces.css';
 
-const TIME_OPTIONS = (() => {
-  const opts = [];
-  for (let h = 0; h < 24; h++) {
-    opts.push(`${String(h).padStart(2, '0')}:00`);
-    opts.push(`${String(h).padStart(2, '0')}:30`);
-  }
-  return opts;
-})();
+const TIME_OPTIONS = [
+  '-',
+  ...(() => {
+    const opts = [];
+    for (let h = 0; h < 24; h++) {
+      opts.push(`${String(h).padStart(2, '0')}:00`);
+      opts.push(`${String(h).padStart(2, '0')}:30`);
+    }
+    return opts;
+  })(),
+];
 
 function parseHours(hours) {
-  if (!hours || hours === '—') return { open: '09:00', close: '18:00' };
+  if (!hours || hours === '—') return { open: '-', close: '-' };
   const parts = hours.split(/\s*[–-]\s*/);
-  const open = parts[0]?.trim() && TIME_OPTIONS.includes(parts[0].trim()) ? parts[0].trim() : '09:00';
-  const close = parts[1]?.trim() && TIME_OPTIONS.includes(parts[1].trim()) ? parts[1].trim() : '18:00';
+  const open = parts[0]?.trim() && TIME_OPTIONS.includes(parts[0].trim()) ? parts[0].trim() : '-';
+  const close = parts[1]?.trim() && TIME_OPTIONS.includes(parts[1].trim()) ? parts[1].trim() : '-';
   return { open, close };
 }
 
 const VOYAGE_CATEGORY_PRESETS = [
-  { key: 'food', label: 'Food', terms: ['food', 'restaurant', 'ramen', 'sushi', 'noodle'] },
-  { key: 'cafe', label: 'Cafe', terms: ['cafe', 'coffee', 'bakery', 'tea'] },
-  { key: 'bistro', label: 'Bistro', terms: ['bistro', 'izakaya', 'tapas', 'bar', 'pub'] },
-  { key: 'shopping', label: 'Shopping', terms: ['shopping', 'shop', 'market', 'mall'] },
-  { key: 'museums', label: 'Museums', terms: ['museum', 'gallery', 'exhibit', 'art'] },
-  { key: 'culture', label: 'Culture', terms: ['culture', 'theater', 'heritage', 'temple', 'museum'] },
-  { key: 'nature', label: 'Nature', terms: ['nature', 'park', 'garden', 'scenic'] },
-  { key: 'nightlife', label: 'Nightlife', terms: ['night', 'nightlife', 'club', 'bar', 'izakaya'] },
-  { key: 'dessert', label: 'Dessert', terms: ['dessert', 'sweet', 'sweets', 'cake'] },
-  { key: 'drinks', label: 'Drinks', terms: ['drink', 'cocktail', 'beer', 'wine'] },
+  { key: 'food', label: 'Food', terms: ['food', 'restaurant', 'ramen', 'sushi', 'noodle', 'meal'] },
+  { key: 'coffee', label: 'Coffee', terms: ['coffee', 'cafe', 'café'] },
+  { key: 'pastry', label: 'Pastry', terms: ['pastry', 'bakery', 'bake', 'bread', 'croissant'] },
+  { key: 'stay', label: 'Stay', terms: ['stay', 'hotel', 'hostel', 'lodging', 'bnb'] },
+  { key: 'nightlife', label: 'Nightlife', terms: ['nightlife', 'club', 'bar', 'pub'] },
+  { key: 'entertainment', label: 'Entertainment', terms: ['entertainment', 'show', 'theater', 'theatre', 'cinema'] },
+  { key: 'shopping', label: 'Shopping', terms: ['shopping', 'shop', 'mall', 'market'] },
+  { key: 'wellness', label: 'Wellness', terms: ['wellness', 'spa', 'massage', 'yoga', 'gym'] },
+  { key: 'transport', label: 'Transport', terms: ['transport', 'train', 'bus', 'metro', 'taxi'] },
+  { key: 'photo_spot', label: 'Photo Spot', terms: ['photo', 'spot', 'view', 'scenic', 'instagram'] },
+  { key: 'culture', label: 'Culture', terms: ['culture', 'museum', 'heritage', 'temple', 'gallery'] },
+  { key: 'adventure', label: 'Adventure', terms: ['adventure', 'hike', 'outdoor', 'trek'] },
 ];
 
 function SavedPlaceEdit({ place, onUpdate }) {
@@ -50,7 +55,12 @@ function SavedPlaceEdit({ place, onUpdate }) {
   const [saved, setSaved] = useState(false);
 
   const handleSave = () => {
-    const hours = openTime && closeTime ? `${openTime} – ${closeTime}` : place.hours || '—';
+    const hasHours =
+      openTime &&
+      closeTime &&
+      openTime !== '-' &&
+      closeTime !== '-';
+    const hours = hasHours ? `${openTime} – ${closeTime}` : '—';
     onUpdate(place.id, { title: title.trim() || place.title, hours, extraNote: extraNote.trim() });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -89,11 +99,13 @@ function SavedPlaceEdit({ place, onUpdate }) {
   );
 }
 
-const HOURS = Array.from({ length: 16 }, (_, i) => i + 8); // 8–23
+/** Whole hours 0–23 (full day) */
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 export default function SavedPlaces() {
   const { t } = useLanguage();
   const location = useLocation();
+  const navigate = useNavigate();
   const { themeId } = useTheme();
   const isVoyage = themeId === 'voyage-light' || themeId === 'voyage-dark';
   const { savedPlaces, removeSavedPlace, setVotes, updateSavedPlace, addSavedPlace, days, addToTimeline } = useItinerary();
@@ -125,8 +137,50 @@ export default function SavedPlaces() {
   const [editCover, setEditCover] = useState('');
   const [editLink, setEditLink] = useState('');
 
-  const [categoryPicker, setCategoryPicker] = useState({ placeId: null, x: 0, y: 0 });
+  const [categoryPicker, setCategoryPicker] = useState({
+    placeId: null,
+    left: 0,
+    top: 0,
+    placement: 'below',
+  });
   const categoryPickerRef = useRef(null);
+
+  const measureCategoryPickerPosition = useCallback((placeId) => {
+    if (!placeId) return;
+    const safe = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(placeId) : String(placeId).replace(/"/g, '\\"');
+    const anchor = document.querySelector(`[data-voyage-category-anchor="${safe}"]`);
+    const pickerEl = categoryPickerRef.current;
+    if (!anchor || !pickerEl) return;
+    const rect = anchor.getBoundingClientRect();
+    const gap = 8;
+    const margin = 8;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const ph = pickerEl.offsetHeight || pickerEl.getBoundingClientRect().height;
+    const pw = pickerEl.offsetWidth || pickerEl.getBoundingClientRect().width;
+
+    let top = rect.bottom + gap;
+    let left = rect.left;
+    let placement = 'below';
+
+    const fitsBelow = rect.bottom + gap + ph <= vh - margin;
+    const fitsAbove = rect.top - gap - ph >= margin;
+
+    if (!fitsBelow && fitsAbove) {
+      top = rect.top - gap - ph;
+      placement = 'above';
+    } else if (!fitsBelow && !fitsAbove) {
+      top = Math.max(margin, vh - ph - margin);
+      placement = 'below';
+    }
+
+    if (left + pw > vw - margin) left = vw - pw - margin;
+    if (left < margin) left = margin;
+
+    setCategoryPicker((p) =>
+      p.placeId === placeId ? { ...p, left, top, placement } : p
+    );
+  }, []);
 
   // Inline title editing (double-click to edit in-place)
   const [inlineEditId, setInlineEditId] = useState(null);
@@ -142,24 +196,42 @@ export default function SavedPlaces() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const getNormalizedCategoryLabel = (label) => {
-    if (!label) return '';
-    const cur = String(label).trim();
-    return VOYAGE_CATEGORY_PRESETS.some((c) => c.label === cur) ? cur : '';
-  };
+  /** Trimmed category for display & picker; keeps any saved value (including legacy labels). */
+  const getDisplayCategoryLabel = (label) => String(label ?? '').trim();
 
   const selectPlaceCategory = (placeId, nextLabel) => {
     const next = nextLabel ? String(nextLabel).trim() : '';
     updateSavedPlace(placeId, { category: next });
-    setCategoryPicker({ placeId: null, x: 0, y: 0 });
+    setCategoryPicker({ placeId: null, left: 0, top: 0, placement: 'below' });
   };
+
+  useLayoutEffect(() => {
+    if (!categoryPicker.placeId) return;
+    const pid = categoryPicker.placeId;
+    measureCategoryPickerPosition(pid);
+    const raf = requestAnimationFrame(() => measureCategoryPickerPosition(pid));
+    return () => cancelAnimationFrame(raf);
+  }, [categoryPicker.placeId, measureCategoryPickerPosition]);
+
+  useEffect(() => {
+    if (!categoryPicker.placeId) return;
+    const pid = categoryPicker.placeId;
+    const tick = () => measureCategoryPickerPosition(pid);
+    window.addEventListener('scroll', tick, true);
+    window.addEventListener('resize', tick);
+    return () => {
+      window.removeEventListener('scroll', tick, true);
+      window.removeEventListener('resize', tick);
+    };
+  }, [categoryPicker.placeId, measureCategoryPickerPosition]);
 
   useEffect(() => {
     if (!categoryPicker.placeId) return;
     const onDown = (e) => {
-      if (categoryPickerRef.current && !categoryPickerRef.current.contains(e.target)) {
-        setCategoryPicker({ placeId: null, x: 0, y: 0 });
-      }
+      const t = e.target;
+      if (categoryPickerRef.current?.contains(t)) return;
+      if (typeof t?.closest === 'function' && t.closest('[data-voyage-category-anchor]')) return;
+      setCategoryPicker({ placeId: null, left: 0, top: 0, placement: 'below' });
     };
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
@@ -212,6 +284,7 @@ export default function SavedPlaces() {
       const preset = VOYAGE_CATEGORY_PRESETS.find((x) => x.key === categoryFilter);
       if (!preset) return true;
       const cat = norm(p?.category);
+      if (cat === norm(preset.label)) return true;
       return preset.terms.some((term) => cat.includes(term));
     };
 
@@ -332,7 +405,7 @@ export default function SavedPlaces() {
 
   const TIME_OPTS = useMemo(() => {
     const out = [];
-    for (let h = 8; h <= 23; h += 0.5) out.push(h);
+    for (let h = 0; h <= 23; h += 0.5) out.push(h);
     return out;
   }, []);
 
@@ -343,7 +416,7 @@ export default function SavedPlaces() {
     const src = getSource(addModalPlace).key;
     const start = addTimeMode === 'specific' ? addStartHour : addStartHour;
     const end = addTimeMode === 'specific' ? addStartHour + 1 : Math.max(addStartHour + 1, addEndHour);
-    const endHour = Math.min(23, end);
+    const endHour = Math.min(24, end);
     addToTimeline(day.id, {
       id: `tl-${Date.now()}`,
       name: addModalPlace.title || 'Saved place',
@@ -468,7 +541,7 @@ export default function SavedPlaces() {
                   picks.forEach((p) => {
                     const src = getSource(p).key;
                     const start = Math.min(23, cursor);
-                    const end = Math.min(23.5, start + 1);
+                    const end = Math.min(24, start + 1);
                     cursor = end;
                     addToTimeline(day.id, {
                       id: `tl-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -617,20 +690,24 @@ export default function SavedPlaces() {
                     )}
                     <div className="voyage-card-tags">
                       {(() => {
-                        const currentCategory = getNormalizedCategoryLabel(place.category);
-                        const btnLabel = currentCategory || 'Place';
+                        const currentCategory = getDisplayCategoryLabel(place.category);
+                        const btnLabel = currentCategory || 'Categories';
                         const open = categoryPicker.placeId === place.id;
                         return (
                           <div className="voyage-category-wrap">
                             <button
                               type="button"
+                              data-voyage-category-anchor={place.id}
+                              aria-haspopup="menu"
+                              aria-expanded={open}
                               className={`voyage-category-btn ${open ? 'voyage-category-btn--active' : ''}`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const rect = e.currentTarget.getBoundingClientRect();
                                 setCategoryPicker((prev) => {
-                                  if (prev.placeId === place.id) return { placeId: null, x: 0, y: 0 };
-                                  return { placeId: place.id, x: rect.left, y: rect.bottom + 8 };
+                                  if (prev.placeId === place.id) {
+                                    return { placeId: null, left: 0, top: 0, placement: 'below' };
+                                  }
+                                  return { placeId: place.id, left: 0, top: 0, placement: 'below' };
                                 });
                               }}
                             >
@@ -667,7 +744,19 @@ export default function SavedPlaces() {
                 <button type="button" className="voyage-import-close" onClick={() => setImportOpen(false)} aria-label="Close">×</button>
               </div>
               {getSource({ embedUrl: quickPaste }).key === 'maps' ? (
-                <PlaceLinkInput initialEmbedUrl={quickPaste} />
+                <PlaceLinkInput
+                  initialEmbedUrl={quickPaste}
+                  importDirectSave
+                  onImportDone={() => {
+                    setImportOpen(false);
+                    setQuickPaste('');
+                  }}
+                  onDuplicateDismiss={() => {
+                    setImportOpen(false);
+                    setQuickPaste('');
+                    navigate('/saved', { replace: true });
+                  }}
+                />
               ) : (
                 <VoyageLinkImport
                   initialUrl={quickPaste}
@@ -725,14 +814,14 @@ export default function SavedPlaces() {
         {categoryPicker.placeId && (() => {
           const pickerPlace = (savedPlaces || []).find((p) => p.id === categoryPicker.placeId);
           if (!pickerPlace) return null;
-          const currentCategory = getNormalizedCategoryLabel(pickerPlace.category);
+          const currentCategory = getDisplayCategoryLabel(pickerPlace.category);
           return createPortal(
             <div
               ref={categoryPickerRef}
-              className="voyage-category-picker"
+              className={`voyage-category-picker ${categoryPicker.placement === 'above' ? 'voyage-category-picker--above' : ''}`}
               role="menu"
               aria-label="Select categories"
-              style={{ left: categoryPicker.x, top: categoryPicker.y }}
+              style={{ left: categoryPicker.left, top: categoryPicker.top }}
               onClick={(e) => e.stopPropagation()}
             >
               <button
@@ -740,7 +829,7 @@ export default function SavedPlaces() {
                 className={`voyage-chip ${!currentCategory ? 'voyage-chip-active' : ''}`}
                 onClick={() => selectPlaceCategory(pickerPlace.id, '')}
               >
-                Place
+                None
               </button>
               {VOYAGE_CATEGORY_PRESETS.map((c) => (
                 <button
@@ -797,7 +886,7 @@ export default function SavedPlaces() {
                     <span>{t('saved.hour')}</span>
                     <select value={addStartHour} onChange={(e) => setAddStartHour(Number(e.target.value))}>
                       {HOURS.map((h) => (
-                        <option key={h} value={h}>{h === 12 ? '12:00' : h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`}</option>
+                        <option key={h} value={h}>{formatHourDropdownLabel(h)}</option>
                       ))}
                     </select>
                     <span className="place-modal-time-hint">→ 1 hour slot (e.g. 9:00–10:00)</span>
@@ -808,15 +897,15 @@ export default function SavedPlaces() {
                       <span>{t('saved.start')}</span>
                       <select value={addStartHour} onChange={(e) => { const v = Number(e.target.value); setAddStartHour(v); if (addEndHour <= v) setAddEndHour(v + 1); }}>
                         {HOURS.map((h) => (
-                          <option key={h} value={h}>{h === 12 ? '12:00' : h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`}</option>
+                          <option key={h} value={h}>{formatHourDropdownLabel(h)}</option>
                         ))}
                       </select>
                     </label>
                     <label className="place-modal-field">
                       <span>{t('saved.end')}</span>
                       <select value={addEndHour} onChange={(e) => setAddEndHour(Number(e.target.value))}>
-                        {HOURS.filter((h) => h > addStartHour).map((h) => (
-                          <option key={h} value={h}>{h === 12 ? '12:00' : h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`}</option>
+                        {Array.from({ length: 24 - addStartHour }, (_, i) => addStartHour + 1 + i).map((h) => (
+                          <option key={h} value={h}>{h <= 23 ? formatHourDropdownLabel(h) : formatHour(24)}</option>
                         ))}
                       </select>
                     </label>
@@ -911,7 +1000,7 @@ export default function SavedPlaces() {
                   <span>{t('saved.hour')}</span>
                   <select value={addStartHour} onChange={(e) => setAddStartHour(Number(e.target.value))}>
                     {HOURS.map((h) => (
-                      <option key={h} value={h}>{h === 12 ? '12:00' : h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`}</option>
+                      <option key={h} value={h}>{formatHourDropdownLabel(h)}</option>
                     ))}
                   </select>
                   <span className="place-modal-time-hint">→ 1 hour slot (e.g. 9:00–10:00)</span>
@@ -922,15 +1011,15 @@ export default function SavedPlaces() {
                     <span>{t('saved.start')}</span>
                     <select value={addStartHour} onChange={(e) => { const v = Number(e.target.value); setAddStartHour(v); if (addEndHour <= v) setAddEndHour(v + 1); }}>
                       {HOURS.map((h) => (
-                        <option key={h} value={h}>{h === 12 ? '12:00' : h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`}</option>
+                        <option key={h} value={h}>{formatHourDropdownLabel(h)}</option>
                       ))}
                     </select>
                   </label>
                   <label className="place-modal-field">
                     <span>{t('saved.end')}</span>
                     <select value={addEndHour} onChange={(e) => setAddEndHour(Number(e.target.value))}>
-                      {HOURS.filter((h) => h > addStartHour).map((h) => (
-                        <option key={h} value={h}>{h === 12 ? '12:00' : h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`}</option>
+                      {Array.from({ length: 24 - addStartHour }, (_, i) => addStartHour + 1 + i).map((h) => (
+                        <option key={h} value={h}>{h <= 23 ? formatHourDropdownLabel(h) : formatHour(24)}</option>
                       ))}
                     </select>
                   </label>
@@ -986,7 +1075,7 @@ function VoyageLinkImport({ initialUrl, detectSource, onSave }) {
       title: (title || '').trim() || suggestTitle(),
       hours,
       rating: null,
-      // Categories are only Food/Cafe/Bistro/... presets (not "source" labels like Google Maps/Link).
+      // Categories use Voyage presets (not source labels like Google Maps/Link).
       category: (category || '').trim() || '',
       collection: (collection || '').trim() || '',
       photoUrl: (coverUrl || '').trim() || null,

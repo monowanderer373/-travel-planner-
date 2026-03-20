@@ -9,7 +9,7 @@
   grid-auto-rows: 48px;
   gap: 0;
   position: relative;
-  height: 768px;
+  height: 1152px; /* 24 rows × 48px */
 }
 
 .timeline-labels {
@@ -30,12 +30,12 @@
   box-sizing: border-box;
 }
 
-/* Content column: 16 rows, no vertical line */
+/* Content column: 24 rows, no vertical line */
 .timeline-content {
   grid-column: 2;
   grid-row: 1 / -1;
   display: grid;
-  grid-template-rows: repeat(16, 48px);
+  grid-template-rows: repeat(24, 48px);
   grid-template-columns: 1fr;
   gap: 0;
   position: relative;

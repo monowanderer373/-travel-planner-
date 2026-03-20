@@ -56,6 +56,29 @@ export function itineraryPayloadsEqual(a, b) {
   return itineraryPayloadCanonical(a) === itineraryPayloadCanonical(b);
 }
 
+/**
+ * When Supabase Realtime or a race returns a row that omits `category` on saved places
+ * (stale payload), preserve the category we already have in memory for the same id.
+ * If the incoming row explicitly includes `category` (even ""), that wins.
+ */
+export function mergeSavedPlacesPreservingCategories(prevSaved, incoming) {
+  if (!Array.isArray(incoming)) return incoming;
+  if (!Array.isArray(prevSaved) || prevSaved.length === 0) return incoming;
+  const prevById = new Map(prevSaved.map((p) => [p?.id, p]));
+  return incoming.map((p) => {
+    if (!p || typeof p !== 'object') return p;
+    const prev = prevById.get(p.id);
+    if (!prev) return p;
+    const hasCategoryKey = Object.prototype.hasOwnProperty.call(p, 'category');
+    const iCat = (p.category ?? '').trim();
+    const pCat = (prev.category ?? '').trim();
+    if (pCat && !iCat && !hasCategoryKey) {
+      return { ...p, category: pCat };
+    }
+    return p;
+  });
+}
+
 /** Resolve target day after days[] may have been resynced (ids rotated). */
 export function resolveDayForTimelineAdd(days, dayId, dayIndex) {
   if (!days?.length) return null;

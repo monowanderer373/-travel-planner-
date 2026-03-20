@@ -208,3 +208,40 @@
   border-top: 1px solid var(--border-soft);
   background: var(--pastel-cream);
 }
+
+/* Duplicate link notice (Import modal) — above voyage-import-backdrop (z-index 1200) */
+.place-duplicate-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10060;
+  background: rgba(12, 12, 18, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  cursor: pointer;
+}
+
+.place-duplicate-card {
+  max-width: 22rem;
+  background: var(--bg-main, #fff);
+  border-radius: 16px;
+  padding: 1.25rem 1.35rem;
+  box-shadow: var(--shadow-lg, 0 20px 50px rgba(0, 0, 0, 0.22));
+  border: 1px solid var(--border-soft);
+  cursor: pointer;
+}
+
+.place-duplicate-text {
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+
+.place-duplicate-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}

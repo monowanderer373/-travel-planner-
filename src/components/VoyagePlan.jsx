@@ -117,7 +117,8 @@ export default function VoyagePlan({ days }) {
 
   const TIME_OPTS = useMemo(() => {
     const out = [];
-    for (let h = 8; h <= 23; h += 0.5) out.push(h);
+    for (let h = 0; h <= 23.5; h += 0.5) out.push(h);
+    out.push(24); // end of calendar day (midnight) for “end” pickers
     return out;
   }, []);
 
@@ -128,7 +129,7 @@ export default function VoyagePlan({ days }) {
     const next = nextOrdered.map((it) => {
       const dur = Math.max(0.5, Number(it.duration || (it.endHour - it.startHour) || 1));
       const start = Math.min(23, cursor);
-      const end = Math.min(23.5, start + dur);
+      const end = Math.min(24, start + dur);
       cursor = end;
       return { ...it, startHour: start, endHour: end, duration: end - start };
     });
@@ -367,7 +368,7 @@ export default function VoyagePlan({ days }) {
                     setEditItem((p) => ({ ...p, startHour: v, endHour: Math.max(v + 0.5, p.endHour) }));
                   }}
                 >
-                  {TIME_OPTS.map((h) => (
+                  {TIME_OPTS.filter((h) => h < 24).map((h) => (
                     <option key={h} value={h}>{formatHour(h)}</option>
                   ))}
                 </select>

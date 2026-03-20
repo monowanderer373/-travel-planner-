@@ -9,7 +9,7 @@ import { getTotalTravelDays, getDayLabel, getDayLabelWithCity } from '../utils/t
 import { logTripActivity } from '../lib/tripActivity';
 import { ensureProfileExists } from '../lib/ensureProfile';
 import { writeSharedItineraryRow } from '../lib/sharedItineraryWrite';
-import { itineraryPayloadCanonical } from '../lib/itineraryPayloadCompare';
+import { itineraryPayloadCanonical, mergeSavedPlacesPreservingCategories } from '../lib/itineraryPayloadCompare';
 import { buildPlanShareSummary, ensureOwnerMembership, ensureStablePlanShare, listPlansForUser, loadPlanMembers, revokeStablePlanShare, syncPlanShareSummary } from '../lib/planSharing';
 import { defaultCostData, normalizeCostData } from '../lib/costData';
 import { ACTIVE_PLAN_SESSION_KEY } from '../utils/preserveSearch';
@@ -807,7 +807,12 @@ export function ItineraryProvider({ children }) {
         ? data.days
         : JSON.parse(JSON.stringify(defaultDays));
       setDays(nextDays);
-      setSavedPlaces(Array.isArray(data.savedPlaces) ? data.savedPlaces : []);
+      setSavedPlaces((prevSaved) =>
+        mergeSavedPlacesPreservingCategories(
+          prevSaved,
+          Array.isArray(data.savedPlaces) ? data.savedPlaces : []
+        )
+      );
       setSavedTransports(Array.isArray(data.savedTransports) ? data.savedTransports : []);
       setCost(normalizeCostData(data.cost));
       setTripmates(Array.isArray(data.tripmates) ? data.tripmates : []);

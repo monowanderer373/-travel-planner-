@@ -8,9 +8,21 @@ export function formatHour(hour) {
   if (m >= 60) {
     m = 0;
   }
+  // End-of-calendar-day (24:00) — show as midnight for same-day ranges
+  if (h === 24 && m === 0) return '12:00 AM';
   const displayH = h % 12 || 12;
   const ampm = h < 12 ? ' AM' : ' PM';
   return m === 0 ? `${displayH}:00${ampm}` : `${displayH}:${String(m).padStart(2, '0')}${ampm}`;
+}
+
+/**
+ * Label for whole-hour dropdowns (0–23), 12h clock.
+ */
+export function formatHourDropdownLabel(h) {
+  if (h === 0) return '12:00 AM';
+  if (h === 12) return '12:00 PM';
+  if (h < 12) return `${h}:00 AM`;
+  return `${h - 12}:00 PM`;
 }
 
 /** Number of calendar days between start and end (inclusive). */

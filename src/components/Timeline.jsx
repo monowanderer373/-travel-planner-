@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { useItinerary } from '../context/ItineraryContext';
-import { formatHour } from '../utils/time';
+import { formatHour, formatHourDropdownLabel } from '../utils/time';
 import './Timeline.css';
 
-const HOURS = Array.from({ length: 16 }, (_, i) => i + 8); // 8–23
+const HOURS = Array.from({ length: 24 }, (_, i) => i); // 0–23 full day
 
-/** For each row i (0–15), return 'slot' | 'empty' | { type: 'block', block, index, span } */
+/** For each row i (0–23), return 'slot' | 'empty' | { type: 'block', block, index, span } */
 function getRowContents(timeline) {
   const rows = [];
-  for (let i = 0; i < 16; i++) {
-    const hour = 8 + i;
+  for (let i = 0; i < 24; i++) {
+    const hour = i;
     const blockAtStart = timeline.find((b) => b.startHour === hour);
     const blockCovering = timeline.find((b) => b.startHour < hour && b.endHour > hour);
     if (blockAtStart) {
@@ -67,7 +67,7 @@ export default function Timeline({ day }) {
         <div className="timeline-labels">
           {HOURS.map((h) => (
             <div key={h} className="timeline-label">
-              {h === 12 ? '12:00' : h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`}
+              {formatHourDropdownLabel(h)}
             </div>
           ))}
         </div>
@@ -131,7 +131,7 @@ export default function Timeline({ day }) {
         </div>
       </div>
       {selecting && (
-        <p className="timeline-hint">Click an end hour to create a block (8–23)</p>
+        <p className="timeline-hint">Click an end hour to create a block (12:00 AM–11:00 PM)</p>
       )}
       {timeline.length > 0 && (
         <p className="timeline-total">Total: {totalTravelTime} hrs this day</p>
