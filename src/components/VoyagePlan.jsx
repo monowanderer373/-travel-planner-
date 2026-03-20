@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
-import { formatHour } from '../utils/time';
+import { formatHour, formatTimelineTime } from '../utils/time';
 import { getOpenInGoogleMapsUrl } from '../utils/mapsEmbed';
 import './VoyagePlan.css';
 
@@ -234,7 +234,7 @@ export default function VoyagePlan({ days }) {
             {items.map((item, idx) => {
               const isTransport = item.type === 'transport';
               const active = item.id === selectedItemId;
-              const time = `${formatHour(item.startHour)} – ${formatHour(item.endHour)}`;
+              const time = formatTimelineTime(item);
               const title = isTransport ? `🚆 ${item.lineName || item.name}` : item.name;
               const meta = enrich(item);
               const openMapsUrl = meta.openInMapsHref;
@@ -302,7 +302,12 @@ export default function VoyagePlan({ days }) {
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          setEditItem({ id: item.id, startHour: item.startHour, endHour: item.endHour });
+                          setEditItem({
+                            id: item.id,
+                            startHour: item.startHour,
+                            endHour: item.endHour,
+                            timeScope: item.timeScope,
+                          });
                         }}
                         title="Edit time"
                         aria-label="Edit time"
@@ -344,7 +349,12 @@ export default function VoyagePlan({ days }) {
                   value={editItem.startHour}
                   onChange={(e) => {
                     const v = Number(e.target.value);
-                    setEditItem((p) => ({ ...p, startHour: v, endHour: Math.max(v + 0.5, p.endHour) }));
+                    setEditItem((p) => ({
+                      ...p,
+                      startHour: v,
+                      endHour:
+                        p.timeScope === 'point' ? Math.min(24, v + 1) : Math.max(v + 0.5, p.endHour),
+                    }));
                   }}
                 >
                   {TIME_OPTS.filter((h) => h < 24).map((h) => (
@@ -356,7 +366,15 @@ export default function VoyagePlan({ days }) {
                 <span>End</span>
                 <select
                   value={editItem.endHour}
-                  onChange={(e) => setEditItem((p) => ({ ...p, endHour: Number(e.target.value) }))}
+                  onChange={(e) => {
+                    const end = Number(e.target.value);
+                    setEditItem((p) => {
+                      const start = Number(p.startHour);
+                      const nextScope =
+                        p.timeScope === 'point' && end > start + 1 + 1e-6 ? 'range' : p.timeScope;
+                      return { ...p, endHour: end, timeScope: nextScope };
+                    });
+                  }}
                 >
                   {TIME_OPTS.filter((h) => h > editItem.startHour).map((h) => (
                     <option key={h} value={h}>{formatHour(h)}</option>
@@ -374,8 +392,18 @@ export default function VoyagePlan({ days }) {
                   const next = tl.map((t) => {
                     if (t.id !== editItem.id) return t;
                     const start = Number(editItem.startHour);
-                    const end = Math.max(start + 0.5, Number(editItem.endHour));
-                    return { ...t, startHour: start, endHour: end, duration: end - start };
+                    const rawEnd = Number(editItem.endHour);
+                    let timeScope = editItem.timeScope === 'point' ? 'point' : 'range';
+                    if (timeScope === 'point' && rawEnd > start + 1 + 1e-6) timeScope = 'range';
+                    const endHour =
+                      timeScope === 'point' ? Math.min(24, start + 1) : Math.max(start + 0.5, rawEnd);
+                    return {
+                      ...t,
+                      startHour: start,
+                      endHour,
+                      duration: endHour - start,
+                      timeScope,
+                    };
                   });
                   updateDayTimeline(selectedDay.id, next);
                   setEditItem(null);

@@ -25,6 +25,24 @@ export function formatHourDropdownLabel(h) {
   return `${h - 12}:00 PM`;
 }
 
+/**
+ * How a timeline item should show its time in the UI.
+ * - `timeScope: 'point'` (from "Specific hour" add): show only that moment (internal end is still +1h for layout).
+ * - `timeScope: 'range'` or omitted: show "start – end".
+ * Transport always shows a range.
+ * @param {{ startHour?: number, endHour?: number, timeScope?: string, type?: string }} item
+ */
+export function formatTimelineTime(item) {
+  if (!item) return '—';
+  if (item.type === 'transport') {
+    return `${formatHour(item.startHour)} – ${formatHour(item.endHour)}`;
+  }
+  if (item.timeScope === 'point') {
+    return formatHour(item.startHour);
+  }
+  return `${formatHour(item.startHour)} – ${formatHour(item.endHour)}`;
+}
+
 /** Number of calendar days between start and end (inclusive). */
 export function getTotalTravelDays(startDate, endDate) {
   if (!startDate || !endDate) return 0;

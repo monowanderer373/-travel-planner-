@@ -1,4 +1,5 @@
 import { useItinerary } from '../context/ItineraryContext';
+import { formatTimelineTime } from '../utils/time';
 import './ResultArea.css';
 
 export default function ResultArea() {
@@ -19,7 +20,7 @@ export default function ResultArea() {
       '',
       ...days.map(
         (d) =>
-          `${d.label}: ${(d.timeline || []).map((t) => `${t.name} (${t.startHour}:00–${t.endHour}:00)`).join(', ')}`
+          `${d.label}: ${(d.timeline || []).map((t) => `${t.name} (${formatTimelineTime(t)})`).join(', ')}`
       ),
       '',
       `Total planned time: ${totalHours} hours`,
@@ -54,7 +55,7 @@ export default function ResultArea() {
               <ul>
                 {(day.timeline || []).map((t, i) => (
                   <li key={i}>
-                    <strong>{t.name}</strong> — {t.startHour}:00–{t.endHour}:00
+                    <strong>{t.name}</strong> — {formatTimelineTime(t)}
                     {t.notes && ` · ${t.notes}`}
                   </li>
                 ))}

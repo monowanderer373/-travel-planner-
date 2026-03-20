@@ -205,6 +205,7 @@ export default function PlaceLinkInput({
       startHour: start,
       endHour: endHour,
       duration: endHour - start,
+      timeScope: addTimeMode === 'specific' ? 'point' : 'range',
       notes: placeData.extraNote || '',
     });
     setAddModalOpen(false);

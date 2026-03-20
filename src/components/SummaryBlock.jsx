@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
-import { formatHour } from '../utils/time';
+import { formatTimelineTime } from '../utils/time';
 import './SummaryBlock.css';
 
 export default function SummaryBlock() {
@@ -40,7 +40,7 @@ export default function SummaryBlock() {
             {timeline.map((item) => (
               <li key={item.id} className={`summary-item ${item.type === 'transport' ? 'summary-item-transport' : ''}`}>
                 <span className="summary-item-time">
-                  {formatHour(item.startHour)} – {formatHour(item.endHour)}
+                  {formatTimelineTime(item)}
                 </span>
                 <span className="summary-item-name">
                   {item.type === 'transport' ? (

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
-import { formatHour, getTripStatus } from '../utils/time';
+import { formatHour, formatTimelineTime, getTripStatus } from '../utils/time';
 import './TripJournal.css';
 
 const STATUS_LABELS = {
@@ -31,7 +31,7 @@ export default function TripJournal() {
     days.forEach((day) => {
       lines.push(`\n${day.label}`);
       (day.timeline || []).forEach((item) => {
-        const time = `${formatHour(item.startHour)} – ${formatHour(item.endHour)}`;
+        const time = formatTimelineTime(item);
         const name = item.type === 'transport'
           ? `🚆 ${item.lineName || 'Transport'} (${item.durationMinutes ?? item.duration ?? '—'} min)`
           : item.name;
@@ -112,7 +112,7 @@ export default function TripJournal() {
                     {day.timeline.map((item) => (
                       <li key={item.id} className={item.type === 'transport' ? 'journal-item-transport' : ''}>
                         <span className="journal-item-time">
-                          {formatHour(item.startHour)} – {formatHour(item.endHour)}
+                          {formatTimelineTime(item)}
                         </span>
                         {item.type === 'transport' ? (
                           <span className="journal-item-name">🚆 {item.lineName || 'Transport'} ({item.durationMinutes ?? (item.duration && `${item.duration}h`)})</span>

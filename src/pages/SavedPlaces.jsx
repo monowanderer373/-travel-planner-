@@ -425,6 +425,7 @@ export default function SavedPlaces() {
       startHour: start,
       endHour: endHour,
       duration: endHour - start,
+      timeScope: addTimeMode === 'specific' ? 'point' : 'range',
       notes: addModalPlace.extraNote || '',
     });
     setAddModalOpen(false);

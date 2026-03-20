@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
-import { formatHour } from '../utils/time';
+import { formatTimelineTime } from '../utils/time';
 import DashboardCard from './DashboardCard';
 import './TodayAgendaCard.css';
 
@@ -23,7 +23,7 @@ export default function TodayAgendaCard() {
           {slice.map((item) => (
             <li key={item.id} className={`today-agenda-item ${item.type === 'transport' ? 'today-agenda-transport' : ''}`}>
               <span className="today-agenda-time">
-                {formatHour(item.startHour)} – {formatHour(item.endHour)}
+                {formatTimelineTime(item)}
               </span>
               <span className="today-agenda-name">
                 {item.type === 'transport' ? `🚆 ${item.lineName || t('transport.title')}` : item.name}
