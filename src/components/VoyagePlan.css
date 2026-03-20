@@ -1,18 +1,8 @@
 .voyage-plan {
   display: grid;
-  grid-template-columns: 140px minmax(0, 1fr) 340px;
+  grid-template-columns: 140px minmax(0, 1fr);
   gap: 1.15rem;
   align-items: start;
-}
-
-/* Medium screens: hide map, keep day rail on left */
-@media (max-width: 1100px) {
-  .voyage-plan {
-    grid-template-columns: 140px minmax(0, 1fr);
-  }
-  .voyage-plan-map {
-    display: none;
-  }
 }
 
 .voyage-plan-days {
@@ -287,6 +277,17 @@
 
 .voyage-source-badge-link {
   opacity: 0.9;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: filter 0.15s ease, box-shadow 0.15s ease;
+}
+
+.voyage-source-badge-link:hover {
+  filter: brightness(1.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .voyage-plan-card-mid {
@@ -447,101 +448,6 @@
   background: rgba(255, 179, 179, 0.18);
   color: var(--text-primary);
   transform: none;
-}
-
-.voyage-plan-map {
-  position: sticky;
-  top: 72px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-}
-
-.voyage-map-frame {
-  border-radius: 18px;
-  overflow: hidden;
-  border: 1px solid var(--border-soft);
-  background: rgba(255, 255, 255, 0.55);
-  box-shadow: var(--shadow-sm);
-  height: 260px;
-}
-
-[data-theme="voyage-dark"] .voyage-map-frame {
-  background: rgba(18, 19, 27, 0.55);
-}
-
-.voyage-map-iframe {
-  width: 100%;
-  height: 100%;
-  border: 0;
-}
-
-.voyage-map-placeholder {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-}
-
-.voyage-map-placeholder-pin {
-  font-size: 1.5rem;
-}
-
-.voyage-map-details {
-  border-radius: 18px;
-  border: 1px solid var(--border-soft);
-  background: rgba(255, 255, 255, 0.55);
-  box-shadow: var(--shadow-sm);
-  padding: 0.85rem 0.95rem;
-}
-
-[data-theme="voyage-dark"] .voyage-map-details {
-  background: rgba(18, 19, 27, 0.55);
-}
-
-.voyage-map-details-title {
-  font-weight: 900;
-  color: var(--text-primary);
-  margin-bottom: 0.35rem;
-}
-
-.voyage-map-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.18rem 0.55rem;
-  border-radius: 999px;
-  font-weight: 900;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  background: rgba(141, 125, 246, 0.10);
-  border: 1px solid rgba(141, 125, 246, 0.16);
-  margin-bottom: 0.55rem;
-}
-
-.voyage-map-details-desc {
-  font-size: 0.88rem;
-  color: var(--text-secondary);
-  margin-bottom: 0.75rem;
-}
-
-.voyage-map-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  padding: 0.55rem 0.85rem;
-  border-radius: 12px;
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-soft));
-  color: #fff;
-  font-weight: 900;
-}
-
-.voyage-map-btn:hover {
-  filter: brightness(1.05);
-  color: #fff;
 }
 
 .voyage-empty {

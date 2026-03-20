@@ -112,9 +112,6 @@ export default function VoyagePlan({ days }) {
     return { thumb, category, source, sourceKey };
   };
 
-  const mapUrl = getMapUrl(selectedItem);
-  const selectedMeta = enrich(selectedItem);
-
   const TIME_OPTS = useMemo(() => {
     const out = [];
     for (let h = 0; h <= 23.5; h += 0.5) out.push(h);
@@ -267,7 +264,21 @@ export default function VoyagePlan({ days }) {
                   >
                     <div className="voyage-plan-card-top">
                       <span className="voyage-plan-time">{time}</span>
-                      {!isTransport && <span className={`voyage-source-badge voyage-source-badge-${meta.sourceKey}`}>{meta.source}</span>}
+                      {!isTransport &&
+                        (url ? (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`voyage-source-badge voyage-source-badge-${meta.sourceKey} voyage-source-badge-link`}
+                            onClick={(e) => e.stopPropagation()}
+                            title="Open in Google Maps"
+                          >
+                            {meta.source}
+                          </a>
+                        ) : (
+                          <span className={`voyage-source-badge voyage-source-badge-${meta.sourceKey}`}>{meta.source}</span>
+                        ))}
                     </div>
                     <div className="voyage-plan-card-mid">
                       <div className="voyage-plan-thumb" aria-hidden="true">
@@ -319,40 +330,6 @@ export default function VoyagePlan({ days }) {
           </ol>
         )}
       </section>
-
-      <aside className="voyage-plan-map" aria-label="Map">
-        <div className="voyage-map-frame">
-          {mapUrl ? (
-            <iframe
-              title="Map preview"
-              src={mapUrl}
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              className="voyage-map-iframe"
-            />
-          ) : (
-            <div className="voyage-map-placeholder">
-              <div className="voyage-map-placeholder-pin">📍</div>
-              <div className="voyage-map-placeholder-text">Select an activity with a map link</div>
-            </div>
-          )}
-        </div>
-
-        <div className="voyage-map-details">
-          <div className="voyage-map-details-title">{selectedItem?.name || '—'}</div>
-          {selectedMeta?.category && <div className="voyage-map-chip">{selectedMeta.category}</div>}
-          {selectedItem?.notes ? (
-            <div className="voyage-map-details-desc">{selectedItem.notes}</div>
-          ) : (
-            <div className="voyage-map-details-desc">Pick an item to see details.</div>
-          )}
-          {mapUrl && (
-            <a className="voyage-map-btn" href={mapUrl} target="_blank" rel="noreferrer">
-              Open in Google Maps
-            </a>
-          )}
-        </div>
-      </aside>
 
       {editItem && (
         <div className="voyage-time-backdrop" onClick={() => setEditItem(null)}>
