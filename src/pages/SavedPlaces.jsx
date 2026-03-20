@@ -9,6 +9,7 @@ import PlaceCard from '../components/PlaceCard';
 import PlaceLinkInput from '../components/PlaceLinkInput';
 import VotingUI from '../components/VotingUI';
 import { resolveDayForTimelineAdd } from '../lib/itineraryPayloadCompare';
+import { getOpenInGoogleMapsUrl } from '../utils/mapsEmbed';
 import './SavedPlaces.css';
 
 const TIME_OPTIONS = [
@@ -343,7 +344,7 @@ export default function SavedPlaces() {
   };
 
   const openMap = (openUrl) => {
-    const u = String(openUrl || '').trim();
+    const u = getOpenInGoogleMapsUrl(String(openUrl || '').trim());
     if (!u) return;
     window.open(u, '_blank', 'noopener,noreferrer');
   };
@@ -593,16 +594,17 @@ export default function SavedPlaces() {
               const src = getSource(place);
               const votes = Number(place.votes || 0);
               const openUrl = place.mapUrl || place.embedUrl || '';
+              const openMapsUrl = getOpenInGoogleMapsUrl(openUrl);
               const compact = !cover && src.key === 'maps';
               return (
                 <article key={place.id} className={`voyage-card ${compact ? 'voyage-card-compact' : ''}`} role="listitem">
                   {!compact && (
                     <div className="voyage-card-media" style={cover ? { backgroundImage: `url(${cover})` } : undefined}>
                       {!cover && <div className="voyage-card-media-fallback">{title.charAt(0).toUpperCase()}</div>}
-                      {openUrl && src.key === 'maps' ? (
+                      {openUrl && openMapsUrl && src.key === 'maps' ? (
                         <a
                           className={`voyage-badge voyage-badge-${src.key} voyage-badge-link`}
-                          href={openUrl}
+                          href={openMapsUrl}
                           target="_blank"
                           rel="noreferrer"
                           onClick={(e) => {
@@ -658,7 +660,7 @@ export default function SavedPlaces() {
                             {title}
                           </button>
                         )}
-                        {openUrl && src.key === 'maps' && (
+                        {openUrl && openMapsUrl && src.key === 'maps' && (
                           <button type="button" className="voyage-open-mini" onClick={() => openMap(openUrl)}>
                             {src.label}
                           </button>

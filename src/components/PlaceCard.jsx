@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getDisplayEmbedUrl } from '../utils/mapsEmbed';
+import { getDisplayEmbedUrl, getOpenInGoogleMapsUrl } from '../utils/mapsEmbed';
 import { useLanguage } from '../context/LanguageContext';
 import './PlaceCard.css';
 
@@ -8,7 +8,8 @@ export default function PlaceCard({ place, onAddToDay, onAddToSaved, savedFeedba
   const { t } = useLanguage();
   const [expanded, setExpanded] = useState(false);
   const displayEmbedUrl = place.embedUrl ? getDisplayEmbedUrl(place.embedUrl) : null;
-  const openUrl = place.mapUrl || displayEmbedUrl;
+  const rawOpen = (place.mapUrl || place.embedUrl || '').trim();
+  const openInMapsUrl = getOpenInGoogleMapsUrl(rawOpen || displayEmbedUrl || '');
 
   return (
     <article className="place-card">
@@ -22,14 +23,16 @@ export default function PlaceCard({ place, onAddToDay, onAddToSaved, savedFeedba
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
           />
-          <a
-            href={openUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="place-card-embed-open"
-          >
-            {t('place.openMapNewTab')}
-          </a>
+          {openInMapsUrl ? (
+            <a
+              href={openInMapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="place-card-embed-open"
+            >
+              {t('place.openMapNewTab')}
+            </a>
+          ) : null}
         </div>
       )}
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
 import { formatHour } from '../utils/time';
+import { getOpenInGoogleMapsUrl } from '../utils/mapsEmbed';
 import './VoyagePlan.css';
 
 function byStart(a, b) {
@@ -235,6 +236,7 @@ export default function VoyagePlan({ days }) {
               const time = `${formatHour(item.startHour)} – ${formatHour(item.endHour)}`;
               const title = isTransport ? `🚆 ${item.lineName || item.name}` : item.name;
               const url = getMapUrl(item);
+              const openMapsUrl = getOpenInGoogleMapsUrl(url);
               const meta = enrich(item);
               return (
                 <li
@@ -265,9 +267,9 @@ export default function VoyagePlan({ days }) {
                     <div className="voyage-plan-card-top">
                       <span className="voyage-plan-time">{time}</span>
                       {!isTransport &&
-                        (url ? (
+                        (openMapsUrl ? (
                           <a
-                            href={url}
+                            href={openMapsUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className={`voyage-source-badge voyage-source-badge-${meta.sourceKey} voyage-source-badge-link`}

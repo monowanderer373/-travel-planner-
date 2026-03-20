@@ -115,6 +115,44 @@ export function getDisplayEmbedUrl(embedUrl) {
   return normalizeToEmbedUrl(embedUrl) || embedUrl;
 }
 
+/**
+ * URL safe to open in a new tab / window (not iframe-only embed).
+ * Embed URLs (maps/embed, output=embed) cause: "The Google Maps Embed API must be used in an iframe."
+ */
+export function getOpenInGoogleMapsUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  const raw = url.trim();
+  if (!raw.startsWith('http')) return raw;
+
+  // Short links resolve in the browser — OK for top-level navigation
+  if (/maps\.app\.goo\.gl|goo\.gl\/maps|g\.co\/maps/i.test(raw)) return raw;
+
+  try {
+    const u = new URL(raw);
+
+    // iframe embed path — rebuild as a normal Maps search / view URL
+    if (u.hostname.includes('google.') && u.pathname.includes('/maps/embed')) {
+      const q = u.searchParams.get('q');
+      if (q && q.trim()) {
+        return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q.trim())}`;
+      }
+      const pb = u.searchParams.get('pb');
+      if (pb) return `https://www.google.com/maps?pb=${encodeURIComponent(pb)}`;
+      return 'https://www.google.com/maps/';
+    }
+
+    // e.g. .../maps?q=...&output=embed — strip embed mode for top-level navigation
+    if (u.hostname.includes('google.') && u.pathname.includes('maps')) {
+      if (u.searchParams.get('output') === 'embed') u.searchParams.delete('output');
+      return u.toString();
+    }
+
+    return raw;
+  } catch {
+    return raw;
+  }
+}
+
 /** Share / open-in-app URL (not necessarily embed). */
 export function extractSourceUrl(input) {
   if (!input || typeof input !== 'string') return null;
