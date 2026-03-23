@@ -145,6 +145,14 @@
   max-width: 280px;
 }
 
+.payment-cards-collapsed-hint {
+  margin-top: 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  background: var(--pastel-lavender);
+  border: 1px dashed var(--border-accent);
+}
+
 /* ══════════════════════ TRAVELLER PAYMENT DETAILS ══════════════════════ */
 .payment-details-hint {
   margin-bottom: 0.5rem;
@@ -2020,7 +2028,17 @@ button.settlement-person-btn {
 }
 
 .settlement-os-contra-pill {
-  background: var(--pastel-mint);
+  background: rgba(140, 230, 235, 0.38);
+  border: 1px solid rgba(90, 200, 210, 0.45);
+}
+
+.settlement-os-contra-pill strong {
+  color: #1a8a96;
+  font-weight: 700;
+}
+
+.settlement-os-contra-pill .settlement-os-cur-code {
+  color: #2a7d88;
 }
 
 .settlement-os-net-block {
@@ -2066,7 +2084,8 @@ button.settlement-person-btn {
 .settlement-os-net-math {
   display: block;
   font-size: 0.78rem;
-  color: var(--text-muted);
+  color: #3a9daa;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   margin-bottom: 0.25rem;
 }
@@ -2081,7 +2100,7 @@ button.settlement-person-btn {
 
 .settlement-os-net-amt {
   font-size: 1.05rem;
-  color: var(--accent-primary);
+  font-weight: 700;
 }
 
 .settlement-os-net-desc {
@@ -2096,12 +2115,13 @@ button.settlement-person-btn {
   font-weight: 600;
 }
 
+/* Net signed: debtor owes payer after contra → positive → cyan; payer owes debtor → negative side → red */
 .settlement-os-net-debtor_pays .settlement-os-net-amt {
-  color: #c44;
+  color: #1a9aaa;
 }
 
 .settlement-os-net-payer_pays .settlement-os-net-amt {
-  color: #2a8f5a;
+  color: #c43d3d;
 }
 
 .settlement-os-bulk-bar-inner {

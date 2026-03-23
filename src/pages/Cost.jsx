@@ -73,7 +73,7 @@ function PaymentReadonlyCard({ pay, travellerName, t }) {
 }
 
 // ─── People Manager ───────────────────────────────────────────
-function PeopleManager({ onAvatarScrollToPayment }) {
+function PeopleManager({ onAvatarScrollToPayment, showPaymentCardsHiddenHint }) {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -281,6 +281,9 @@ function PeopleManager({ onAvatarScrollToPayment }) {
         <button type="submit" className="primary">{t('cost.add')}</button>
         </form>
       )}
+      {showPaymentCardsHiddenHint ? (
+        <p className="cost-hint payment-cards-collapsed-hint">{t('cost.paymentCardsCollapsedHint')}</p>
+      ) : null}
     </section>
   );
 }
@@ -342,7 +345,7 @@ function TravellerPaymentQrUpload({ personId, pay, canEdit, updatePersonPayment 
 }
 
 // ─── Traveller Payment Details (QR + bank for others to pay) ───
-function TravellerPaymentDetails({ highlightPersonId }) {
+function TravellerPaymentDetails({ highlightPersonId, expandedPaymentPersonId, onPaymentCardSaved }) {
   const { t } = useLanguage();
   const {
     people,
@@ -351,8 +354,6 @@ function TravellerPaymentDetails({ highlightPersonId }) {
     canEditPersonPaymentFor,
     getTravellerAvatarUrlForPersonId,
   } = useCost();
-
-  if (people.length === 0) return null;
 
   const defaultPayment = () => ({
     qrCode: null,
@@ -363,6 +364,16 @@ function TravellerPaymentDetails({ highlightPersonId }) {
     saved: false,
     savedAt: null,
   });
+
+  const visiblePeople = useMemo(() => {
+    return people.filter((p) => {
+      if (!p.paymentInfo?.saved) return true;
+      return expandedPaymentPersonId === p.id;
+    });
+  }, [people, expandedPaymentPersonId]);
+
+  if (people.length === 0) return null;
+  if (visiblePeople.length === 0) return null;
 
   return (
     <section id="section-traveller-payment-details" className="section cost-section">
@@ -377,7 +388,7 @@ function TravellerPaymentDetails({ highlightPersonId }) {
         <p className="cost-hint">{t('cost.readOnlyHint')}</p>
       )}
       <div className="traveller-payment-grid">
-        {people.map((p) => {
+        {visiblePeople.map((p) => {
           const pay = p.paymentInfo || defaultPayment();
           const canEditThis = canEditPersonPaymentFor(p.id);
           const canSave = !!(pay.qrCode || pay.bankName || pay.accountHolder || pay.accountNumber || pay.notes);
@@ -403,13 +414,14 @@ function TravellerPaymentDetails({ highlightPersonId }) {
                     type="button"
                     className="traveller-payment-save"
                     disabled={!canEditCost || !canSave}
-                    onClick={() =>
+                    onClick={() => {
                       updatePersonPayment(p.id, {
                         ...(p.paymentInfo || defaultPayment()),
                         saved: true,
                         savedAt: new Date().toISOString(),
-                      })
-                    }
+                      });
+                      onPaymentCardSaved?.(p.id);
+                    }}
                   >
                     {t('cost.savePayment')}
                   </button>
@@ -3035,7 +3047,37 @@ function SettlementSummary() {
 // ─── Main Page ────────────────────────────────────────────────
 export default function Cost() {
   const { t } = useLanguage();
+  const { people } = useCost();
   const [paymentHighlightId, setPaymentHighlightId] = useState(null);
+  const [expandedPaymentPersonId, setExpandedPaymentPersonId] = useState(null);
+  const expandedPaymentRef = useRef(null);
+
+  useEffect(() => {
+    expandedPaymentRef.current = expandedPaymentPersonId;
+  }, [expandedPaymentPersonId]);
+
+  const allPaymentSaved = useMemo(
+    () => people.length > 0 && people.every((p) => p.paymentInfo?.saved === true),
+    [people]
+  );
+
+  const showPaymentCardsHiddenHint =
+    people.length > 0 && allPaymentSaved && expandedPaymentPersonId == null;
+
+  const handleTravellerAvatarPayment = useCallback((personId) => {
+    const isToggleClose = expandedPaymentRef.current === personId;
+    if (isToggleClose) {
+      setExpandedPaymentPersonId(null);
+      setPaymentHighlightId(null);
+    } else {
+      setExpandedPaymentPersonId(personId);
+      setPaymentHighlightId(personId);
+    }
+  }, []);
+
+  const handlePaymentCardSaved = useCallback((personId) => {
+    setExpandedPaymentPersonId((prev) => (prev === personId ? null : prev));
+  }, []);
 
   useEffect(() => {
     if (!paymentHighlightId) return undefined;
@@ -3051,8 +3093,15 @@ export default function Cost() {
         <h1>{t('cost.splitter')}</h1>
         <p className="page-intro-inline">{t('cost.intro')}</p>
       </header>
-      <PeopleManager onAvatarScrollToPayment={(id) => setPaymentHighlightId(id)} />
-      <TravellerPaymentDetails highlightPersonId={paymentHighlightId} />
+      <PeopleManager
+        onAvatarScrollToPayment={handleTravellerAvatarPayment}
+        showPaymentCardsHiddenHint={showPaymentCardsHiddenHint}
+      />
+      <TravellerPaymentDetails
+        highlightPersonId={paymentHighlightId}
+        expandedPaymentPersonId={expandedPaymentPersonId}
+        onPaymentCardSaved={handlePaymentCardSaved}
+      />
       <AddExpenseForm />
       <DayExpenseView />
       <SettlementSummary />

@@ -348,7 +348,9 @@ export const translations = {
     'cost.paymentHint':
       'Add your QR code or bank account so others can pay you back. Uploaded images are saved in the shared trip data so everyone on the link can see them.',
     'cost.paymentDetailsNavHint':
-      'Tip: Click the circle avatar next to a traveller above to scroll to their payment card below.',
+      'Tip: Click the circle avatar next to a traveller above to scroll to their payment card. After someone has saved, their card stays hidden until you click their avatar again (click again to close).',
+    'cost.paymentCardsCollapsedHint':
+      'All travellers have saved payment details — this section is hidden. Click an avatar above to show someone’s card (to edit yours or view another person’s QR / bank info).',
     'cost.paymentDetailsPermissionHint':
       'You can only edit the payment card linked to your account. Other people’s cards are read-only (for paying them back). The trip organiser can edit cards for travellers who are not linked to a login yet.',
     'cost.jumpToPaymentCard': 'Scroll to payment card below',
@@ -845,7 +847,10 @@ export const translations = {
     'cost.travellerPaymentDetails': '成员收款信息',
     'cost.paymentHint':
       '添加收款二维码或银行账户，方便他人还款。上传的图片会写入共享行程数据，通过链接加入的同行人都能看到。',
-    'cost.paymentDetailsNavHint': '提示：点击上方旅客左侧圆形头像，可跳转到下方对应的收款信息卡片。',
+    'cost.paymentDetailsNavHint':
+      '提示：点击上方旅客左侧圆形头像，可跳转到下方对应收款卡片。对方已保存后卡片会收起，需再点头像才会展开（再点一次可关闭）。',
+    'cost.paymentCardsCollapsedHint':
+      '所有旅客都已保存收款信息，本区块已收起。点击上方头像可展开某人的卡片（编辑自己的或查看他人的收款码/银行信息）。',
     'cost.paymentDetailsPermissionHint':
       '你只能编辑与自己登录账号对应的那张收款卡片；其他人的卡片为只读（方便你给对方转账）。尚未绑定账号的旅客，可由行程创建者代为填写。',
     'cost.jumpToPaymentCard': '跳转到下方收款卡片',
