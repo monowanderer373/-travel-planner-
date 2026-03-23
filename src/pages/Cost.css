@@ -1259,6 +1259,170 @@
   font-size: 0.88rem;
 }
 
+button.settlement-person-btn {
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: box-shadow 0.2s, transform 0.15s;
+}
+
+.settlement-person-btn:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.settlement-person-btn:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* Traveler settlement detail modal */
+.settlement-detail-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: settlement-backdrop-in 0.2s ease;
+}
+
+@keyframes settlement-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.settlement-detail-modal {
+  background: var(--bg-card);
+  border-radius: 16px;
+  max-width: 520px;
+  width: 100%;
+  max-height: min(85vh, 680px);
+  overflow: auto;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-soft);
+}
+
+.settlement-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid var(--border-soft);
+  position: sticky;
+  top: 0;
+  background: var(--bg-card);
+  z-index: 1;
+}
+
+.settlement-detail-head h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.35;
+  color: var(--text-primary);
+}
+
+.settlement-detail-close {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 10px;
+  background: var(--pastel-lavender);
+  color: var(--text-primary);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settlement-detail-close:hover {
+  filter: brightness(0.95);
+}
+
+.settlement-detail-body {
+  padding: 1rem 1.1rem 1.25rem;
+}
+
+.settlement-detail-section-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.settlement-detail-section-spaced {
+  margin-top: 1.25rem;
+}
+
+.settlement-detail-lead {
+  margin: 0 0 0.45rem 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.settlement-detail-empty {
+  margin: 0 0 1rem 0;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+.settlement-detail-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.75rem;
+}
+
+.settlement-detail-total-pill {
+  background: var(--pastel-blush);
+  padding: 0.35rem 0.65rem;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  color: #a05050;
+}
+
+.settlement-detail-total-pill-credit {
+  background: #edf7f2;
+  color: #2d7a4d;
+}
+
+.settlement-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+}
+
+.settlement-detail-table th,
+.settlement-detail-table td {
+  padding: 0.45rem 0.35rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.settlement-detail-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.settlement-detail-th-amount,
+.settlement-detail-amount {
+  text-align: right;
+  white-space: nowrap;
+}
+
 .person-avatar-sm {
   width: 26px;
   height: 26px;

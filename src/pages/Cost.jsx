@@ -1211,7 +1211,7 @@ function SplitRepayRow({ exp, splitIndex }) {
 function ExpenseCard({ exp }) {
   const { t } = useLanguage();
   const { removeExpense, people, CURRENCIES, canEditCost } = useCost();
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   const payer = people.find((p) => p.id === exp.payerId);
   const paidSym = CURRENCIES.find((c) => c.code === exp.paidCurrency)?.symbol || '';
@@ -1456,33 +1456,105 @@ function DayExpenseView() {
 function SettlementSummary() {
   const { t } = useLanguage();
   const { people, expenses, getSettlements, getRepaidSummary, CURRENCIES } = useCost();
+  const [detailPersonId, setDetailPersonId] = useState(null);
+
+  const getName = useCallback((id) => people.find((p) => p.id === id)?.name || '?', [people]);
+  const getSymbol = useCallback((code) => CURRENCIES.find((c) => c.code === code)?.symbol || '', [CURRENCIES]);
+
+  const debtorBreakdown = useMemo(() => {
+    if (!detailPersonId) return null;
+    const lines = [];
+    const totals = {};
+    for (const e of expenses) {
+      (e.splits || []).forEach((s) => {
+        if (s.personId !== detailPersonId || s.personId === e.payerId || s.repaid) return;
+        const cur = s.repayCurrency || e.paidCurrency;
+        const amt = Number(s.convertedAmount ?? s.amount) || 0;
+        if (amt <= 0.0001) return;
+        totals[cur] = (totals[cur] || 0) + amt;
+        lines.push({
+          expenseId: e.id,
+          description: (e.description || '').trim() || t('cost.untitledExpense'),
+          creditorName: getName(e.payerId),
+          currency: cur,
+          amount: amt,
+        });
+      });
+    }
+    return { lines, totals };
+  }, [detailPersonId, expenses, getName, t]);
+
+  const creditorBreakdown = useMemo(() => {
+    if (!detailPersonId) return null;
+    const lines = [];
+    const totals = {};
+    for (const e of expenses) {
+      if (e.payerId !== detailPersonId) continue;
+      (e.splits || []).forEach((s) => {
+        if (s.personId === e.payerId || s.repaid) return;
+        const cur = s.repayCurrency || e.paidCurrency;
+        const amt = Number(s.convertedAmount ?? s.amount) || 0;
+        if (amt <= 0.0001) return;
+        totals[cur] = (totals[cur] || 0) + amt;
+        lines.push({
+          expenseId: e.id,
+          description: (e.description || '').trim() || t('cost.untitledExpense'),
+          debtorName: getName(s.personId),
+          currency: cur,
+          amount: amt,
+        });
+      });
+    }
+    return { lines, totals };
+  }, [detailPersonId, expenses, getName, t]);
+
+  useEffect(() => {
+    if (!detailPersonId) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setDetailPersonId(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [detailPersonId]);
 
   if (expenses.length === 0 || people.length === 0) return null;
 
   const outstanding = getSettlements();
   const repaid = getRepaidSummary();
-  const getName = (id) => people.find((p) => p.id === id)?.name || '?';
-  const getSymbol = (code) => CURRENCIES.find((c) => c.code === code)?.symbol || '';
 
   const totals = {};
-  people.forEach((p) => { totals[p.id] = 0; });
-  expenses.forEach((e) => { if (totals[e.payerId] !== undefined) totals[e.payerId] += e.amount; });
+  people.forEach((p) => {
+    totals[p.id] = 0;
+  });
+  expenses.forEach((e) => {
+    if (totals[e.payerId] !== undefined) totals[e.payerId] += e.amount;
+  });
 
   const paidCur = expenses[0]?.paidCurrency || '';
   const paidSym = getSymbol(paidCur);
+
+  const detailPerson = detailPersonId ? people.find((p) => p.id === detailPersonId) : null;
 
   return (
     <section className="section cost-section">
       <h2 className="section-title">{t('cost.settlementSummary')}</h2>
 
-      {/* Who paid how much */}
+      {/* Who paid how much — click traveler for breakdown */}
       <div className="settlement-totals">
         {people.map((p) => (
-          <div key={p.id} className="settlement-person">
+          <button
+            key={p.id}
+            type="button"
+            className="settlement-person settlement-person-btn"
+            onClick={() => setDetailPersonId(p.id)}
+          >
             <span className="person-avatar-sm">{p.name.charAt(0).toUpperCase()}</span>
             <span className="settlement-name">{p.name}</span>
-            <span className="settlement-paid">{paidSym}{(totals[p.id] || 0).toLocaleString()} {paidCur}</span>
-          </div>
+            <span className="settlement-paid">
+              {paidSym}
+              {(totals[p.id] || 0).toLocaleString()} {paidCur}
+            </span>
+          </button>
         ))}
       </div>
 
@@ -1499,7 +1571,8 @@ function SettlementSummary() {
                 <span className="settle-arrow">{t('cost.owes')}</span>
                 <span className="settle-creditor">{getName(s.creditorId)}</span>
                 <span className="settle-amount">
-                  {getSymbol(s.currency)}{s.amount.toFixed(2)}
+                  {getSymbol(s.currency)}
+                  {s.amount.toFixed(2)}
                   <span className="settle-currency"> {s.currency}</span>
                 </span>
               </div>
@@ -1519,10 +1592,13 @@ function SettlementSummary() {
                 <span className="settle-arrow">{t('cost.repaidShort')}</span>
                 <span className="settle-creditor">{getName(r.creditorId)}</span>
                 <span className="settle-amount done">
-                  {getSymbol(r.currency)}{r.amount.toFixed(2)}
+                  {getSymbol(r.currency)}
+                  {r.amount.toFixed(2)}
                   <span className="settle-currency"> {r.currency}</span>
                 </span>
-                <span className="repaid-date-summary">{t('cost.onDate')} {r.repaidDate}</span>
+                <span className="repaid-date-summary">
+                  {t('cost.onDate')} {r.repaidDate}
+                </span>
                 {r.repaidAttachment && (
                   <a href={r.repaidAttachment.url} target="_blank" rel="noreferrer" className="attach-link-sm">
                     📎 {r.repaidAttachment.name}
@@ -1530,6 +1606,115 @@ function SettlementSummary() {
                 )}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {detailPerson && debtorBreakdown && creditorBreakdown && (
+        <div
+          className="settlement-detail-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settlement-detail-title"
+          onClick={() => setDetailPersonId(null)}
+        >
+          <div className="settlement-detail-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="settlement-detail-head">
+              <h3 id="settlement-detail-title">
+                {t('cost.travelerSettlementTitle', { name: detailPerson.name })}
+              </h3>
+              <button
+                type="button"
+                className="settlement-detail-close"
+                onClick={() => setDetailPersonId(null)}
+                aria-label={t('cost.closeSettlementDetail')}
+              >
+                ×
+              </button>
+            </div>
+            <div className="settlement-detail-body">
+              <h4 className="settlement-detail-section-title">{t('cost.settlementYouOwe')}</h4>
+              {Object.keys(debtorBreakdown.totals).length === 0 ? (
+                <p className="settlement-detail-empty">{t('cost.settlementNoDebtorLines')}</p>
+              ) : (
+                <>
+                  <p className="settlement-detail-lead">{t('cost.totalYouOwe')}</p>
+                  <div className="settlement-detail-totals">
+                    {Object.entries(debtorBreakdown.totals).map(([cur, amt]) => (
+                      <div key={cur} className="settlement-detail-total-pill">
+                        <strong>
+                          {getSymbol(cur)}
+                          {amt.toFixed(2)} {cur}
+                        </strong>
+                      </div>
+                    ))}
+                  </div>
+                  <table className="settlement-detail-table">
+                    <thead>
+                      <tr>
+                        <th>{t('cost.expenseCol')}</th>
+                        <th>{t('cost.repayTo')}</th>
+                        <th className="settlement-detail-th-amount">{t('cost.amountCol')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {debtorBreakdown.lines.map((row, idx) => (
+                        <tr key={`d-${row.expenseId}-${idx}`}>
+                          <td>{row.description}</td>
+                          <td>{row.creditorName}</td>
+                          <td className="settlement-detail-amount">
+                            {getSymbol(row.currency)}
+                            {row.amount.toFixed(2)} {row.currency}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
+
+              <h4 className="settlement-detail-section-title settlement-detail-section-spaced">
+                {t('cost.settlementOthersOweYou')}
+              </h4>
+              {Object.keys(creditorBreakdown.totals).length === 0 ? (
+                <p className="settlement-detail-empty">{t('cost.settlementNoCreditorLines')}</p>
+              ) : (
+                <>
+                  <p className="settlement-detail-lead">{t('cost.totalOwedToYou')}</p>
+                  <div className="settlement-detail-totals">
+                    {Object.entries(creditorBreakdown.totals).map(([cur, amt]) => (
+                      <div key={cur} className="settlement-detail-total-pill settlement-detail-total-pill-credit">
+                        <strong>
+                          {getSymbol(cur)}
+                          {amt.toFixed(2)} {cur}
+                        </strong>
+                      </div>
+                    ))}
+                  </div>
+                  <table className="settlement-detail-table">
+                    <thead>
+                      <tr>
+                        <th>{t('cost.expenseCol')}</th>
+                        <th>{t('cost.owedBy')}</th>
+                        <th className="settlement-detail-th-amount">{t('cost.amountCol')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {creditorBreakdown.lines.map((row, idx) => (
+                        <tr key={`c-${row.expenseId}-${idx}`}>
+                          <td>{row.description}</td>
+                          <td>{row.debtorName}</td>
+                          <td className="settlement-detail-amount">
+                            {getSymbol(row.currency)}
+                            {row.amount.toFixed(2)} {row.currency}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
