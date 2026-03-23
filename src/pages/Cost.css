@@ -1277,6 +1277,303 @@ button.settlement-person-btn {
   outline-offset: 2px;
 }
 
+/* ─── Outstanding: expense table (desktop) + cards (mobile) ─── */
+.settlement-outstanding-block {
+  border-radius: 16px;
+  border: 1px solid var(--border-soft);
+  background: linear-gradient(165deg, var(--pastel-sand) 0%, var(--bg-card) 48%);
+  box-shadow: var(--shadow-sm);
+  padding: 0.85rem 0.9rem 1rem;
+  overflow: hidden;
+}
+
+.settlement-outstanding-head {
+  margin-bottom: 0.65rem;
+}
+
+.settlement-outstanding-head .settlement-subtitle {
+  margin-bottom: 0.35rem;
+}
+
+.settlement-outstanding-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+  max-width: 52rem;
+}
+
+.settlement-scroll-hint {
+  display: none;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 0 0 0.5rem 0;
+  opacity: 0.9;
+}
+
+@media (min-width: 640px) and (max-width: 900px) {
+  .settlement-scroll-hint {
+    display: block;
+  }
+}
+
+.settlement-outstanding-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -0.15rem;
+  padding-bottom: 0.15rem;
+  border-radius: 12px;
+}
+
+.settlement-outstanding-scroll:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.settlement-outstanding-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.88rem;
+}
+
+.settlement-outstanding-table thead tr {
+  background: linear-gradient(180deg, rgba(120, 90, 180, 0.12) 0%, rgba(120, 90, 180, 0.06) 100%);
+}
+
+.settlement-outstanding-table th {
+  padding: 0.65rem 0.5rem;
+  text-align: left;
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  border-bottom: 2px solid var(--border-soft);
+  white-space: nowrap;
+}
+
+.settlement-outstanding-table td {
+  padding: 0.7rem 0.5rem;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-card);
+}
+
+.settlement-outstanding-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.settlement-outstanding-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.settlement-os-col-item {
+  min-width: 9.5rem;
+  max-width: 14rem;
+}
+
+.settlement-os-col-payer {
+  min-width: 5.5rem;
+  white-space: nowrap;
+}
+
+.settlement-os-col-num,
+.settlement-os-col-out {
+  min-width: 7rem;
+}
+
+.settlement-os-item-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.settlement-os-cat {
+  font-size: 1.05rem;
+  line-height: 1.2;
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+}
+
+.settlement-os-item-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+
+.settlement-os-item-date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+.settlement-os-payer-name {
+  font-weight: 500;
+}
+
+.settlement-os-money {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.settlement-os-money-paid {
+  color: var(--text-primary);
+}
+
+.settlement-os-money-out {
+  color: #b05050;
+}
+
+.settlement-os-cur-code {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-left: 0.15rem;
+}
+
+.settlement-os-col-num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.settlement-os-out-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.settlement-os-out-line {
+  white-space: nowrap;
+}
+
+.settlement-os-who {
+  margin-top: 0.35rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed var(--border-soft);
+  width: 100%;
+  text-align: left;
+  align-self: stretch;
+}
+
+.settlement-os-who-label {
+  display: block;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 0.2rem;
+}
+
+.settlement-os-who-list {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.settlement-os-who-amt {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+/* Mobile: stacked cards */
+.settlement-os-mobile-cards {
+  display: none;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.settlement-os-card {
+  border-radius: 14px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-card);
+  padding: 0.85rem 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.settlement-os-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.settlement-os-card-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+
+.settlement-os-card-date {
+  margin: 0.2rem 0 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.settlement-os-card-dl {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.settlement-os-card-dl > div {
+  display: grid;
+  grid-template-columns: minmax(5rem, 38%) 1fr;
+  gap: 0.35rem 0.75rem;
+  align-items: start;
+}
+
+.settlement-os-card-dl dt {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.settlement-os-card-dl dd {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.settlement-os-card-out dd {
+  text-align: right;
+}
+
+.settlement-os-card-who .settlement-os-who-list {
+  padding-left: 1.1rem;
+}
+
+@media (max-width: 639px) {
+  .settlement-outstanding-scroll {
+    display: none;
+  }
+
+  .settlement-os-mobile-cards {
+    display: flex;
+  }
+
+  .settlement-scroll-hint {
+    display: none;
+  }
+}
+
 /* Traveler settlement detail modal */
 .settlement-detail-backdrop {
   position: fixed;

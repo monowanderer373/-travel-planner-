@@ -1455,7 +1455,7 @@ function DayExpenseView() {
 // ─── Settlement Summary ───────────────────────────────────────
 function SettlementSummary() {
   const { t } = useLanguage();
-  const { people, expenses, getSettlements, getRepaidSummary, CURRENCIES } = useCost();
+  const { people, expenses, getRepaidSummary, CURRENCIES } = useCost();
   const [detailPersonId, setDetailPersonId] = useState(null);
 
   const getName = useCallback((id) => people.find((p) => p.id === id)?.name || '?', [people]);
@@ -1508,6 +1508,36 @@ function SettlementSummary() {
     return { lines, totals };
   }, [detailPersonId, expenses, getName, t]);
 
+  /** Per-expense rows for Outstanding table (unpaid splits only). */
+  const outstandingExpenseRows = useMemo(() => {
+    const rows = [];
+    for (const e of expenses) {
+      const unpaid = (e.splits || []).filter((s) => s.personId !== e.payerId && !s.repaid);
+      const byCur = {};
+      const whoOwes = [];
+      unpaid.forEach((s) => {
+        const cur = s.repayCurrency || e.paidCurrency;
+        const amt = Number(s.convertedAmount ?? s.amount) || 0;
+        if (amt <= 0.0001) return;
+        byCur[cur] = (byCur[cur] || 0) + amt;
+        whoOwes.push({ name: getName(s.personId), amount: amt, currency: cur });
+      });
+      if (Object.keys(byCur).length === 0) continue;
+      rows.push({
+        id: e.id,
+        description: (e.description || '').trim() || t('cost.untitledExpense'),
+        category: e.category || '',
+        date: e.date || '',
+        payerName: getName(e.payerId),
+        paidAmount: e.amount,
+        paidCurrency: e.paidCurrency,
+        outstandingByCurrency: byCur,
+        whoOwes,
+      });
+    }
+    return rows;
+  }, [expenses, getName, t]);
+
   useEffect(() => {
     if (!detailPersonId) return;
     const onKey = (e) => {
@@ -1519,7 +1549,6 @@ function SettlementSummary() {
 
   if (expenses.length === 0 || people.length === 0) return null;
 
-  const outstanding = getSettlements();
   const repaid = getRepaidSummary();
 
   const totals = {};
@@ -1558,25 +1587,176 @@ function SettlementSummary() {
         ))}
       </div>
 
-      {/* Outstanding */}
-      {outstanding.length === 0 ? (
+      {/* Outstanding — per-expense table + mobile cards */}
+      {outstandingExpenseRows.length === 0 ? (
         <p className="cost-hint settlement-ok">✅ {t('cost.allSettledUp')}</p>
       ) : (
-        <div className="settlement-block">
-          <h3 className="settlement-subtitle">⏳ {t('cost.outstanding')}</h3>
-          <div className="settlement-list">
-            {outstanding.map((s, i) => (
-              <div key={i} className="settlement-row animate-in">
-                <span className="settle-debtor">{getName(s.debtorId)}</span>
-                <span className="settle-arrow">{t('cost.owes')}</span>
-                <span className="settle-creditor">{getName(s.creditorId)}</span>
-                <span className="settle-amount">
-                  {getSymbol(s.currency)}
-                  {s.amount.toFixed(2)}
-                  <span className="settle-currency"> {s.currency}</span>
-                </span>
-              </div>
-            ))}
+        <div className="settlement-block settlement-outstanding-block">
+          <div className="settlement-outstanding-head">
+            <h3 className="settlement-subtitle">⏳ {t('cost.outstanding')}</h3>
+            <p className="settlement-outstanding-hint">{t('cost.outstandingTableHint')}</p>
+          </div>
+
+          <p className="settlement-scroll-hint" aria-hidden>
+            {t('cost.scrollTableHint')}
+          </p>
+
+          <div
+            className="settlement-outstanding-scroll"
+            tabIndex={0}
+            role="region"
+            aria-label={t('cost.outstanding')}
+          >
+            <table className="settlement-outstanding-table">
+              <thead>
+                <tr>
+                  <th scope="col" className="settlement-os-col-item">
+                    {t('cost.colItem')}
+                  </th>
+                  <th scope="col" className="settlement-os-col-payer">
+                    {t('cost.colPayer')}
+                  </th>
+                  <th scope="col" className="settlement-os-col-num">
+                    {t('cost.colPaidAmount')}
+                  </th>
+                  <th scope="col" className="settlement-os-col-out">
+                    {t('cost.colOutstandingRepay')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {outstandingExpenseRows.map((row) => {
+                  const catIcon = EXPENSE_CATEGORIES.find((c) => c.id === row.category)?.icon;
+                  return (
+                    <tr key={row.id}>
+                      <td className="settlement-os-col-item">
+                        <div className="settlement-os-item-cell">
+                          {catIcon && (
+                            <span className="settlement-os-cat" title={row.category} aria-hidden>
+                              {catIcon}
+                            </span>
+                          )}
+                          <div>
+                            <div className="settlement-os-item-title">{row.description}</div>
+                            {row.date && (
+                              <div className="settlement-os-item-date">{row.date}</div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="settlement-os-col-payer">
+                        <span className="settlement-os-payer-name">{row.payerName}</span>
+                      </td>
+                      <td className="settlement-os-col-num">
+                        <span className="settlement-os-money settlement-os-money-paid">
+                          {getSymbol(row.paidCurrency)}
+                          {Number(row.paidAmount).toLocaleString(undefined, {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>
+                        <span className="settlement-os-cur-code">{row.paidCurrency}</span>
+                      </td>
+                      <td className="settlement-os-col-out">
+                        <div className="settlement-os-out-stack">
+                          {Object.entries(row.outstandingByCurrency).map(([cur, amt]) => (
+                            <div key={cur} className="settlement-os-out-line">
+                              <span className="settlement-os-money settlement-os-money-out">
+                                {getSymbol(cur)}
+                                {amt.toFixed(2)}
+                              </span>
+                              <span className="settlement-os-cur-code">{cur}</span>
+                            </div>
+                          ))}
+                          <div className="settlement-os-who">
+                            <span className="settlement-os-who-label">{t('cost.outstandingWhoBreakdown')}</span>
+                            <ul className="settlement-os-who-list">
+                              {row.whoOwes.map((w, wi) => (
+                                <li key={`${row.id}-who-${wi}`}>
+                                  <strong>{w.name}</strong>
+                                  <span className="settlement-os-who-amt">
+                                    {' '}
+                                    {getSymbol(w.currency)}
+                                    {w.amount.toFixed(2)} {w.currency}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="settlement-os-mobile-cards">
+            {outstandingExpenseRows.map((row) => {
+              const catIcon = EXPENSE_CATEGORIES.find((c) => c.id === row.category)?.icon;
+              return (
+                <article key={`m-${row.id}`} className="settlement-os-card">
+                  <div className="settlement-os-card-head">
+                    {catIcon && <span className="settlement-os-cat">{catIcon}</span>}
+                    <div>
+                      <h4 className="settlement-os-card-title">{row.description}</h4>
+                      {row.date && <p className="settlement-os-card-date">{row.date}</p>}
+                    </div>
+                  </div>
+                  <dl className="settlement-os-card-dl">
+                    <div>
+                      <dt>{t('cost.colPayer')}</dt>
+                      <dd>{row.payerName}</dd>
+                    </div>
+                    <div>
+                      <dt>{t('cost.colPaidAmount')}</dt>
+                      <dd>
+                        <span className="settlement-os-money settlement-os-money-paid">
+                          {getSymbol(row.paidCurrency)}
+                          {Number(row.paidAmount).toLocaleString(undefined, {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>{' '}
+                        <span className="settlement-os-cur-code">{row.paidCurrency}</span>
+                      </dd>
+                    </div>
+                    <div className="settlement-os-card-out">
+                      <dt>{t('cost.colOutstandingRepay')}</dt>
+                      <dd>
+                        {Object.entries(row.outstandingByCurrency).map(([cur, amt]) => (
+                          <div key={cur} className="settlement-os-out-line">
+                            <span className="settlement-os-money settlement-os-money-out">
+                              {getSymbol(cur)}
+                              {amt.toFixed(2)}
+                            </span>{' '}
+                            <span className="settlement-os-cur-code">{cur}</span>
+                          </div>
+                        ))}
+                      </dd>
+                    </div>
+                    <div className="settlement-os-card-who">
+                      <dt>{t('cost.outstandingWhoBreakdown')}</dt>
+                      <dd>
+                        <ul className="settlement-os-who-list">
+                          {row.whoOwes.map((w, wi) => (
+                            <li key={`m-${row.id}-who-${wi}`}>
+                              <strong>{w.name}</strong>
+                              <span className="settlement-os-who-amt">
+                                {' '}
+                                {getSymbol(w.currency)}
+                                {w.amount.toFixed(2)} {w.currency}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </dd>
+                    </div>
+                  </dl>
+                </article>
+              );
+            })}
           </div>
         </div>
       )}
