@@ -1452,11 +1452,86 @@ function DayExpenseView() {
   );
 }
 
+// ─── Settlement remarks (per expense, multi-author) ───────────
+function OutstandingRemarkEditor({ expenseId, remarks, people, updateExpense, canEditCost, t, getName }) {
+  const list = Array.isArray(remarks) ? remarks : [];
+  const [personId, setPersonId] = useState(() => people[0]?.id || '');
+  const [text, setText] = useState('');
+
+  useEffect(() => {
+    if (people.length === 0) return;
+    if (!people.some((p) => p.id === personId)) {
+      setPersonId(people[0].id);
+    }
+  }, [people, personId]);
+
+  const add = () => {
+    const trimmed = String(text || '').trim();
+    if (!trimmed || !personId || !expenseId) return;
+    updateExpense(expenseId, { settlementRemarks: [...list, { personId, text: trimmed }] });
+    setText('');
+  };
+
+  return (
+    <div className="settlement-remark-cell">
+      <div className="settlement-remark-lines">
+        {list.length === 0 ? (
+          <span className="settlement-remark-empty">—</span>
+        ) : (
+          list.map((r, i) => (
+            <p key={i} className="settlement-remark-line">
+              <strong>{getName(r.personId)}:</strong> {r.text}
+            </p>
+          ))
+        )}
+      </div>
+      {canEditCost && people.length > 0 && (
+        <div className="settlement-remark-form">
+          <label className="settlement-remark-sr-only" htmlFor={`sr-${expenseId}`}>
+            {t('cost.selectRemarkAuthor')}
+          </label>
+          <select
+            id={`sr-${expenseId}`}
+            className="settlement-remark-select"
+            value={personId}
+            onChange={(e) => setPersonId(e.target.value)}
+          >
+            {people.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="text"
+            className="settlement-remark-input"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={t('cost.remarkPlaceholder')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                add();
+              }
+            }}
+          />
+          <button type="button" className="settlement-remark-add-btn" onClick={add}>
+            {t('cost.addRemark')}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Settlement Summary ───────────────────────────────────────
 function SettlementSummary() {
   const { t } = useLanguage();
-  const { people, expenses, getRepaidSummary, CURRENCIES } = useCost();
+  const { people, expenses, getRepaidSummary, CURRENCIES, updateExpense, canEditCost } = useCost();
   const [detailPersonId, setDetailPersonId] = useState(null);
+  const [payerFilterId, setPayerFilterId] = useState(null);
+  const [payerMenuOpen, setPayerMenuOpen] = useState(false);
+  const payerFilterRef = useRef(null);
 
   const getName = useCallback((id) => people.find((p) => p.id === id)?.name || '?', [people]);
   const getSymbol = useCallback((code) => CURRENCIES.find((c) => c.code === code)?.symbol || '', [CURRENCIES]);
@@ -1508,35 +1583,72 @@ function SettlementSummary() {
     return { lines, totals };
   }, [detailPersonId, expenses, getName, t]);
 
-  /** Per-expense rows for Outstanding table (unpaid splits only). */
+  /** Per-expense rows: show if any non-payer split is still unpaid; list all non-payer splits (repaid + unpaid). */
   const outstandingExpenseRows = useMemo(() => {
     const rows = [];
     for (const e of expenses) {
-      const unpaid = (e.splits || []).filter((s) => s.personId !== e.payerId && !s.repaid);
-      const byCur = {};
-      const whoOwes = [];
-      unpaid.forEach((s) => {
+      const whoOwesAll = [];
+      (e.splits || []).forEach((s) => {
+        if (s.personId === e.payerId) return;
         const cur = s.repayCurrency || e.paidCurrency;
         const amt = Number(s.convertedAmount ?? s.amount) || 0;
         if (amt <= 0.0001) return;
-        byCur[cur] = (byCur[cur] || 0) + amt;
-        whoOwes.push({ name: getName(s.personId), amount: amt, currency: cur });
+        whoOwesAll.push({
+          personId: s.personId,
+          name: getName(s.personId),
+          amount: amt,
+          currency: cur,
+          repaid: !!s.repaid,
+        });
       });
-      if (Object.keys(byCur).length === 0) continue;
+      const hasUnpaid = whoOwesAll.some((w) => !w.repaid);
+      if (!hasUnpaid) continue;
+
+      const unpaidByCurrency = {};
+      whoOwesAll.forEach((w) => {
+        if (w.repaid) return;
+        unpaidByCurrency[w.currency] = (unpaidByCurrency[w.currency] || 0) + w.amount;
+      });
+
       rows.push({
         id: e.id,
+        payerId: e.payerId,
         description: (e.description || '').trim() || t('cost.untitledExpense'),
         category: e.category || '',
         date: e.date || '',
         payerName: getName(e.payerId),
         paidAmount: e.amount,
         paidCurrency: e.paidCurrency,
-        outstandingByCurrency: byCur,
-        whoOwes,
+        whoOwesAll,
+        unpaidByCurrency,
+        settlementRemarks: Array.isArray(e.settlementRemarks) ? e.settlementRemarks : [],
       });
     }
     return rows;
   }, [expenses, getName, t]);
+
+  const payersInOutstanding = useMemo(() => {
+    const ids = [...new Set(outstandingExpenseRows.map((r) => r.payerId))];
+    return ids
+      .map((id) => ({ id, name: getName(id) }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [outstandingExpenseRows, getName]);
+
+  const filteredOutstandingRows = useMemo(() => {
+    if (!payerFilterId) return outstandingExpenseRows;
+    return outstandingExpenseRows.filter((r) => r.payerId === payerFilterId);
+  }, [outstandingExpenseRows, payerFilterId]);
+
+  useEffect(() => {
+    if (!payerMenuOpen) return;
+    const close = (ev) => {
+      if (payerFilterRef.current && !payerFilterRef.current.contains(ev.target)) {
+        setPayerMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [payerMenuOpen]);
 
   useEffect(() => {
     if (!detailPersonId) return;
@@ -1587,7 +1699,7 @@ function SettlementSummary() {
         ))}
       </div>
 
-      {/* Outstanding — per-expense table + mobile cards */}
+      {/* Outstanding — table + mobile cards */}
       {outstandingExpenseRows.length === 0 ? (
         <p className="cost-hint settlement-ok">✅ {t('cost.allSettledUp')}</p>
       ) : (
@@ -1595,6 +1707,25 @@ function SettlementSummary() {
           <div className="settlement-outstanding-head">
             <h3 className="settlement-subtitle">⏳ {t('cost.outstanding')}</h3>
             <p className="settlement-outstanding-hint">{t('cost.outstandingTableHint')}</p>
+          </div>
+
+          <div className="settlement-os-mobile-filter">
+            <label className="settlement-os-mobile-filter-label" htmlFor="settlement-payer-filter-m">
+              {t('cost.colPayer')}
+            </label>
+            <select
+              id="settlement-payer-filter-m"
+              className="settlement-os-mobile-filter-select"
+              value={payerFilterId ?? ''}
+              onChange={(e) => setPayerFilterId(e.target.value || null)}
+            >
+              <option value="">{t('cost.payerFilterAll')}</option>
+              {payersInOutstanding.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <p className="settlement-scroll-hint" aria-hidden>
@@ -1608,155 +1739,296 @@ function SettlementSummary() {
             aria-label={t('cost.outstanding')}
           >
             <table className="settlement-outstanding-table">
+              <colgroup>
+                <col style={{ width: '26%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '34%' }} />
+                <col style={{ width: '20%' }} />
+              </colgroup>
               <thead>
                 <tr>
                   <th scope="col" className="settlement-os-col-item">
                     {t('cost.colItem')}
                   </th>
-                  <th scope="col" className="settlement-os-col-payer">
-                    {t('cost.colPayer')}
-                  </th>
-                  <th scope="col" className="settlement-os-col-num">
-                    {t('cost.colPaidAmount')}
+                  <th
+                    ref={payerFilterRef}
+                    scope="col"
+                    className="settlement-os-col-payer settlement-os-th-payer"
+                  >
+                    <button
+                      type="button"
+                      className="settlement-os-payer-filter-btn"
+                      aria-expanded={payerMenuOpen}
+                      aria-haspopup="true"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPayerMenuOpen((o) => !o);
+                      }}
+                    >
+                      <span className="settlement-os-payer-th-title">{t('cost.colPayer')}</span>
+                      <span className="settlement-os-filter-chip">
+                        {payerFilterId ? getName(payerFilterId) : t('cost.payerFilterAll')}
+                      </span>
+                      <span className="settlement-os-caret" aria-hidden>
+                        {payerMenuOpen ? '▴' : '▾'}
+                      </span>
+                    </button>
+                    {payerMenuOpen && (
+                      <ul className="settlement-os-payer-menu" role="menu">
+                        <li role="none">
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="settlement-os-payer-menu-item"
+                            onClick={() => {
+                              setPayerFilterId(null);
+                              setPayerMenuOpen(false);
+                            }}
+                          >
+                            {t('cost.payerFilterAll')}
+                          </button>
+                        </li>
+                        {payersInOutstanding.map((p) => (
+                          <li key={p.id} role="none">
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="settlement-os-payer-menu-item"
+                              onClick={() => {
+                                setPayerFilterId(p.id);
+                                setPayerMenuOpen(false);
+                              }}
+                            >
+                              {p.name}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </th>
                   <th scope="col" className="settlement-os-col-out">
                     {t('cost.colOutstandingRepay')}
                   </th>
+                  <th scope="col" className="settlement-os-col-remarks">
+                    {t('cost.colRemarks')}
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {outstandingExpenseRows.map((row) => {
-                  const catIcon = EXPENSE_CATEGORIES.find((c) => c.id === row.category)?.icon;
-                  return (
-                    <tr key={row.id}>
-                      <td className="settlement-os-col-item">
-                        <div className="settlement-os-item-cell">
-                          {catIcon && (
-                            <span className="settlement-os-cat" title={row.category} aria-hidden>
-                              {catIcon}
-                            </span>
-                          )}
-                          <div>
-                            <div className="settlement-os-item-title">{row.description}</div>
-                            {row.date && (
-                              <div className="settlement-os-item-date">{row.date}</div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="settlement-os-col-payer">
-                        <span className="settlement-os-payer-name">{row.payerName}</span>
-                      </td>
-                      <td className="settlement-os-col-num">
-                        <span className="settlement-os-money settlement-os-money-paid">
-                          {getSymbol(row.paidCurrency)}
-                          {Number(row.paidAmount).toLocaleString(undefined, {
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 2,
-                          })}
-                        </span>
-                        <span className="settlement-os-cur-code">{row.paidCurrency}</span>
-                      </td>
-                      <td className="settlement-os-col-out">
-                        <div className="settlement-os-out-stack">
-                          {Object.entries(row.outstandingByCurrency).map(([cur, amt]) => (
-                            <div key={cur} className="settlement-os-out-line">
-                              <span className="settlement-os-money settlement-os-money-out">
-                                {getSymbol(cur)}
-                                {amt.toFixed(2)}
+                {filteredOutstandingRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="settlement-os-empty-filter">
+                      {t('cost.noExpensesForPayer')}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredOutstandingRows.map((row) => {
+                    const catIcon = EXPENSE_CATEGORIES.find((c) => c.id === row.category)?.icon;
+                    return (
+                      <tr key={row.id}>
+                        <td className="settlement-os-col-item">
+                          <div className="settlement-os-item-cell">
+                            {catIcon && (
+                              <span className="settlement-os-cat" title={row.category} aria-hidden>
+                                {catIcon}
                               </span>
-                              <span className="settlement-os-cur-code">{cur}</span>
+                            )}
+                            <div>
+                              <div className="settlement-os-item-title">{row.description}</div>
+                              {row.date && (
+                                <div className="settlement-os-item-date">{row.date}</div>
+                              )}
                             </div>
-                          ))}
-                          <div className="settlement-os-who">
-                            <span className="settlement-os-who-label">{t('cost.outstandingWhoBreakdown')}</span>
-                            <ul className="settlement-os-who-list">
-                              {row.whoOwes.map((w, wi) => (
-                                <li key={`${row.id}-who-${wi}`}>
-                                  <strong>{w.name}</strong>
-                                  <span className="settlement-os-who-amt">
-                                    {' '}
-                                    {getSymbol(w.currency)}
-                                    {w.amount.toFixed(2)} {w.currency}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
                           </div>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                        </td>
+                        <td className="settlement-os-col-payer">
+                          <div className="settlement-os-payer-stack">
+                            <span className="settlement-os-payer-name">{row.payerName}</span>
+                            <div className="settlement-os-paid-under">
+                              <span className="settlement-os-money settlement-os-money-paid">
+                                {getSymbol(row.paidCurrency)}
+                                {Number(row.paidAmount).toLocaleString(undefined, {
+                                  minimumFractionDigits: 0,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>
+                              <span className="settlement-os-cur-code">{row.paidCurrency}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="settlement-os-col-out">
+                          <div className="settlement-os-out-stack">
+                            <div className="settlement-os-who">
+                              <span className="settlement-os-who-label">
+                                {t('cost.outstandingWhoBreakdown')}
+                              </span>
+                              <ul className="settlement-os-who-list">
+                                {row.whoOwesAll.map((w, wi) => (
+                                  <li
+                                    key={`${row.id}-who-${wi}`}
+                                    className={
+                                      w.repaid
+                                        ? 'settlement-os-who-repaid'
+                                        : 'settlement-os-who-unpaid'
+                                    }
+                                  >
+                                    {w.repaid && (
+                                      <span className="settlement-os-long-dash" aria-hidden>
+                                        ———————————————
+                                      </span>
+                                    )}
+                                    <span className="settlement-os-who-line-main">
+                                      <strong>{w.name}</strong>
+                                      <span className="settlement-os-who-amt">
+                                        {' '}
+                                        {getSymbol(w.currency)}
+                                        {w.amount.toFixed(2)} {w.currency}
+                                      </span>
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            <div className="settlement-os-out-totals">
+                              <div className="settlement-os-total-label">
+                                {t('cost.totalOutstandingRepay')}
+                              </div>
+                              {Object.entries(row.unpaidByCurrency).map(([cur, amt]) => (
+                                <div key={cur} className="settlement-os-out-total-line">
+                                  <span className="settlement-os-money settlement-os-money-out">
+                                    {getSymbol(cur)}
+                                    {amt.toFixed(2)}
+                                  </span>
+                                  <span className="settlement-os-cur-code">{cur}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="settlement-os-col-remarks">
+                          <OutstandingRemarkEditor
+                            expenseId={row.id}
+                            remarks={row.settlementRemarks}
+                            people={people}
+                            updateExpense={updateExpense}
+                            canEditCost={canEditCost}
+                            t={t}
+                            getName={getName}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
 
           <div className="settlement-os-mobile-cards">
-            {outstandingExpenseRows.map((row) => {
-              const catIcon = EXPENSE_CATEGORIES.find((c) => c.id === row.category)?.icon;
-              return (
-                <article key={`m-${row.id}`} className="settlement-os-card">
-                  <div className="settlement-os-card-head">
-                    {catIcon && <span className="settlement-os-cat">{catIcon}</span>}
-                    <div>
-                      <h4 className="settlement-os-card-title">{row.description}</h4>
-                      {row.date && <p className="settlement-os-card-date">{row.date}</p>}
+            {filteredOutstandingRows.length === 0 ? (
+              <p className="settlement-os-empty-filter settlement-os-empty-filter-card">
+                {t('cost.noExpensesForPayer')}
+              </p>
+            ) : (
+              filteredOutstandingRows.map((row) => {
+                const catIcon = EXPENSE_CATEGORIES.find((c) => c.id === row.category)?.icon;
+                return (
+                  <article key={`m-${row.id}`} className="settlement-os-card">
+                    <div className="settlement-os-card-head">
+                      {catIcon && <span className="settlement-os-cat">{catIcon}</span>}
+                      <div>
+                        <h4 className="settlement-os-card-title">{row.description}</h4>
+                        {row.date && <p className="settlement-os-card-date">{row.date}</p>}
+                      </div>
                     </div>
-                  </div>
-                  <dl className="settlement-os-card-dl">
-                    <div>
-                      <dt>{t('cost.colPayer')}</dt>
-                      <dd>{row.payerName}</dd>
-                    </div>
-                    <div>
-                      <dt>{t('cost.colPaidAmount')}</dt>
-                      <dd>
-                        <span className="settlement-os-money settlement-os-money-paid">
-                          {getSymbol(row.paidCurrency)}
-                          {Number(row.paidAmount).toLocaleString(undefined, {
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 2,
-                          })}
-                        </span>{' '}
-                        <span className="settlement-os-cur-code">{row.paidCurrency}</span>
-                      </dd>
-                    </div>
-                    <div className="settlement-os-card-out">
-                      <dt>{t('cost.colOutstandingRepay')}</dt>
-                      <dd>
-                        {Object.entries(row.outstandingByCurrency).map(([cur, amt]) => (
-                          <div key={cur} className="settlement-os-out-line">
-                            <span className="settlement-os-money settlement-os-money-out">
-                              {getSymbol(cur)}
-                              {amt.toFixed(2)}
-                            </span>{' '}
-                            <span className="settlement-os-cur-code">{cur}</span>
+                    <dl className="settlement-os-card-dl">
+                      <div>
+                        <dt>{t('cost.colPayer')}</dt>
+                        <dd>
+                          <div className="settlement-os-payer-stack">
+                            <span className="settlement-os-payer-name">{row.payerName}</span>
+                            <div className="settlement-os-paid-under">
+                              <span className="settlement-os-money settlement-os-money-paid">
+                                {getSymbol(row.paidCurrency)}
+                                {Number(row.paidAmount).toLocaleString(undefined, {
+                                  minimumFractionDigits: 0,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>{' '}
+                              <span className="settlement-os-cur-code">{row.paidCurrency}</span>
+                            </div>
                           </div>
-                        ))}
-                      </dd>
-                    </div>
-                    <div className="settlement-os-card-who">
-                      <dt>{t('cost.outstandingWhoBreakdown')}</dt>
-                      <dd>
-                        <ul className="settlement-os-who-list">
-                          {row.whoOwes.map((w, wi) => (
-                            <li key={`m-${row.id}-who-${wi}`}>
-                              <strong>{w.name}</strong>
-                              <span className="settlement-os-who-amt">
-                                {' '}
-                                {getSymbol(w.currency)}
-                                {w.amount.toFixed(2)} {w.currency}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </dd>
-                    </div>
-                  </dl>
-                </article>
-              );
-            })}
+                        </dd>
+                      </div>
+                      <div className="settlement-os-card-out">
+                        <dt>{t('cost.colOutstandingRepay')}</dt>
+                        <dd>
+                          <div className="settlement-os-who">
+                            <span className="settlement-os-who-label">
+                              {t('cost.outstandingWhoBreakdown')}
+                            </span>
+                            <ul className="settlement-os-who-list">
+                              {row.whoOwesAll.map((w, wi) => (
+                                <li
+                                  key={`m-${row.id}-who-${wi}`}
+                                  className={
+                                    w.repaid
+                                      ? 'settlement-os-who-repaid'
+                                      : 'settlement-os-who-unpaid'
+                                  }
+                                >
+                                  {w.repaid && (
+                                    <span className="settlement-os-long-dash" aria-hidden>
+                                      ———————————————
+                                    </span>
+                                  )}
+                                  <span className="settlement-os-who-line-main">
+                                    <strong>{w.name}</strong>
+                                    <span className="settlement-os-who-amt">
+                                      {' '}
+                                      {getSymbol(w.currency)}
+                                      {w.amount.toFixed(2)} {w.currency}
+                                    </span>
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div className="settlement-os-out-totals">
+                            <div className="settlement-os-total-label">
+                              {t('cost.totalOutstandingRepay')}
+                            </div>
+                            {Object.entries(row.unpaidByCurrency).map(([cur, amt]) => (
+                              <div key={cur} className="settlement-os-out-total-line">
+                                <span className="settlement-os-money settlement-os-money-out">
+                                  {getSymbol(cur)}
+                                  {amt.toFixed(2)}
+                                </span>{' '}
+                                <span className="settlement-os-cur-code">{cur}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </dd>
+                      </div>
+                      <div className="settlement-os-card-remarks">
+                        <dt>{t('cost.colRemarks')}</dt>
+                        <dd>
+                          <OutstandingRemarkEditor
+                            expenseId={row.id}
+                            remarks={row.settlementRemarks}
+                            people={people}
+                            updateExpense={updateExpense}
+                            canEditCost={canEditCost}
+                            t={t}
+                            getName={getName}
+                          />
+                        </dd>
+                      </div>
+                    </dl>
+                  </article>
+                );
+              })
+            )}
           </div>
         </div>
       )}
