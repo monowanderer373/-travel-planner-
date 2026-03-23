@@ -5,6 +5,8 @@ import { useItinerary } from '../context/ItineraryContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import ExpenseCategoryModal, { EXPENSE_CATEGORIES } from '../components/ExpenseCategoryModal';
+import { defaultPaymentInfo } from '../lib/costData';
+import { fileToSyncAttachment, SYNC_FILE_ERROR_TOO_LARGE } from '../lib/syncFileAttachment';
 import './Cost.css';
 
 // ─── Helpers ──────────────────────────────────────────────────
@@ -202,6 +204,62 @@ function PeopleManager() {
   );
 }
 
+/** QR image stored as data: URL so shared itinerary / Supabase sync works for all members. */
+function TravellerPaymentQrUpload({ personId, pay, canEdit, updatePersonPayment }) {
+  const { t } = useLanguage();
+  const [qrError, setQrError] = useState('');
+
+  return (
+    <div className="qr-upload-area">
+      {pay.qrCode ? (
+        <div className="qr-preview">
+          <img src={pay.qrCode} alt="QR code" />
+          <button
+            type="button"
+            className="qr-remove"
+            disabled={!canEdit}
+            onClick={() => {
+              setQrError('');
+              updatePersonPayment(personId, { qrCode: null, saved: false, savedAt: null });
+            }}
+          >
+            {t('cost.remove')}
+          </button>
+        </div>
+      ) : (
+        <label className="qr-upload-btn">
+          <input
+            type="file"
+            accept="image/*"
+            disabled={!canEdit}
+            onChange={async (e) => {
+              setQrError('');
+              const file = e.target.files?.[0];
+              const inp = e.target;
+              try {
+                if (!file) return;
+                const { url } = await fileToSyncAttachment(file);
+                updatePersonPayment(personId, { qrCode: url, saved: false, savedAt: null });
+              } catch (err) {
+                setQrError(
+                  err?.code === SYNC_FILE_ERROR_TOO_LARGE || err?.message === SYNC_FILE_ERROR_TOO_LARGE
+                    ? t('cost.fileTooLargeForSync')
+                    : t('cost.fileReadError')
+                );
+              } finally {
+                inp.value = '';
+              }
+            }}
+            style={{ display: 'none' }}
+          />
+          📷 {t('cost.uploadQR')}
+        </label>
+      )}
+      {qrError ? <p className="cost-hint qr-upload-error">{qrError}</p> : null}
+    </div>
+  );
+}
+
 // ─── Traveller Payment Details (QR + bank for others to pay) ───
 function TravellerPaymentDetails() {
   const { t } = useLanguage();
@@ -250,37 +308,12 @@ function TravellerPaymentDetails() {
               <div className="traveller-payment-body">
                 <label className="payment-field">
                   <span>{t('cost.qrCode')}</span>
-                  <div className="qr-upload-area">
-                    {pay.qrCode ? (
-                      <div className="qr-preview">
-                        <img src={pay.qrCode} alt="QR code" />
-                        <button
-                          type="button"
-                          className="qr-remove"
-                          disabled={!canEditCost}
-                          onClick={() => updatePersonPayment(p.id, { qrCode: null, saved: false, savedAt: null })}
-                        >
-                          {t('cost.remove')}
-                        </button>
-                      </div>
-                    ) : (
-                      <label className="qr-upload-btn">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          disabled={!canEditCost}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            const url = URL.createObjectURL(file);
-                            updatePersonPayment(p.id, { qrCode: url, saved: false, savedAt: null });
-                          }}
-                          style={{ display: 'none' }}
-                        />
-                        📷 {t('cost.uploadQR')}
-                      </label>
-                    )}
-                  </div>
+                  <TravellerPaymentQrUpload
+                    personId={p.id}
+                    pay={pay}
+                    canEdit={canEditCost}
+                    updatePersonPayment={updatePersonPayment}
+                  />
                 </label>
                 <label className="payment-field">
                   <span>{t('cost.bankName')}</span>
@@ -579,10 +612,23 @@ function AddExpenseForm() {
     });
   };
 
-  const handleReceiptChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    set('receipt', { name: file.name, url: URL.createObjectURL(file) });
+  const handleReceiptChange = async (e) => {
+    const file = e.target.files?.[0];
+    const inp = e.target;
+    setFormError('');
+    try {
+      if (!file) return;
+      const att = await fileToSyncAttachment(file);
+      set('receipt', att);
+    } catch (err) {
+      setFormError(
+        err?.code === SYNC_FILE_ERROR_TOO_LARGE || err?.message === SYNC_FILE_ERROR_TOO_LARGE
+          ? t('cost.fileTooLargeForSync')
+          : t('cost.fileReadError')
+      );
+    } finally {
+      inp.value = '';
+    }
   };
 
   const handleSubmit = (e) => {
@@ -1076,6 +1122,7 @@ function SplitRepayRow({ exp, splitIndex }) {
   const [showForm, setShowForm] = useState(false);
   const [repayDate, setRepayDate] = useState(new Date().toISOString().slice(0, 10));
   const [attachment, setAttachment] = useState(null);
+  const [attachError, setAttachError] = useState('');
   const fileRef = useRef();
 
   const repaySym = CURRENCIES.find((c) => c.code === split.repayCurrency)?.symbol || '';
@@ -1116,16 +1163,30 @@ function SplitRepayRow({ exp, splitIndex }) {
     updateExpense(exp.id, { splits: nextSplits });
   };
 
-  const handleFile = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setAttachment({ name: file.name, url: URL.createObjectURL(file) });
+  const handleFile = async (e) => {
+    setAttachError('');
+    const file = e.target.files?.[0];
+    const inp = e.target;
+    try {
+      if (!file) return;
+      const att = await fileToSyncAttachment(file);
+      setAttachment(att);
+    } catch (err) {
+      setAttachError(
+        err?.code === SYNC_FILE_ERROR_TOO_LARGE || err?.message === SYNC_FILE_ERROR_TOO_LARGE
+          ? t('cost.fileTooLargeForSync')
+          : t('cost.fileReadError')
+      );
+    } finally {
+      inp.value = '';
+    }
   };
 
   const handleConfirm = () => {
     markSplitRepaid(exp.id, splitIndex, repayDate, attachment);
     setShowForm(false);
     setAttachment(null);
+    setAttachError('');
     if (fileRef.current) fileRef.current.value = '';
   };
 
@@ -1200,7 +1261,18 @@ function SplitRepayRow({ exp, splitIndex }) {
             <span>{attachment ? `📎 ${attachment.name}` : `📎 ${t('cost.proof')}`}</span>
           </label>
           <button type="button" className="primary" disabled={!canEditCost} onClick={handleConfirm}>{t('cost.confirm')}</button>
-          <button type="button" disabled={!canEditCost} onClick={() => { setShowForm(false); setAttachment(null); }}>{t('cost.cancel')}</button>
+          <button
+            type="button"
+            disabled={!canEditCost}
+            onClick={() => {
+              setShowForm(false);
+              setAttachment(null);
+              setAttachError('');
+            }}
+          >
+            {t('cost.cancel')}
+          </button>
+          {attachError ? <p className="ef-form-error split-attach-error">{attachError}</p> : null}
         </div>
       )}
     </div>
@@ -1452,6 +1524,99 @@ function DayExpenseView() {
   );
 }
 
+function personHasPayableDetails(person) {
+  if (!person) return false;
+  const pay =
+    person.paymentInfo && typeof person.paymentInfo === 'object'
+      ? { ...defaultPaymentInfo(), ...person.paymentInfo }
+      : defaultPaymentInfo();
+  return !!(pay.qrCode || String(pay.bankName || '').trim() || String(pay.accountNumber || '').trim());
+}
+
+// ─── Payer payment info (QR / bank) — read-only modal ────────
+function PayerPaymentDetailModal({ person, onClose, t }) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const id = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(id);
+  }, [copied]);
+
+  if (!person) return null;
+  const pay = person.paymentInfo && typeof person.paymentInfo === 'object'
+    ? { ...defaultPaymentInfo(), ...person.paymentInfo }
+    : defaultPaymentInfo();
+  const hasQr = !!pay.qrCode;
+  const hasBank = !!(String(pay.bankName || '').trim() || String(pay.accountNumber || '').trim());
+  if (!hasQr && !hasBank) return null;
+
+  const acct = String(pay.accountNumber || '').trim();
+  const copyAcct = async () => {
+    if (!acct) return;
+    try {
+      await navigator.clipboard.writeText(acct);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <div
+      className="payer-pay-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="payer-pay-title"
+      onClick={onClose}
+    >
+      <div className="payer-pay-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="payer-pay-head">
+          <h3 id="payer-pay-title">{person.name}</h3>
+          <button type="button" className="payer-pay-close" onClick={onClose} aria-label={t('cost.closeSettlementDetail')}>
+            ×
+          </button>
+        </div>
+        <div className="payer-pay-body">
+          {hasQr && (
+            <div className="payer-pay-qr">
+              <img src={pay.qrCode} alt="" />
+            </div>
+          )}
+          {hasBank && (
+            <div className="payer-pay-bank">
+              {pay.bankName?.trim() && (
+                <p className="payer-pay-line">
+                  <strong>{t('cost.bankName')}</strong> {pay.bankName.trim()}
+                </p>
+              )}
+              {pay.accountHolder?.trim() && (
+                <p className="payer-pay-line">
+                  <strong>{t('cost.accountHolder')}</strong> {pay.accountHolder.trim()}
+                </p>
+              )}
+              {acct && (
+                <p className="payer-pay-line payer-pay-acct-row">
+                  <span>
+                    <strong>{t('cost.accountNumber')}</strong> {acct}
+                  </span>
+                  <button type="button" className="payer-pay-copy" onClick={copyAcct}>
+                    {copied ? t('cost.copied') : t('cost.copyAccount')}
+                  </button>
+                </p>
+              )}
+            </div>
+          )}
+          {pay.notes?.trim() && (
+            <p className="payer-pay-notes">
+              <strong>{t('cost.notes')}</strong> {pay.notes.trim()}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Settlement remarks (per expense, multi-author) ───────────
 function OutstandingRemarkEditor({ expenseId, remarks, people, updateExpense, canEditCost, t, getName }) {
   const list = Array.isArray(remarks) ? remarks : [];
@@ -1527,11 +1692,29 @@ function OutstandingRemarkEditor({ expenseId, remarks, people, updateExpense, ca
 // ─── Settlement Summary ───────────────────────────────────────
 function SettlementSummary() {
   const { t } = useLanguage();
-  const { people, expenses, getRepaidSummary, CURRENCIES, updateExpense, canEditCost } = useCost();
+  const {
+    people,
+    expenses,
+    getRepaidSummary,
+    CURRENCIES,
+    updateExpense,
+    canEditCost,
+    bulkMarkSplitsRepaid,
+    bulkRepayEvents,
+  } = useCost();
   const [detailPersonId, setDetailPersonId] = useState(null);
   const [payerFilterId, setPayerFilterId] = useState(null);
   const [payerMenuOpen, setPayerMenuOpen] = useState(false);
   const payerFilterRef = useRef(null);
+  const [debtorFilterId, setDebtorFilterId] = useState(null);
+  const [debtorMenuOpen, setDebtorMenuOpen] = useState(false);
+  const debtorFilterRef = useRef(null);
+  const [paymentModalPayerId, setPaymentModalPayerId] = useState(null);
+  const [bulkRepayOpen, setBulkRepayOpen] = useState(false);
+  const [bulkRepayDate, setBulkRepayDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [bulkRepayAttach, setBulkRepayAttach] = useState(null);
+  const [bulkRepayAttachError, setBulkRepayAttachError] = useState('');
+  const bulkRepayFileRef = useRef(null);
 
   const getName = useCallback((id) => people.find((p) => p.id === id)?.name || '?', [people]);
   const getSymbol = useCallback((code) => CURRENCIES.find((c) => c.code === code)?.symbol || '', [CURRENCIES]);
@@ -1588,12 +1771,13 @@ function SettlementSummary() {
     const rows = [];
     for (const e of expenses) {
       const whoOwesAll = [];
-      (e.splits || []).forEach((s) => {
+      (e.splits || []).forEach((s, si) => {
         if (s.personId === e.payerId) return;
         const cur = s.repayCurrency || e.paidCurrency;
         const amt = Number(s.convertedAmount ?? s.amount) || 0;
         if (amt <= 0.0001) return;
         whoOwesAll.push({
+          splitIndex: si,
           personId: s.personId,
           name: getName(s.personId),
           amount: amt,
@@ -1634,10 +1818,88 @@ function SettlementSummary() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [outstandingExpenseRows, getName]);
 
-  const filteredOutstandingRows = useMemo(() => {
+  const payerScopedRows = useMemo(() => {
     if (!payerFilterId) return outstandingExpenseRows;
     return outstandingExpenseRows.filter((r) => r.payerId === payerFilterId);
   }, [outstandingExpenseRows, payerFilterId]);
+
+  const debtorsInOutstanding = useMemo(() => {
+    const ids = new Set();
+    for (const r of payerScopedRows) {
+      for (const w of r.whoOwesAll) {
+        if (!w.repaid) ids.add(w.personId);
+      }
+    }
+    return [...ids]
+      .map((id) => ({ id, name: getName(id) }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [payerScopedRows, getName]);
+
+  const tableDisplayRows = useMemo(() => {
+    if (!debtorFilterId) {
+      return payerScopedRows.map((r) => ({
+        ...r,
+        whoOwesDisplay: r.whoOwesAll,
+        unpaidByCurrencyRow: r.unpaidByCurrency,
+      }));
+    }
+    return payerScopedRows
+      .filter((r) => r.whoOwesAll.some((w) => w.personId === debtorFilterId && !w.repaid))
+      .map((r) => {
+        const whoOwesDisplay = r.whoOwesAll.filter((w) => w.personId === debtorFilterId);
+        const unpaidByCurrencyRow = {};
+        whoOwesDisplay.forEach((w) => {
+          if (w.repaid) return;
+          unpaidByCurrencyRow[w.currency] = (unpaidByCurrencyRow[w.currency] || 0) + w.amount;
+        });
+        return { ...r, whoOwesDisplay, unpaidByCurrencyRow };
+      });
+  }, [payerScopedRows, debtorFilterId]);
+
+  const overallDebtorUnpaidByCurrency = useMemo(() => {
+    if (!debtorFilterId) return {};
+    const totals = {};
+    for (const r of payerScopedRows) {
+      for (const w of r.whoOwesAll) {
+        if (w.personId !== debtorFilterId || w.repaid) continue;
+        totals[w.currency] = (totals[w.currency] || 0) + w.amount;
+      }
+    }
+    return totals;
+  }, [payerScopedRows, debtorFilterId]);
+
+  const bulkRepayTargets = useMemo(() => {
+    if (!debtorFilterId) return [];
+    const targets = [];
+    for (const e of expenses) {
+      if (payerFilterId && e.payerId !== payerFilterId) continue;
+      (e.splits || []).forEach((s, i) => {
+        if (s.personId === e.payerId || s.repaid || s.personId !== debtorFilterId) return;
+        const amt = Number(s.convertedAmount ?? s.amount) || 0;
+        if (amt <= 0.0001) return;
+        targets.push({ expenseId: e.id, splitIndex: i });
+      });
+    }
+    return targets;
+  }, [expenses, payerFilterId, debtorFilterId]);
+
+  useEffect(() => {
+    if (!debtorFilterId) return;
+    if (!debtorsInOutstanding.some((d) => d.id === debtorFilterId)) {
+      setDebtorFilterId(null);
+    }
+  }, [debtorFilterId, debtorsInOutstanding]);
+
+  useEffect(() => {
+    if (!debtorMenuOpen) return;
+    const close = (ev) => {
+      if (debtorFilterRef.current && !debtorFilterRef.current.contains(ev.target)) {
+        setDebtorMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [debtorMenuOpen]);
 
   useEffect(() => {
     if (!payerMenuOpen) return;
@@ -1658,6 +1920,19 @@ function SettlementSummary() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [detailPersonId]);
+
+  useEffect(() => {
+    if (!bulkRepayOpen && !paymentModalPayerId) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        setBulkRepayOpen(false);
+        setBulkRepayAttachError('');
+        setPaymentModalPayerId(null);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [bulkRepayOpen, paymentModalPayerId]);
 
   if (expenses.length === 0 || people.length === 0) return null;
 
@@ -1728,6 +2003,47 @@ function SettlementSummary() {
             </select>
           </div>
 
+          <div className="settlement-os-mobile-filter settlement-os-mobile-filter-debtor">
+            <label className="settlement-os-mobile-filter-label" htmlFor="settlement-debtor-filter-m">
+              {t('cost.colOutstandingRepay')}
+            </label>
+            <select
+              id="settlement-debtor-filter-m"
+              className="settlement-os-mobile-filter-select"
+              value={debtorFilterId ?? ''}
+              onChange={(e) => setDebtorFilterId(e.target.value || null)}
+            >
+              <option value="">{t('cost.allDebtors')}</option>
+              {debtorsInOutstanding.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {Array.isArray(bulkRepayEvents) && bulkRepayEvents.length > 0 && (
+            <div className="settlement-bulk-log animate-in">
+              <h4 className="settlement-bulk-log-title">{t('cost.bulkRepaySummaryTitle')}</h4>
+              <ul className="settlement-bulk-log-list">
+                {[...bulkRepayEvents].reverse().slice(0, 12).map((ev) => (
+                  <li key={ev.id} className="settlement-bulk-log-item">
+                    {ev.creditorId
+                      ? t('cost.bulkRepayLogLine', {
+                          debtor: getName(ev.debtorId),
+                          creditor: getName(ev.creditorId),
+                          date: ev.repaidDate || '—',
+                        })
+                      : t('cost.bulkRepayLogLineMulti', {
+                          debtor: getName(ev.debtorId),
+                          date: ev.repaidDate || '—',
+                        })}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <p className="settlement-scroll-hint" aria-hidden>
             {t('cost.scrollTableHint')}
           </p>
@@ -1763,6 +2079,7 @@ function SettlementSummary() {
                       onClick={(e) => {
                         e.stopPropagation();
                         setPayerMenuOpen((o) => !o);
+                        setDebtorMenuOpen(false);
                       }}
                     >
                       <span className="settlement-os-payer-th-title">{t('cost.colPayer')}</span>
@@ -1806,8 +2123,62 @@ function SettlementSummary() {
                       </ul>
                     )}
                   </th>
-                  <th scope="col" className="settlement-os-col-out">
-                    {t('cost.colOutstandingRepay')}
+                  <th
+                    ref={debtorFilterRef}
+                    scope="col"
+                    className="settlement-os-col-out settlement-os-th-debtor"
+                  >
+                    <button
+                      type="button"
+                      className="settlement-os-payer-filter-btn"
+                      aria-expanded={debtorMenuOpen}
+                      aria-haspopup="true"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDebtorMenuOpen((o) => !o);
+                        setPayerMenuOpen(false);
+                      }}
+                    >
+                      <span className="settlement-os-payer-th-title">{t('cost.colOutstandingRepay')}</span>
+                      <span className="settlement-os-filter-chip">
+                        {debtorFilterId ? getName(debtorFilterId) : t('cost.allDebtors')}
+                      </span>
+                      <span className="settlement-os-caret" aria-hidden>
+                        {debtorMenuOpen ? '▴' : '▾'}
+                      </span>
+                    </button>
+                    {debtorMenuOpen && (
+                      <ul className="settlement-os-payer-menu settlement-os-debtor-menu" role="menu">
+                        <li role="none">
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="settlement-os-payer-menu-item"
+                            onClick={() => {
+                              setDebtorFilterId(null);
+                              setDebtorMenuOpen(false);
+                            }}
+                          >
+                            {t('cost.allDebtors')}
+                          </button>
+                        </li>
+                        {debtorsInOutstanding.map((p) => (
+                          <li key={p.id} role="none">
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="settlement-os-payer-menu-item"
+                              onClick={() => {
+                                setDebtorFilterId(p.id);
+                                setDebtorMenuOpen(false);
+                              }}
+                            >
+                              {p.name}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </th>
                   <th scope="col" className="settlement-os-col-remarks">
                     {t('cost.colRemarks')}
@@ -1815,15 +2186,23 @@ function SettlementSummary() {
                 </tr>
               </thead>
               <tbody>
-                {filteredOutstandingRows.length === 0 ? (
+                {payerScopedRows.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="settlement-os-empty-filter">
                       {t('cost.noExpensesForPayer')}
                     </td>
                   </tr>
+                ) : tableDisplayRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="settlement-os-empty-filter">
+                      {t('cost.noMatchingOutstanding')}
+                    </td>
+                  </tr>
                 ) : (
-                  filteredOutstandingRows.map((row) => {
+                  tableDisplayRows.map((row) => {
                     const catIcon = EXPENSE_CATEGORIES.find((c) => c.id === row.category)?.icon;
+                    const payerPerson = people.find((p) => p.id === row.payerId);
+                    const payerClickable = personHasPayableDetails(payerPerson);
                     return (
                       <tr key={row.id}>
                         <td className="settlement-os-col-item">
@@ -1843,7 +2222,17 @@ function SettlementSummary() {
                         </td>
                         <td className="settlement-os-col-payer">
                           <div className="settlement-os-payer-stack">
-                            <span className="settlement-os-payer-name">{row.payerName}</span>
+                            {payerClickable ? (
+                              <button
+                                type="button"
+                                className="settlement-os-payer-name-btn"
+                                onClick={() => setPaymentModalPayerId(row.payerId)}
+                              >
+                                {row.payerName}
+                              </button>
+                            ) : (
+                              <span className="settlement-os-payer-name">{row.payerName}</span>
+                            )}
                             <div className="settlement-os-paid-under">
                               <span className="settlement-os-money settlement-os-money-paid">
                                 {getSymbol(row.paidCurrency)}
@@ -1863,7 +2252,7 @@ function SettlementSummary() {
                                 {t('cost.outstandingWhoBreakdown')}
                               </span>
                               <ul className="settlement-os-who-list">
-                                {row.whoOwesAll.map((w, wi) => (
+                                {row.whoOwesDisplay.map((w, wi) => (
                                   <li
                                     key={`${row.id}-who-${wi}`}
                                     className={
@@ -1893,7 +2282,7 @@ function SettlementSummary() {
                               <div className="settlement-os-total-label">
                                 {t('cost.totalOutstandingRepay')}
                               </div>
-                              {Object.entries(row.unpaidByCurrency).map(([cur, amt]) => (
+                              {Object.entries(row.unpaidByCurrencyRow).map(([cur, amt]) => (
                                 <div key={cur} className="settlement-os-out-total-line">
                                   <span className="settlement-os-money settlement-os-money-out">
                                     {getSymbol(cur)}
@@ -1924,14 +2313,60 @@ function SettlementSummary() {
             </table>
           </div>
 
+          {debtorFilterId && (
+            <div className="settlement-os-bulk-bar">
+              <div className="settlement-os-bulk-bar-inner">
+                <div className="settlement-os-overall">
+                  <span className="settlement-os-overall-label">{t('cost.overallOutstanding')}</span>
+                  <div className="settlement-os-overall-pills">
+                    {Object.keys(overallDebtorUnpaidByCurrency).length === 0 ? (
+                      <span className="settlement-os-overall-zero">—</span>
+                    ) : (
+                      Object.entries(overallDebtorUnpaidByCurrency).map(([cur, amt]) => (
+                        <span key={cur} className="settlement-os-overall-pill">
+                          <strong>
+                            {getSymbol(cur)}
+                            {amt.toFixed(2)}
+                          </strong>
+                          <span className="settlement-os-cur-code">{cur}</span>
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </div>
+                {bulkRepayTargets.length > 0 && canEditCost && (
+                  <button
+                    type="button"
+                    className="primary settlement-os-repay-all-btn"
+                    onClick={() => {
+                      setBulkRepayDate(new Date().toISOString().slice(0, 10));
+                      setBulkRepayAttach(null);
+                      setBulkRepayAttachError('');
+                      if (bulkRepayFileRef.current) bulkRepayFileRef.current.value = '';
+                      setBulkRepayOpen(true);
+                    }}
+                  >
+                    {t('cost.repayAll')}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="settlement-os-mobile-cards">
-            {filteredOutstandingRows.length === 0 ? (
+            {payerScopedRows.length === 0 ? (
               <p className="settlement-os-empty-filter settlement-os-empty-filter-card">
                 {t('cost.noExpensesForPayer')}
               </p>
+            ) : tableDisplayRows.length === 0 ? (
+              <p className="settlement-os-empty-filter settlement-os-empty-filter-card">
+                {t('cost.noMatchingOutstanding')}
+              </p>
             ) : (
-              filteredOutstandingRows.map((row) => {
+              tableDisplayRows.map((row) => {
                 const catIcon = EXPENSE_CATEGORIES.find((c) => c.id === row.category)?.icon;
+                const payerPerson = people.find((p) => p.id === row.payerId);
+                const payerClickable = personHasPayableDetails(payerPerson);
                 return (
                   <article key={`m-${row.id}`} className="settlement-os-card">
                     <div className="settlement-os-card-head">
@@ -1946,7 +2381,17 @@ function SettlementSummary() {
                         <dt>{t('cost.colPayer')}</dt>
                         <dd>
                           <div className="settlement-os-payer-stack">
-                            <span className="settlement-os-payer-name">{row.payerName}</span>
+                            {payerClickable ? (
+                              <button
+                                type="button"
+                                className="settlement-os-payer-name-btn"
+                                onClick={() => setPaymentModalPayerId(row.payerId)}
+                              >
+                                {row.payerName}
+                              </button>
+                            ) : (
+                              <span className="settlement-os-payer-name">{row.payerName}</span>
+                            )}
                             <div className="settlement-os-paid-under">
                               <span className="settlement-os-money settlement-os-money-paid">
                                 {getSymbol(row.paidCurrency)}
@@ -1968,7 +2413,7 @@ function SettlementSummary() {
                               {t('cost.outstandingWhoBreakdown')}
                             </span>
                             <ul className="settlement-os-who-list">
-                              {row.whoOwesAll.map((w, wi) => (
+                              {row.whoOwesDisplay.map((w, wi) => (
                                 <li
                                   key={`m-${row.id}-who-${wi}`}
                                   className={
@@ -1998,7 +2443,7 @@ function SettlementSummary() {
                             <div className="settlement-os-total-label">
                               {t('cost.totalOutstandingRepay')}
                             </div>
-                            {Object.entries(row.unpaidByCurrency).map(([cur, amt]) => (
+                            {Object.entries(row.unpaidByCurrencyRow).map(([cur, amt]) => (
                               <div key={cur} className="settlement-os-out-total-line">
                                 <span className="settlement-os-money settlement-os-money-out">
                                   {getSymbol(cur)}
@@ -2166,6 +2611,127 @@ function SettlementSummary() {
                   </table>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {paymentModalPayerId &&
+        personHasPayableDetails(people.find((p) => p.id === paymentModalPayerId)) && (
+          <PayerPaymentDetailModal
+            person={people.find((p) => p.id === paymentModalPayerId)}
+            onClose={() => setPaymentModalPayerId(null)}
+            t={t}
+          />
+        )}
+
+      {bulkRepayOpen && debtorFilterId && (
+        <div
+          className="bulk-repay-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="bulk-repay-title"
+          onClick={() => {
+            setBulkRepayOpen(false);
+            setBulkRepayAttachError('');
+          }}
+        >
+          <div className="bulk-repay-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 id="bulk-repay-title">{t('cost.bulkRepayTitle')}</h3>
+            <p className="bulk-repay-desc">{t('cost.bulkRepayDesc')}</p>
+            <p className="bulk-repay-meta">
+              <strong>{getName(debtorFilterId)}</strong>
+              {payerFilterId ? (
+                <>
+                  {' → '}
+                  <strong>{getName(payerFilterId)}</strong>
+                </>
+              ) : (
+                <> · {t('cost.bulkRepayAllCreditors')}</>
+              )}
+            </p>
+            <ul className="bulk-repay-totals">
+              {Object.entries(overallDebtorUnpaidByCurrency).map(([cur, amt]) => (
+                <li key={cur}>
+                  {getSymbol(cur)}
+                  {amt.toFixed(2)} {cur}
+                </li>
+              ))}
+            </ul>
+            <p className="bulk-repay-count">
+              {t('cost.bulkRepaySplitCount', { n: bulkRepayTargets.length })}
+            </p>
+            <label className="bulk-repay-field">
+              <span>{t('cost.repaidOn')}</span>
+              <input
+                type="date"
+                value={bulkRepayDate}
+                disabled={!canEditCost}
+                onChange={(e) => setBulkRepayDate(e.target.value)}
+              />
+            </label>
+            <label className="bulk-repay-attach attach-btn">
+              <input
+                ref={bulkRepayFileRef}
+                type="file"
+                accept="image/*,.pdf"
+                disabled={!canEditCost}
+                style={{ display: 'none' }}
+                onChange={async (e) => {
+                  setBulkRepayAttachError('');
+                  const file = e.target.files?.[0];
+                  const inp = e.target;
+                  try {
+                    if (!file) return;
+                    const att = await fileToSyncAttachment(file);
+                    setBulkRepayAttach(att);
+                  } catch (err) {
+                    setBulkRepayAttachError(
+                      err?.code === SYNC_FILE_ERROR_TOO_LARGE || err?.message === SYNC_FILE_ERROR_TOO_LARGE
+                        ? t('cost.fileTooLargeForSync')
+                        : t('cost.fileReadError')
+                    );
+                  } finally {
+                    inp.value = '';
+                  }
+                }}
+              />
+              <span>
+                {bulkRepayAttach ? `📎 ${bulkRepayAttach.name}` : `📎 ${t('cost.proof')}`}
+              </span>
+            </label>
+            {bulkRepayAttachError ? <p className="ef-form-error bulk-repay-attach-error">{bulkRepayAttachError}</p> : null}
+            <div className="bulk-repay-actions">
+              <button
+                type="button"
+                className="primary"
+                disabled={!canEditCost || bulkRepayTargets.length === 0}
+                onClick={() => {
+                  if (!debtorFilterId || bulkRepayTargets.length === 0) return;
+                  bulkMarkSplitsRepaid(bulkRepayTargets, bulkRepayDate, bulkRepayAttach, {
+                    debtorId: debtorFilterId,
+                    creditorId: payerFilterId || null,
+                    repaidDate: bulkRepayDate,
+                  });
+                  setBulkRepayOpen(false);
+                  setBulkRepayAttach(null);
+                  setBulkRepayAttachError('');
+                  if (bulkRepayFileRef.current) bulkRepayFileRef.current.value = '';
+                }}
+              >
+                {t('cost.confirm')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkRepayOpen(false);
+                  setBulkRepayAttach(null);
+                  setBulkRepayAttachError('');
+                  if (bulkRepayFileRef.current) bulkRepayFileRef.current.value = '';
+                }}
+              >
+                {t('cost.cancel')}
+              </button>
             </div>
           </div>
         </div>

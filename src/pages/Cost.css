@@ -1823,7 +1823,160 @@ button.settlement-person-btn {
   word-break: break-word;
 }
 
+.settlement-os-th-debtor {
+  position: relative;
+  white-space: normal;
+}
+
+.settlement-os-payer-name-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.settlement-os-payer-name-btn:hover {
+  color: var(--text-primary);
+}
+
+.settlement-os-bulk-bar {
+  margin-top: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-soft);
+  background: linear-gradient(135deg, var(--pastel-lavender) 0%, var(--bg-card) 100%);
+}
+
+.settlement-os-bulk-bar-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.settlement-os-overall {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.settlement-os-overall-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.settlement-os-overall-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.settlement-os-overall-pill {
+  background: var(--pastel-blush);
+  padding: 0.3rem 0.55rem;
+  border-radius: 10px;
+  font-size: 0.88rem;
+}
+
+.settlement-os-repay-all-btn {
+  flex-shrink: 0;
+}
+
+.settlement-bulk-log {
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border: 1px dashed var(--border-soft);
+  background: var(--bg-card);
+}
+
+.settlement-bulk-log-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.settlement-bulk-log ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.payer-pay-backdrop,
+.bulk-repay-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.payer-pay-modal,
+.bulk-repay-modal {
+  width: min(420px, 100%);
+  max-height: min(90vh, 640px);
+  overflow: auto;
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 1.1rem 1.15rem;
+  box-shadow: var(--shadow-lg);
+}
+
+.payer-pay-modal h3,
+.bulk-repay-modal h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.payer-pay-qr {
+  max-width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: 10px;
+  margin: 0.5rem 0;
+}
+
+.payer-pay-bank {
+  margin: 0.35rem 0;
+  font-size: 0.9rem;
+}
+
+.payer-pay-account-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.payer-pay-copy-btn {
+  flex-shrink: 0;
+}
+
 @media (max-width: 639px) {
+  .settlement-os-bulk-bar-inner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .settlement-outstanding-scroll {
     display: none;
   }

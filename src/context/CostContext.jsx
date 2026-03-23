@@ -61,6 +61,7 @@ export function CostProvider({ children }) {
   const { cost, replaceCostState: replaceCloudCostState, updateCostState, canEditCurrentPlan } = useItinerary();
   const people = cost?.people ?? [];
   const expenses = cost?.expenses ?? [];
+  const bulkRepayEvents = Array.isArray(cost?.bulkRepayEvents) ? cost.bulkRepayEvents : [];
   const [rateCache, setRateCache] = useState({});
 
   const addPerson = useCallback((name) => {
@@ -184,6 +185,64 @@ export function CostProvider({ children }) {
     }));
   }, [canEditCurrentPlan, updateCostState]);
 
+  /**
+   * Mark many splits repaid in one action (e.g. settlement "Repay all").
+   * @param {Array<{ expenseId: string, splitIndex: number }>} targets
+   * @param {object|null} logEntry - appended to bulkRepayEvents if provided
+   */
+  const bulkMarkSplitsRepaid = useCallback(
+    (targets, repaidDate, attachment, logEntry) => {
+      if (!canEditCurrentPlan || !Array.isArray(targets) || targets.length === 0) return;
+      const byExp = new Map();
+      for (const t of targets) {
+        if (!t?.expenseId || t.splitIndex == null) continue;
+        if (!byExp.has(t.expenseId)) byExp.set(t.expenseId, new Set());
+        byExp.get(t.expenseId).add(t.splitIndex);
+      }
+      if (byExp.size === 0) return;
+      const dateStr = repaidDate || new Date().toISOString().slice(0, 10);
+      updateCostState((prev) => {
+        const prevPeople = prev?.people || [];
+        const prevEvents = Array.isArray(prev?.bulkRepayEvents) ? prev.bulkRepayEvents : [];
+        const nextExpenses = (prev?.expenses || []).map((e) => {
+          const idxSet = byExp.get(e.id);
+          if (!idxSet) return e;
+          return {
+            ...e,
+            splits: e.splits.map((s, i) => {
+              if (!idxSet.has(i) || s.repaid) return s;
+              return {
+                ...s,
+                repaid: true,
+                repaidAt: new Date().toISOString(),
+                repaidDate: dateStr,
+                repaidAttachment: attachment || null,
+              };
+            }),
+          };
+        });
+        const nextEvents =
+          logEntry && typeof logEntry === 'object'
+            ? [
+                ...prevEvents,
+                {
+                  ...logEntry,
+                  id: logEntry.id || `bulk-${Date.now()}`,
+                  at: new Date().toISOString(),
+                },
+              ]
+            : prevEvents;
+        return {
+          ...prev,
+          people: prevPeople,
+          expenses: nextExpenses,
+          bulkRepayEvents: nextEvents,
+        };
+      });
+    },
+    [canEditCurrentPlan, updateCostState]
+  );
+
   const getCachedRate = useCallback(
     (from, to, date) => rateCache[`${from}->${to}@${date}`] || null,
     [rateCache]
@@ -256,6 +315,8 @@ export function CostProvider({ children }) {
     removeExpensesForPersonId,
     markSplitRepaid,
     unmarkSplitRepaid,
+    bulkMarkSplitsRepaid,
+    bulkRepayEvents,
     getCachedRate,
     setCachedRate,
     getSettlements,
