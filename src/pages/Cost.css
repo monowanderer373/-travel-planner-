@@ -64,6 +64,30 @@
   flex-shrink: 0;
 }
 
+.person-avatar--chip-btn {
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.person-avatar--chip-btn:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.person-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.person-avatar-letter {
+  line-height: 1;
+}
+
 .person-name-input {
   border: none;
   background: transparent;
@@ -123,7 +147,99 @@
 
 /* ══════════════════════ TRAVELLER PAYMENT DETAILS ══════════════════════ */
 .payment-details-hint {
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.payment-details-nav-hint,
+.payment-details-permission-hint {
+  margin-bottom: 0.45rem;
+  font-size: 0.88rem;
+}
+
+.traveller-payment-viewonly-label {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.payment-viewonly-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin: 0 0 0.5rem;
+}
+
+.payment-readonly-body {
+  gap: 0.65rem;
+}
+
+.payment-readonly-dl {
+  margin: 0;
+  display: grid;
+  gap: 0.35rem 0.5rem;
+  grid-template-columns: auto 1fr;
+  font-size: 0.88rem;
+}
+
+.payment-readonly-dl dt {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.payment-readonly-dl dd {
+  margin: 0;
+  word-break: break-word;
+  color: var(--text-primary);
+}
+
+.payment-readonly-account {
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+}
+
+.payment-readonly-qr {
+  max-width: 180px;
+  margin: 0 auto;
+}
+
+.payment-card-viewonly-empty {
+  margin: 0;
+}
+
+.traveller-payment-card--pulse {
+  animation: traveller-payment-pulse 1.1s ease-out 2;
+  box-shadow: 0 0 0 2px var(--accent-primary);
+}
+
+@keyframes traveller-payment-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(124, 92, 255, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(124, 92, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(124, 92, 255, 0);
+  }
+}
+
+.person-avatar--photo {
+  padding: 0;
+  overflow: hidden;
+  background: var(--border-soft);
+}
+
+.person-avatar-header-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .traveller-payment-grid {
@@ -159,6 +275,12 @@
   font-weight: 600;
   font-size: 1rem;
   color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+}
+
+.traveller-payment-viewonly-label {
+  margin-left: auto;
 }
 
 .traveller-payment-body {
@@ -1851,6 +1973,135 @@ button.settlement-person-btn {
   border-radius: 12px;
   border: 1px solid var(--border-soft);
   background: linear-gradient(135deg, var(--pastel-lavender) 0%, var(--bg-card) 100%);
+}
+
+.settlement-os-overall-sublabel {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+  line-height: 1.35;
+}
+
+.settlement-os-contra-select-hint,
+.settlement-os-repay-gross-hint {
+  margin: 0.55rem 0 0;
+  font-size: 0.82rem;
+}
+
+.settlement-os-contra-block {
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--border-soft);
+}
+
+.settlement-os-contra-heading {
+  margin: 0 0 0.45rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.settlement-os-contra-row {
+  margin-bottom: 0.65rem;
+}
+
+.settlement-os-contra-label {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+  line-height: 1.35;
+}
+
+.settlement-os-contra-pills {
+  margin-top: 0;
+}
+
+.settlement-os-contra-pill {
+  background: var(--pastel-mint);
+}
+
+.settlement-os-net-block {
+  margin-top: 0.5rem;
+}
+
+.settlement-os-net-label {
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+.settlement-os-net-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.settlement-os-net-item {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+}
+
+.settlement-os-net-cur {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  min-width: 2.5rem;
+}
+
+.settlement-os-net-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.settlement-os-net-math {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 0.25rem;
+}
+
+.settlement-os-net-result {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.5rem;
+}
+
+.settlement-os-net-amt {
+  font-size: 1.05rem;
+  color: var(--accent-primary);
+}
+
+.settlement-os-net-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.settlement-os-net-result-even {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.settlement-os-net-debtor_pays .settlement-os-net-amt {
+  color: #c44;
+}
+
+.settlement-os-net-payer_pays .settlement-os-net-amt {
+  color: #2a8f5a;
 }
 
 .settlement-os-bulk-bar-inner {

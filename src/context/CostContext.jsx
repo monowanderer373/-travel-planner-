@@ -1,6 +1,13 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { useItinerary } from './ItineraryContext';
+import { useAuth } from './AuthContext';
 import { defaultPaymentInfo } from '../lib/costData';
+import {
+  buildCostMemberRoster,
+  getPersonPaymentEditPolicy,
+  getAvatarUrlForPerson,
+  isUserTripCreator,
+} from '../lib/costPersonIdentity';
 
 const CostContext = createContext(null);
 
@@ -58,11 +65,62 @@ export async function fetchRate(fromCurrency, toCurrency, date = 'latest') {
   return null;
 }
 export function CostProvider({ children }) {
-  const { cost, replaceCostState: replaceCloudCostState, updateCostState, canEditCurrentPlan } = useItinerary();
+  const {
+    cost,
+    replaceCostState: replaceCloudCostState,
+    updateCostState,
+    canEditCurrentPlan,
+    tripmates,
+    tripCreator,
+    planMembers,
+    shareSettings,
+    isActivePlanOwner,
+  } = useItinerary();
+  const { user } = useAuth();
   const people = cost?.people ?? [];
   const expenses = cost?.expenses ?? [];
   const bulkRepayEvents = Array.isArray(cost?.bulkRepayEvents) ? cost.bulkRepayEvents : [];
   const [rateCache, setRateCache] = useState({});
+
+  const memberRoster = useMemo(
+    () => buildCostMemberRoster(tripCreator, tripmates, planMembers),
+    [tripCreator, tripmates, planMembers]
+  );
+
+  const isTripCreator = useMemo(
+    () => isUserTripCreator(user, tripCreator, shareSettings?.tripId, isActivePlanOwner),
+    [user, tripCreator, shareSettings?.tripId, isActivePlanOwner]
+  );
+
+  const canEditPersonPaymentFor = useCallback(
+    (personId) => {
+      if (!canEditCurrentPlan) return false;
+      const person = people.find((p) => p.id === personId);
+      if (!person) return false;
+      return getPersonPaymentEditPolicy(user, person, memberRoster, isTripCreator, true).canEdit;
+    },
+    [canEditCurrentPlan, people, user, memberRoster, isTripCreator]
+  );
+
+  const canEditTravellerNameFor = useCallback(
+    (personId) => {
+      if (!canEditCurrentPlan) return false;
+      const person = people.find((p) => p.id === personId);
+      if (!person) return false;
+      const { canEdit } = getPersonPaymentEditPolicy(user, person, memberRoster, isTripCreator, true);
+      return isTripCreator || canEdit;
+    },
+    [canEditCurrentPlan, people, user, memberRoster, isTripCreator]
+  );
+
+  const getTravellerAvatarUrlForPersonId = useCallback(
+    (personId) => {
+      const person = people.find((p) => p.id === personId);
+      if (!person) return '';
+      return getAvatarUrlForPerson(person, memberRoster);
+    },
+    [people, memberRoster]
+  );
 
   const addPerson = useCallback((name) => {
     if (!canEditCurrentPlan) return;
@@ -77,25 +135,49 @@ export function CostProvider({ children }) {
     }));
   }, [canEditCurrentPlan, updateCostState]);
 
-  const updatePerson = useCallback((id, name) => {
-    if (!canEditCurrentPlan) return;
-    updateCostState((prev) => ({
-      ...prev,
-      people: (prev?.people || []).map((p) => (p.id === id ? { ...p, name } : p)),
-    }));
-  }, [canEditCurrentPlan, updateCostState]);
+  const updatePerson = useCallback(
+    (id, name) => {
+      if (!canEditCurrentPlan) return;
+      updateCostState((prev) => {
+        const ppl = prev?.people || [];
+        const person = ppl.find((p) => p.id === id);
+        if (!person) return prev;
+        const roster = buildCostMemberRoster(tripCreator, tripmates, planMembers);
+        const creator = isUserTripCreator(user, tripCreator, shareSettings?.tripId, isActivePlanOwner);
+        const { canEdit } = getPersonPaymentEditPolicy(user, person, roster, creator, true);
+        if (!creator && !canEdit) return prev;
+        return {
+          ...prev,
+          people: ppl.map((p) => (p.id === id ? { ...p, name } : p)),
+        };
+      });
+    },
+    [canEditCurrentPlan, updateCostState, user, tripCreator, tripmates, planMembers, shareSettings?.tripId, isActivePlanOwner]
+  );
 
-  const updatePersonPayment = useCallback((personId, paymentInfo) => {
-    if (!canEditCurrentPlan) return;
-    updateCostState((prev) => ({
-      ...prev,
-      people: (prev?.people || []).map((p) =>
-        p.id === personId
-          ? { ...p, paymentInfo: { ...(p.paymentInfo || defaultPaymentInfo()), ...paymentInfo } }
-          : p
-      ),
-    }));
-  }, [canEditCurrentPlan, updateCostState]);
+  const updatePersonPayment = useCallback(
+    (personId, paymentInfo) => {
+      if (!canEditCurrentPlan) return;
+      updateCostState((prev) => {
+        const ppl = prev?.people || [];
+        const person = ppl.find((p) => p.id === personId);
+        if (!person) return prev;
+        const roster = buildCostMemberRoster(tripCreator, tripmates, planMembers);
+        const creator = isUserTripCreator(user, tripCreator, shareSettings?.tripId, isActivePlanOwner);
+        const { canEdit } = getPersonPaymentEditPolicy(user, person, roster, creator, true);
+        if (!canEdit) return prev;
+        return {
+          ...prev,
+          people: ppl.map((p) =>
+            p.id === personId
+              ? { ...p, paymentInfo: { ...(p.paymentInfo || defaultPaymentInfo()), ...paymentInfo } }
+              : p
+          ),
+        };
+      });
+    },
+    [canEditCurrentPlan, updateCostState, user, tripCreator, tripmates, planMembers, shareSettings?.tripId, isActivePlanOwner]
+  );
 
   const removePerson = useCallback((id) => {
     if (!canEditCurrentPlan) return;
@@ -323,6 +405,9 @@ export function CostProvider({ children }) {
     getRepaidSummary,
     replaceCostState,
     canEditCost: canEditCurrentPlan,
+    canEditPersonPaymentFor,
+    canEditTravellerNameFor,
+    getTravellerAvatarUrlForPersonId,
     CURRENCIES,
   };
 

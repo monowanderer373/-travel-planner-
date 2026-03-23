@@ -15,12 +15,77 @@ function useSymbol(code) {
   return CURRENCIES.find((c) => c.code === code)?.symbol || '';
 }
 
+// ─── Read-only payment summary (others viewing your card) ───
+function PaymentReadonlyCard({ pay, travellerName, t }) {
+  const has =
+    !!pay?.qrCode ||
+    !!(pay?.bankName && String(pay.bankName).trim()) ||
+    !!(pay?.accountNumber && String(pay.accountNumber).trim()) ||
+    !!(pay?.accountHolder && String(pay.accountHolder).trim()) ||
+    !!(pay?.notes && String(pay.notes).trim());
+  if (!has) {
+    return (
+      <div className="traveller-payment-body payment-readonly-body">
+        <p className="cost-hint payment-card-viewonly-empty">
+          {t('cost.paymentCardEmptyForViewer', { name: travellerName })}
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="traveller-payment-body payment-readonly-body">
+      <p className="payment-viewonly-badge">{t('cost.viewOnlyPayment')}</p>
+      {pay.qrCode ? (
+        <div className="qr-preview payment-readonly-qr">
+          <img src={pay.qrCode} alt="QR" />
+        </div>
+      ) : null}
+      {(pay.bankName || pay.accountNumber || pay.accountHolder || pay.notes) && (
+        <dl className="payment-readonly-dl">
+          {pay.bankName ? (
+            <>
+              <dt>{t('cost.bankName')}</dt>
+              <dd>{pay.bankName}</dd>
+            </>
+          ) : null}
+          {pay.accountHolder ? (
+            <>
+              <dt>{t('cost.accountHolder')}</dt>
+              <dd>{pay.accountHolder}</dd>
+            </>
+          ) : null}
+          {pay.accountNumber ? (
+            <>
+              <dt>{t('cost.accountNumber')}</dt>
+              <dd className="payment-readonly-account">{pay.accountNumber}</dd>
+            </>
+          ) : null}
+          {pay.notes ? (
+            <>
+              <dt>{t('cost.notes')}</dt>
+              <dd>{pay.notes}</dd>
+            </>
+          ) : null}
+        </dl>
+      )}
+    </div>
+  );
+}
+
 // ─── People Manager ───────────────────────────────────────────
-function PeopleManager() {
+function PeopleManager({ onAvatarScrollToPayment }) {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { people, addPerson, updatePerson, removePerson, removeExpensesForPersonId } = useCost();
+  const {
+    people,
+    addPerson,
+    updatePerson,
+    removePerson,
+    removeExpensesForPersonId,
+    canEditTravellerNameFor,
+    getTravellerAvatarUrlForPersonId,
+  } = useCost();
   const { tripmates, tripCreator, planMembers, shareSettings, isActivePlanOwner } = useItinerary();
   const [nameInput, setNameInput] = useState('');
 
@@ -154,10 +219,25 @@ function PeopleManager() {
         </div>
       )}
       <div className="people-list">
-        {people.map((p) => (
+        {people.map((p) => {
+          const avatarUrl = getTravellerAvatarUrlForPersonId(p.id);
+          const canEditName = canEditTravellerNameFor(p.id);
+          return (
           <div key={p.id} className="person-chip animate-in">
-            <span className="person-avatar">{p.name.charAt(0).toUpperCase()}</span>
-            {isCreator ? (
+            <button
+              type="button"
+              className="person-avatar person-avatar--chip-btn"
+              onClick={() => onAvatarScrollToPayment?.(p.id)}
+              title={t('cost.jumpToPaymentCard')}
+              aria-label={t('cost.jumpToPaymentCardNamed', { name: p.name })}
+            >
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" className="person-avatar-img" />
+              ) : (
+                <span className="person-avatar-letter">{p.name.charAt(0).toUpperCase()}</span>
+              )}
+            </button>
+            {canEditName ? (
               <input
                 type="text"
                 value={p.name}
@@ -186,7 +266,8 @@ function PeopleManager() {
               </button>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
       {isCreator && (
         <form onSubmit={handleAdd} className="add-person-form">
@@ -261,9 +342,15 @@ function TravellerPaymentQrUpload({ personId, pay, canEdit, updatePersonPayment 
 }
 
 // ─── Traveller Payment Details (QR + bank for others to pay) ───
-function TravellerPaymentDetails() {
+function TravellerPaymentDetails({ highlightPersonId }) {
   const { t } = useLanguage();
-  const { people, updatePersonPayment, canEditCost } = useCost();
+  const {
+    people,
+    updatePersonPayment,
+    canEditCost,
+    canEditPersonPaymentFor,
+    getTravellerAvatarUrlForPersonId,
+  } = useCost();
 
   if (people.length === 0) return null;
 
@@ -277,89 +364,126 @@ function TravellerPaymentDetails() {
     savedAt: null,
   });
 
-  const unsavedPeople = people.filter((p) => !(p.paymentInfo || defaultPayment()).saved);
-  if (unsavedPeople.length === 0) return null;
-
   return (
-    <section className="section cost-section">
+    <section id="section-traveller-payment-details" className="section cost-section">
       <h2 className="section-title">{t('cost.travellerPaymentDetails')}</h2>
       <p className="cost-hint payment-details-hint">
         {t('cost.paymentHint')}
       </p>
-      {!canEditCost && <p className="cost-hint">{t('cost.readOnlyHint')}</p>}
+      <p className="cost-hint payment-details-nav-hint">{t('cost.paymentDetailsNavHint')}</p>
+      {canEditCost ? (
+        <p className="cost-hint payment-details-permission-hint">{t('cost.paymentDetailsPermissionHint')}</p>
+      ) : (
+        <p className="cost-hint">{t('cost.readOnlyHint')}</p>
+      )}
       <div className="traveller-payment-grid">
-        {unsavedPeople.map((p) => {
+        {people.map((p) => {
           const pay = p.paymentInfo || defaultPayment();
+          const canEditThis = canEditPersonPaymentFor(p.id);
           const canSave = !!(pay.qrCode || pay.bankName || pay.accountHolder || pay.accountNumber || pay.notes);
+          const avatarUrl = getTravellerAvatarUrlForPersonId(p.id);
+          const pulse = highlightPersonId === p.id;
           return (
-            <div key={p.id} className="traveller-payment-card animate-in">
+            <div
+              key={p.id}
+              id={`traveller-payment-card-${p.id}`}
+              className={`traveller-payment-card animate-in${pulse ? ' traveller-payment-card--pulse' : ''}`}
+            >
               <div className="traveller-payment-header">
-                <span className="person-avatar">{p.name.charAt(0).toUpperCase()}</span>
+                {avatarUrl ? (
+                  <span className="person-avatar person-avatar--photo">
+                    <img src={avatarUrl} alt="" className="person-avatar-header-img" />
+                  </span>
+                ) : (
+                  <span className="person-avatar">{p.name.charAt(0).toUpperCase()}</span>
+                )}
                 <span className="traveller-payment-name">{p.name}</span>
-                <button
-                  type="button"
-                  className="traveller-payment-save"
-                  disabled={!canEditCost || !canSave}
-                  onClick={() => updatePersonPayment(p.id, { ...(p.paymentInfo || defaultPayment()), saved: true, savedAt: new Date().toISOString() })}
-                >
-                  {t('cost.savePayment')}
-                </button>
+                {canEditThis ? (
+                  <button
+                    type="button"
+                    className="traveller-payment-save"
+                    disabled={!canEditCost || !canSave}
+                    onClick={() =>
+                      updatePersonPayment(p.id, {
+                        ...(p.paymentInfo || defaultPayment()),
+                        saved: true,
+                        savedAt: new Date().toISOString(),
+                      })
+                    }
+                  >
+                    {t('cost.savePayment')}
+                  </button>
+                ) : (
+                  <span className="traveller-payment-viewonly-label">{t('cost.viewOnlyPayment')}</span>
+                )}
               </div>
-              <div className="traveller-payment-body">
-                <label className="payment-field">
-                  <span>{t('cost.qrCode')}</span>
-                  <TravellerPaymentQrUpload
-                    personId={p.id}
-                    pay={pay}
-                    canEdit={canEditCost}
-                    updatePersonPayment={updatePersonPayment}
-                  />
-                </label>
-                <label className="payment-field">
-                  <span>{t('cost.bankName')}</span>
-                  <input
-                    type="text"
-                    placeholder="e.g. Maybank, CIMB"
-                    value={pay.bankName}
-                    disabled={!canEditCost}
-                    onChange={(e) => updatePersonPayment(p.id, { bankName: e.target.value, saved: false, savedAt: null })}
-                  />
-                </label>
-                <label className="payment-field">
-                  <span>{t('cost.accountHolder')}</span>
-                  <input
-                    type="text"
-                    placeholder={t('cost.nameOnAccount')}
-                    value={pay.accountHolder}
-                    disabled={!canEditCost}
-                    onChange={(e) => updatePersonPayment(p.id, { accountHolder: e.target.value, saved: false, savedAt: null })}
-                  />
-                </label>
-                <label className="payment-field">
-                  <span>{t('cost.accountNumber')}</span>
-                  <input
-                    type="text"
-                    placeholder={t('cost.accountOrCard')}
-                    value={pay.accountNumber}
-                    disabled={!canEditCost}
-                    onChange={(e) => updatePersonPayment(p.id, { accountNumber: e.target.value, saved: false, savedAt: null })}
-                  />
-                </label>
-                <label className="payment-field">
-                  <span>{t('cost.notes')}</span>
-                  <input
-                    type="text"
-                    placeholder={t('cost.optional')}
-                    value={pay.notes}
-                    disabled={!canEditCost}
-                    onChange={(e) => updatePersonPayment(p.id, { notes: e.target.value, saved: false, savedAt: null })}
-                  />
-                </label>
-              </div>
-              {(pay.qrCode || pay.bankName || pay.accountNumber) && (
-                <div className="payment-preview-note">
-                  ✓ {t('cost.othersCanPay', { name: p.name })}
-                </div>
+              {canEditThis ? (
+                <>
+                  <div className="traveller-payment-body">
+                    <label className="payment-field">
+                      <span>{t('cost.qrCode')}</span>
+                      <TravellerPaymentQrUpload
+                        personId={p.id}
+                        pay={pay}
+                        canEdit={canEditCost && canEditThis}
+                        updatePersonPayment={updatePersonPayment}
+                      />
+                    </label>
+                    <label className="payment-field">
+                      <span>{t('cost.bankName')}</span>
+                      <input
+                        type="text"
+                        placeholder="e.g. Maybank, CIMB"
+                        value={pay.bankName}
+                        disabled={!canEditCost}
+                        onChange={(e) =>
+                          updatePersonPayment(p.id, { bankName: e.target.value, saved: false, savedAt: null })
+                        }
+                      />
+                    </label>
+                    <label className="payment-field">
+                      <span>{t('cost.accountHolder')}</span>
+                      <input
+                        type="text"
+                        placeholder={t('cost.nameOnAccount')}
+                        value={pay.accountHolder}
+                        disabled={!canEditCost}
+                        onChange={(e) =>
+                          updatePersonPayment(p.id, { accountHolder: e.target.value, saved: false, savedAt: null })
+                        }
+                      />
+                    </label>
+                    <label className="payment-field">
+                      <span>{t('cost.accountNumber')}</span>
+                      <input
+                        type="text"
+                        placeholder={t('cost.accountOrCard')}
+                        value={pay.accountNumber}
+                        disabled={!canEditCost}
+                        onChange={(e) =>
+                          updatePersonPayment(p.id, { accountNumber: e.target.value, saved: false, savedAt: null })
+                        }
+                      />
+                    </label>
+                    <label className="payment-field">
+                      <span>{t('cost.notes')}</span>
+                      <input
+                        type="text"
+                        placeholder={t('cost.optional')}
+                        value={pay.notes}
+                        disabled={!canEditCost}
+                        onChange={(e) => updatePersonPayment(p.id, { notes: e.target.value, saved: false, savedAt: null })}
+                      />
+                    </label>
+                  </div>
+                  {(pay.qrCode || pay.bankName || pay.accountNumber) && (
+                    <div className="payment-preview-note">
+                      ✓ {t('cost.othersCanPay', { name: p.name })}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <PaymentReadonlyCard pay={pay} travellerName={p.name} t={t} />
               )}
             </div>
           );
@@ -1835,6 +1959,31 @@ function SettlementSummary() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [payerScopedRows, getName]);
 
+  /**
+   * When a payer is selected, also list people who only owe them in the reverse direction
+   * (they paid bills where the selected payer still has an unpaid split) so contra / net still works.
+   */
+  const debtorsForPayerFilterUi = useMemo(() => {
+    if (!payerFilterId) return debtorsInOutstanding;
+    const ids = new Set(debtorsInOutstanding.map((d) => d.id));
+    for (const e of expenses) {
+      if (e.payerId === payerFilterId) {
+        (e.splits || []).forEach((s) => {
+          if (s.personId === e.payerId || s.repaid) return;
+          ids.add(s.personId);
+        });
+      } else {
+        (e.splits || []).forEach((s) => {
+          if (s.personId === e.payerId || s.repaid) return;
+          if (s.personId === payerFilterId) ids.add(e.payerId);
+        });
+      }
+    }
+    return [...ids]
+      .map((id) => ({ id, name: getName(id) }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [debtorsInOutstanding, payerFilterId, expenses, getName]);
+
   const tableDisplayRows = useMemo(() => {
     if (!debtorFilterId) {
       return payerScopedRows.map((r) => ({
@@ -1883,12 +2032,57 @@ function SettlementSummary() {
     return targets;
   }, [expenses, payerFilterId, debtorFilterId]);
 
+  /** Unpaid splits where debtorFilterId paid and payerFilterId owes them (reverse direction). */
+  const counterpartyOwesDebtorByCurrency = useMemo(() => {
+    if (!debtorFilterId || !payerFilterId) return {};
+    const totals = {};
+    for (const e of expenses) {
+      if (e.payerId !== debtorFilterId) continue;
+      (e.splits || []).forEach((s) => {
+        if (s.personId === e.payerId || s.repaid) return;
+        if (s.personId !== payerFilterId) return;
+        const cur = s.repayCurrency || e.paidCurrency;
+        const amt = Number(s.convertedAmount ?? s.amount) || 0;
+        if (amt <= 0.0001) return;
+        totals[cur] = (totals[cur] || 0) + amt;
+      });
+    }
+    return totals;
+  }, [expenses, debtorFilterId, payerFilterId]);
+
+  /** Per currency: gross debtor→payer minus gross payer→debtor (no FX conversion). */
+  const contraNetByCurrency = useMemo(() => {
+    if (!debtorFilterId || !payerFilterId) return [];
+    const grossDebtorOwes = overallDebtorUnpaidByCurrency;
+    const grossPayerOwes = counterpartyOwesDebtorByCurrency;
+    const keys = new Set([...Object.keys(grossDebtorOwes), ...Object.keys(grossPayerOwes)]);
+    const lines = [];
+    for (const cur of [...keys].sort()) {
+      const a = grossDebtorOwes[cur] || 0;
+      const b = grossPayerOwes[cur] || 0;
+      if (a < 0.0001 && b < 0.0001) continue;
+      const signed = a - b;
+      let kind = 'even';
+      if (signed > 0.005) kind = 'debtor_pays';
+      else if (signed < -0.005) kind = 'payer_pays';
+      lines.push({
+        cur,
+        grossDebtorOwes: a,
+        grossPayerOwes: b,
+        signed,
+        absNet: Math.abs(signed),
+        kind,
+      });
+    }
+    return lines;
+  }, [debtorFilterId, payerFilterId, overallDebtorUnpaidByCurrency, counterpartyOwesDebtorByCurrency]);
+
   useEffect(() => {
     if (!debtorFilterId) return;
-    if (!debtorsInOutstanding.some((d) => d.id === debtorFilterId)) {
+    if (!debtorsForPayerFilterUi.some((d) => d.id === debtorFilterId)) {
       setDebtorFilterId(null);
     }
-  }, [debtorFilterId, debtorsInOutstanding]);
+  }, [debtorFilterId, debtorsForPayerFilterUi]);
 
   useEffect(() => {
     if (!debtorMenuOpen) return;
@@ -2014,7 +2208,7 @@ function SettlementSummary() {
               onChange={(e) => setDebtorFilterId(e.target.value || null)}
             >
               <option value="">{t('cost.allDebtors')}</option>
-              {debtorsInOutstanding.map((p) => (
+              {debtorsForPayerFilterUi.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
@@ -2162,7 +2356,7 @@ function SettlementSummary() {
                             {t('cost.allDebtors')}
                           </button>
                         </li>
-                        {debtorsInOutstanding.map((p) => (
+                        {debtorsForPayerFilterUi.map((p) => (
                           <li key={p.id} role="none">
                             <button
                               type="button"
@@ -2318,6 +2512,14 @@ function SettlementSummary() {
               <div className="settlement-os-bulk-bar-inner">
                 <div className="settlement-os-overall">
                   <span className="settlement-os-overall-label">{t('cost.overallOutstanding')}</span>
+                  {payerFilterId && (
+                    <span className="settlement-os-overall-sublabel">
+                      {t('cost.overallOutstandingGrossToPayer', {
+                        debtor: getName(debtorFilterId),
+                        payer: getName(payerFilterId),
+                      })}
+                    </span>
+                  )}
                   <div className="settlement-os-overall-pills">
                     {Object.keys(overallDebtorUnpaidByCurrency).length === 0 ? (
                       <span className="settlement-os-overall-zero">—</span>
@@ -2350,6 +2552,96 @@ function SettlementSummary() {
                   </button>
                 )}
               </div>
+              {!payerFilterId && (
+                <p className="cost-hint settlement-os-contra-select-hint">{t('cost.contraSelectPayerHint')}</p>
+              )}
+              {payerFilterId && (
+                <div className="settlement-os-contra-block">
+                  <h4 className="settlement-os-contra-heading">{t('cost.contraPaymentTitle')}</h4>
+                  <div className="settlement-os-contra-row">
+                    <span className="settlement-os-contra-label">
+                      {t('cost.counterpartyOwesYou', {
+                        payer: getName(payerFilterId),
+                        debtor: getName(debtorFilterId),
+                      })}
+                    </span>
+                    <div className="settlement-os-overall-pills settlement-os-contra-pills">
+                      {Object.keys(counterpartyOwesDebtorByCurrency).length === 0 ? (
+                        <span className="settlement-os-overall-zero">—</span>
+                      ) : (
+                        Object.entries(counterpartyOwesDebtorByCurrency).map(([cur, amt]) => (
+                          <span key={cur} className="settlement-os-overall-pill settlement-os-contra-pill">
+                            <strong>
+                              {getSymbol(cur)}
+                              {amt.toFixed(2)}
+                            </strong>
+                            <span className="settlement-os-cur-code">{cur}</span>
+                          </span>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                  <div className="settlement-os-net-block">
+                    <span className="settlement-os-overall-label settlement-os-net-label">
+                      {t('cost.netAfterContra')}
+                    </span>
+                    {contraNetByCurrency.length === 0 ? (
+                      <span className="settlement-os-overall-zero">—</span>
+                    ) : (
+                      <ul className="settlement-os-net-list">
+                        {contraNetByCurrency.map((line) => (
+                          <li key={line.cur} className={`settlement-os-net-item settlement-os-net-${line.kind}`}>
+                            <div className="settlement-os-net-cur">{line.cur}</div>
+                            <div className="settlement-os-net-body">
+                              <span className="settlement-os-net-math" title={t('cost.contraSetOff')}>
+                                {getSymbol(line.cur)}
+                                {line.grossDebtorOwes.toFixed(2)} − {getSymbol(line.cur)}
+                                {line.grossPayerOwes.toFixed(2)}
+                              </span>
+                              {line.kind === 'debtor_pays' && (
+                                <p className="settlement-os-net-result">
+                                  <strong className="settlement-os-net-amt">
+                                    {getSymbol(line.cur)}
+                                    {line.absNet.toFixed(2)}
+                                  </strong>
+                                  <span className="settlement-os-net-desc">
+                                    {t('cost.netYouPayCounterparty', {
+                                      debtor: getName(debtorFilterId),
+                                      payer: getName(payerFilterId),
+                                    })}
+                                  </span>
+                                </p>
+                              )}
+                              {line.kind === 'payer_pays' && (
+                                <p className="settlement-os-net-result">
+                                  <strong className="settlement-os-net-amt">
+                                    {getSymbol(line.cur)}
+                                    {line.absNet.toFixed(2)}
+                                  </strong>
+                                  <span className="settlement-os-net-desc">
+                                    {t('cost.netCounterpartyPaysYou', {
+                                      payer: getName(payerFilterId),
+                                      debtor: getName(debtorFilterId),
+                                    })}
+                                  </span>
+                                </p>
+                              )}
+                              {line.kind === 'even' && (
+                                <p className="settlement-os-net-result settlement-os-net-result-even">
+                                  {t('cost.netEvenContra', { currency: line.cur })}
+                                </p>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              )}
+              {payerFilterId && bulkRepayTargets.length > 0 && canEditCost && (
+                <p className="cost-hint settlement-os-repay-gross-hint">{t('cost.repayAllGrossHint')}</p>
+              )}
             </div>
           )}
 
@@ -2743,14 +3035,24 @@ function SettlementSummary() {
 // ─── Main Page ────────────────────────────────────────────────
 export default function Cost() {
   const { t } = useLanguage();
+  const [paymentHighlightId, setPaymentHighlightId] = useState(null);
+
+  useEffect(() => {
+    if (!paymentHighlightId) return undefined;
+    const el = document.getElementById(`traveller-payment-card-${paymentHighlightId}`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    const timer = window.setTimeout(() => setPaymentHighlightId(null), 2600);
+    return () => window.clearTimeout(timer);
+  }, [paymentHighlightId]);
+
   return (
     <div className="page cost-page">
       <header className="page-header">
         <h1>{t('cost.splitter')}</h1>
         <p className="page-intro-inline">{t('cost.intro')}</p>
       </header>
-      <PeopleManager />
-      <TravellerPaymentDetails />
+      <PeopleManager onAvatarScrollToPayment={(id) => setPaymentHighlightId(id)} />
+      <TravellerPaymentDetails highlightPersonId={paymentHighlightId} />
       <AddExpenseForm />
       <DayExpenseView />
       <SettlementSummary />

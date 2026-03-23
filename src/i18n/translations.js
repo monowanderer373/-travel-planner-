@@ -347,6 +347,15 @@ export const translations = {
     'cost.travellerPaymentDetails': 'Traveller payment details',
     'cost.paymentHint':
       'Add your QR code or bank account so others can pay you back. Uploaded images are saved in the shared trip data so everyone on the link can see them.',
+    'cost.paymentDetailsNavHint':
+      'Tip: Click the circle avatar next to a traveller above to scroll to their payment card below.',
+    'cost.paymentDetailsPermissionHint':
+      'You can only edit the payment card linked to your account. Other people’s cards are read-only (for paying them back). The trip organiser can edit cards for travellers who are not linked to a login yet.',
+    'cost.jumpToPaymentCard': 'Scroll to payment card below',
+    'cost.jumpToPaymentCardNamed': 'Scroll to {name}’s payment card',
+    'cost.viewOnlyPayment': 'View only',
+    'cost.paymentCardEmptyForViewer':
+      '{name} has not added payment details yet. If this is you, make sure your traveller name matches your profile name, or ask the organiser to fix the spelling.',
     'cost.qrCode': 'QR Code (PayNow, DuitNow, etc.)',
     'cost.uploadQR': 'Upload QR code',
     'cost.bankName': 'Bank name',
@@ -459,6 +468,21 @@ export const translations = {
     'cost.noMatchingOutstanding': 'No rows match the current filters.',
     'cost.allDebtors': 'All',
     'cost.overallOutstanding': 'Overall outstanding',
+    'cost.overallOutstandingGrossToPayer':
+      'Unpaid shares on bills paid by {payer} ({debtor} still owes)',
+    'cost.contraPaymentTitle': 'Contra (two-way, same currency)',
+    'cost.counterpartyOwesYou': '{payer} owes {debtor} (unpaid shares on expenses {debtor} paid)',
+    'cost.contraSetOff': 'Set off',
+    'cost.netAfterContra': 'Net after contra',
+    'cost.netYouPayCounterparty':
+      '{debtor} pays {payer} (after netting in this currency)',
+    'cost.netCounterpartyPaysYou':
+      '{payer} pays {debtor} (after netting in this currency)',
+    'cost.netEvenContra': 'Even — no transfer needed ({currency})',
+    'cost.contraSelectPayerHint':
+      'Choose a specific payer above to see contra amounts and net balance with that person.',
+    'cost.repayAllGrossHint':
+      'Repay All still marks each unpaid line in the table; use the net above as the cash to transfer.',
     'cost.repayAll': 'Repay all',
     'cost.bulkRepayTitle': 'Repay all matching shares',
     'cost.bulkRepayDesc':
@@ -821,6 +845,14 @@ export const translations = {
     'cost.travellerPaymentDetails': '成员收款信息',
     'cost.paymentHint':
       '添加收款二维码或银行账户，方便他人还款。上传的图片会写入共享行程数据，通过链接加入的同行人都能看到。',
+    'cost.paymentDetailsNavHint': '提示：点击上方旅客左侧圆形头像，可跳转到下方对应的收款信息卡片。',
+    'cost.paymentDetailsPermissionHint':
+      '你只能编辑与自己登录账号对应的那张收款卡片；其他人的卡片为只读（方便你给对方转账）。尚未绑定账号的旅客，可由行程创建者代为填写。',
+    'cost.jumpToPaymentCard': '跳转到下方收款卡片',
+    'cost.jumpToPaymentCardNamed': '跳转到 {name} 的收款卡片',
+    'cost.viewOnlyPayment': '仅查看',
+    'cost.paymentCardEmptyForViewer':
+      '{name} 尚未填写收款信息。若这是你自己，请确认旅客名单里的名字与个人资料一致，或请创建者更正拼写。',
     'cost.qrCode': '收款码（PayNow、DuitNow 等）',
     'cost.uploadQR': '上传收款码',
     'cost.bankName': '银行名称',
@@ -929,6 +961,16 @@ export const translations = {
     'cost.noMatchingOutstanding': '当前筛选下没有符合条件的行。',
     'cost.allDebtors': '全部',
     'cost.overallOutstanding': '合计待还',
+    'cost.overallOutstandingGrossToPayer': '由 {payer} 付款的账单中，{debtor} 尚未还清的分摊（毛额）',
+    'cost.contraPaymentTitle': '双向对冲（同币种）',
+    'cost.counterpartyOwesYou': '{payer} 欠 {debtor}（{debtor} 付款的支出里，对方未还的分摊）',
+    'cost.contraSetOff': '对冲',
+    'cost.netAfterContra': '对冲后净额',
+    'cost.netYouPayCounterparty': '{debtor} 应付 {payer}（本币种净额）',
+    'cost.netCounterpartyPaysYou': '{payer} 应付 {debtor}（本币种净额）',
+    'cost.netEvenContra': '两清 — 本币种无需转账（{currency}）',
+    'cost.contraSelectPayerHint': '在「付款人」列选择具体某人后，可查看与对方的对冲与净额。',
+    'cost.repayAllGrossHint': '「全部标记已还」仍会按表格逐条标记；实际转账金额可参考上方净额。',
     'cost.repayAll': '全部标记已还',
     'cost.bulkRepayTitle': '批量标记已还',
     'cost.bulkRepayDesc':
