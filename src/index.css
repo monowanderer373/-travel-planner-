@@ -118,6 +118,9 @@
   --accent-warm: #d4a574;
   --accent-soft: #c9b8d4;
 
+  /* Cost settlement: contra pill cyan mix (see Cost.css) */
+  --settlement-contra-tint: #a8ecf0;
+
   /* Shadows */
   --shadow-sm: 0 1px 3px rgba(45, 42, 50, 0.06);
   --shadow-md: 0 4px 12px rgba(45, 42, 50, 0.08);
@@ -349,6 +352,8 @@ input::placeholder, textarea::placeholder {
   --accent-warm: #e89870;
   --accent-soft: #6b9cf8;
 
+  --settlement-contra-tint: #5ec8d4;
+
   --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.45);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.55);
@@ -471,6 +476,8 @@ input::placeholder, textarea::placeholder {
   --accent-secondary: #5c5849;
   --accent-warm: #4D493E;
   --accent-soft: #5c5849;
+
+  --settlement-contra-tint: #7ec4bc;
 
   --shadow-sm: 3px 3px 0 rgba(77, 73, 62, 0.35);
   --shadow-md: 3px 3px 0 rgba(77, 73, 62, 0.5);

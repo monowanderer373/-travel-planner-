@@ -72,8 +72,190 @@ function PaymentReadonlyCard({ pay, travellerName, t }) {
   );
 }
 
+/** QR image stored as data: URL so shared itinerary / Supabase sync works for all members. */
+function TravellerPaymentQrUpload({ personId, pay, canEdit, updatePersonPayment }) {
+  const { t } = useLanguage();
+  const [qrError, setQrError] = useState('');
+
+  return (
+    <div className="qr-upload-area">
+      {pay.qrCode ? (
+        <div className="qr-preview">
+          <img src={pay.qrCode} alt="QR code" />
+          <button
+            type="button"
+            className="qr-remove"
+            disabled={!canEdit}
+            onClick={() => {
+              setQrError('');
+              updatePersonPayment(personId, { qrCode: null, saved: false, savedAt: null });
+            }}
+          >
+            {t('cost.remove')}
+          </button>
+        </div>
+      ) : (
+        <label className="qr-upload-btn">
+          <input
+            type="file"
+            accept="image/*"
+            disabled={!canEdit}
+            onChange={async (e) => {
+              setQrError('');
+              const file = e.target.files?.[0];
+              const inp = e.target;
+              try {
+                if (!file) return;
+                const { url } = await fileToSyncAttachment(file);
+                updatePersonPayment(personId, { qrCode: url, saved: false, savedAt: null });
+              } catch (err) {
+                setQrError(
+                  err?.code === SYNC_FILE_ERROR_TOO_LARGE || err?.message === SYNC_FILE_ERROR_TOO_LARGE
+                    ? t('cost.fileTooLargeForSync')
+                    : t('cost.fileReadError')
+                );
+              } finally {
+                inp.value = '';
+              }
+            }}
+            style={{ display: 'none' }}
+          />
+          📷 {t('cost.uploadQR')}
+        </label>
+      )}
+      {qrError ? <p className="cost-hint qr-upload-error">{qrError}</p> : null}
+    </div>
+  );
+}
+
+/** Single traveller payment card — used under chip (inline) or in first-time section (grid). */
+function TravellerPaymentCard({ person: p, variant = 'grid', pulse = false, onPaymentCardSaved }) {
+  const { t } = useLanguage();
+  const {
+    updatePersonPayment,
+    canEditCost,
+    canEditPersonPaymentFor,
+    getTravellerAvatarUrlForPersonId,
+  } = useCost();
+  const pay = p.paymentInfo ? { ...defaultPaymentInfo(), ...p.paymentInfo } : defaultPaymentInfo();
+  const canEditThis = canEditPersonPaymentFor(p.id);
+  const canSave = !!(pay.qrCode || pay.bankName || pay.accountHolder || pay.accountNumber || pay.notes);
+  const avatarUrl = getTravellerAvatarUrlForPersonId(p.id);
+  const domId = variant === 'inline' ? `traveller-payment-inline-${p.id}` : `traveller-payment-card-${p.id}`;
+
+  return (
+    <div
+      id={domId}
+      className={`traveller-payment-card animate-in traveller-payment-card--${variant}${pulse ? ' traveller-payment-card--pulse' : ''}`}
+    >
+      <div className="traveller-payment-header">
+        {avatarUrl ? (
+          <span className="person-avatar person-avatar--photo">
+            <img src={avatarUrl} alt="" className="person-avatar-header-img" />
+          </span>
+        ) : (
+          <span className="person-avatar">{p.name.charAt(0).toUpperCase()}</span>
+        )}
+        <span className="traveller-payment-name">{p.name}</span>
+        {canEditThis ? (
+          <button
+            type="button"
+            className="traveller-payment-save"
+            disabled={!canEditCost || !canSave}
+            onClick={() => {
+              updatePersonPayment(p.id, {
+                ...pay,
+                saved: true,
+                savedAt: new Date().toISOString(),
+              });
+              onPaymentCardSaved?.(p.id);
+            }}
+          >
+            {t('cost.savePayment')}
+          </button>
+        ) : (
+          <span className="traveller-payment-viewonly-label">{t('cost.viewOnlyPayment')}</span>
+        )}
+      </div>
+      {canEditThis ? (
+        <>
+          <div className="traveller-payment-body">
+            <label className="payment-field">
+              <span>{t('cost.qrCode')}</span>
+              <TravellerPaymentQrUpload
+                personId={p.id}
+                pay={pay}
+                canEdit={canEditCost && canEditThis}
+                updatePersonPayment={updatePersonPayment}
+              />
+            </label>
+            <label className="payment-field">
+              <span>{t('cost.bankName')}</span>
+              <input
+                type="text"
+                placeholder="e.g. Maybank, CIMB"
+                value={pay.bankName}
+                disabled={!canEditCost}
+                onChange={(e) =>
+                  updatePersonPayment(p.id, { bankName: e.target.value, saved: false, savedAt: null })
+                }
+              />
+            </label>
+            <label className="payment-field">
+              <span>{t('cost.accountHolder')}</span>
+              <input
+                type="text"
+                placeholder={t('cost.nameOnAccount')}
+                value={pay.accountHolder}
+                disabled={!canEditCost}
+                onChange={(e) =>
+                  updatePersonPayment(p.id, { accountHolder: e.target.value, saved: false, savedAt: null })
+                }
+              />
+            </label>
+            <label className="payment-field">
+              <span>{t('cost.accountNumber')}</span>
+              <input
+                type="text"
+                placeholder={t('cost.accountOrCard')}
+                value={pay.accountNumber}
+                disabled={!canEditCost}
+                onChange={(e) =>
+                  updatePersonPayment(p.id, { accountNumber: e.target.value, saved: false, savedAt: null })
+                }
+              />
+            </label>
+            <label className="payment-field">
+              <span>{t('cost.notes')}</span>
+              <input
+                type="text"
+                placeholder={t('cost.optional')}
+                value={pay.notes}
+                disabled={!canEditCost}
+                onChange={(e) => updatePersonPayment(p.id, { notes: e.target.value, saved: false, savedAt: null })}
+              />
+            </label>
+          </div>
+          {(pay.qrCode || pay.bankName || pay.accountNumber) && (
+            <div className="payment-preview-note">
+              ✓ {t('cost.othersCanPay', { name: p.name })}
+            </div>
+          )}
+        </>
+      ) : (
+        <PaymentReadonlyCard pay={pay} travellerName={p.name} t={t} />
+      )}
+    </div>
+  );
+}
+
 // ─── People Manager ───────────────────────────────────────────
-function PeopleManager({ onAvatarScrollToPayment, showPaymentCardsHiddenHint }) {
+function PeopleManager({
+  onAvatarScrollToPayment,
+  showPaymentCardsHiddenHint,
+  expandedPaymentPersonId,
+  onPaymentCardSaved,
+}) {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -222,50 +404,63 @@ function PeopleManager({ onAvatarScrollToPayment, showPaymentCardsHiddenHint }) 
         {people.map((p) => {
           const avatarUrl = getTravellerAvatarUrlForPersonId(p.id);
           const canEditName = canEditTravellerNameFor(p.id);
+          const paymentOpen = expandedPaymentPersonId === p.id;
           return (
-          <div key={p.id} className="person-chip animate-in">
-            <button
-              type="button"
-              className="person-avatar person-avatar--chip-btn"
-              onClick={() => onAvatarScrollToPayment?.(p.id)}
-              title={t('cost.jumpToPaymentCard')}
-              aria-label={t('cost.jumpToPaymentCardNamed', { name: p.name })}
-            >
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="" className="person-avatar-img" />
-              ) : (
-                <span className="person-avatar-letter">{p.name.charAt(0).toUpperCase()}</span>
-              )}
-            </button>
-            {canEditName ? (
-              <input
-                type="text"
-                value={p.name}
-                onChange={(e) => updatePerson(p.id, e.target.value)}
-                className="person-name-input"
-              />
-            ) : (
-              <button type="button" className="person-name-btn" onClick={() => openMemberProfile(p.name)}>
-                {p.name}
-              </button>
-            )}
-            {isCreator && (
-              <button
-                type="button"
-                className="person-remove"
-                onClick={() => {
-                  const k = normName(p.name);
-                  if (k) removedNamesRef.current.add(k);
+            <div key={p.id} className="person-chip-column">
+              <div className="person-chip animate-in">
+                <button
+                  type="button"
+                  className="person-avatar person-avatar--chip-btn"
+                  onClick={() => onAvatarScrollToPayment?.(p.id)}
+                  title={t('cost.expandPaymentUnderChip')}
+                  aria-expanded={paymentOpen}
+                  aria-controls={`traveller-payment-inline-${p.id}`}
+                  aria-label={t('cost.expandPaymentUnderChipNamed', { name: p.name })}
+                >
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="" className="person-avatar-img" />
+                  ) : (
+                    <span className="person-avatar-letter">{p.name.charAt(0).toUpperCase()}</span>
+                  )}
+                </button>
+                {canEditName ? (
+                  <input
+                    type="text"
+                    value={p.name}
+                    onChange={(e) => updatePerson(p.id, e.target.value)}
+                    className="person-name-input"
+                  />
+                ) : (
+                  <button type="button" className="person-name-btn" onClick={() => openMemberProfile(p.name)}>
+                    {p.name}
+                  </button>
+                )}
+                {isCreator && (
+                  <button
+                    type="button"
+                    className="person-remove"
+                    onClick={() => {
+                      const k = normName(p.name);
+                      if (k) removedNamesRef.current.add(k);
 
-                  // Clear related local expenses on this device.
-                  removeExpensesForPersonId(p.id);
-                  removePerson(p.id);
-                }}
-              >
-                ×
-              </button>
-            )}
-          </div>
+                      removeExpensesForPersonId(p.id);
+                      removePerson(p.id);
+                    }}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+              {paymentOpen ? (
+                <div className="person-payment-accordion">
+                  <TravellerPaymentCard
+                    person={p}
+                    variant="inline"
+                    onPaymentCardSaved={onPaymentCardSaved}
+                  />
+                </div>
+              ) : null}
+            </div>
           );
         })}
       </div>
@@ -288,92 +483,22 @@ function PeopleManager({ onAvatarScrollToPayment, showPaymentCardsHiddenHint }) 
   );
 }
 
-/** QR image stored as data: URL so shared itinerary / Supabase sync works for all members. */
-function TravellerPaymentQrUpload({ personId, pay, canEdit, updatePersonPayment }) {
+// ─── Traveller Payment Details: first-time (unsaved) only — after Save, edit via avatar accordion ───
+function TravellerPaymentDetails({ expandedPaymentPersonId, onPaymentCardSaved }) {
   const { t } = useLanguage();
-  const [qrError, setQrError] = useState('');
+  const { people, canEditCost } = useCost();
 
-  return (
-    <div className="qr-upload-area">
-      {pay.qrCode ? (
-        <div className="qr-preview">
-          <img src={pay.qrCode} alt="QR code" />
-          <button
-            type="button"
-            className="qr-remove"
-            disabled={!canEdit}
-            onClick={() => {
-              setQrError('');
-              updatePersonPayment(personId, { qrCode: null, saved: false, savedAt: null });
-            }}
-          >
-            {t('cost.remove')}
-          </button>
-        </div>
-      ) : (
-        <label className="qr-upload-btn">
-          <input
-            type="file"
-            accept="image/*"
-            disabled={!canEdit}
-            onChange={async (e) => {
-              setQrError('');
-              const file = e.target.files?.[0];
-              const inp = e.target;
-              try {
-                if (!file) return;
-                const { url } = await fileToSyncAttachment(file);
-                updatePersonPayment(personId, { qrCode: url, saved: false, savedAt: null });
-              } catch (err) {
-                setQrError(
-                  err?.code === SYNC_FILE_ERROR_TOO_LARGE || err?.message === SYNC_FILE_ERROR_TOO_LARGE
-                    ? t('cost.fileTooLargeForSync')
-                    : t('cost.fileReadError')
-                );
-              } finally {
-                inp.value = '';
-              }
-            }}
-            style={{ display: 'none' }}
-          />
-          📷 {t('cost.uploadQR')}
-        </label>
-      )}
-      {qrError ? <p className="cost-hint qr-upload-error">{qrError}</p> : null}
-    </div>
+  /** Unsaved cards here; if that person opened the inline accordion, show only there (no duplicate). */
+  const firstTimePeople = useMemo(
+    () =>
+      people.filter(
+        (p) => !p.paymentInfo?.saved && expandedPaymentPersonId !== p.id
+      ),
+    [people, expandedPaymentPersonId]
   );
-}
-
-// ─── Traveller Payment Details (QR + bank for others to pay) ───
-function TravellerPaymentDetails({ highlightPersonId, expandedPaymentPersonId, onPaymentCardSaved }) {
-  const { t } = useLanguage();
-  const {
-    people,
-    updatePersonPayment,
-    canEditCost,
-    canEditPersonPaymentFor,
-    getTravellerAvatarUrlForPersonId,
-  } = useCost();
-
-  const defaultPayment = () => ({
-    qrCode: null,
-    bankName: '',
-    accountHolder: '',
-    accountNumber: '',
-    notes: '',
-    saved: false,
-    savedAt: null,
-  });
-
-  const visiblePeople = useMemo(() => {
-    return people.filter((p) => {
-      if (!p.paymentInfo?.saved) return true;
-      return expandedPaymentPersonId === p.id;
-    });
-  }, [people, expandedPaymentPersonId]);
 
   if (people.length === 0) return null;
-  if (visiblePeople.length === 0) return null;
+  if (firstTimePeople.length === 0) return null;
 
   return (
     <section id="section-traveller-payment-details" className="section cost-section">
@@ -381,125 +506,21 @@ function TravellerPaymentDetails({ highlightPersonId, expandedPaymentPersonId, o
       <p className="cost-hint payment-details-hint">
         {t('cost.paymentHint')}
       </p>
-      <p className="cost-hint payment-details-nav-hint">{t('cost.paymentDetailsNavHint')}</p>
+      <p className="cost-hint payment-details-nav-hint">{t('cost.paymentDetailsFirstTimeHint')}</p>
       {canEditCost ? (
         <p className="cost-hint payment-details-permission-hint">{t('cost.paymentDetailsPermissionHint')}</p>
       ) : (
         <p className="cost-hint">{t('cost.readOnlyHint')}</p>
       )}
       <div className="traveller-payment-grid">
-        {visiblePeople.map((p) => {
-          const pay = p.paymentInfo || defaultPayment();
-          const canEditThis = canEditPersonPaymentFor(p.id);
-          const canSave = !!(pay.qrCode || pay.bankName || pay.accountHolder || pay.accountNumber || pay.notes);
-          const avatarUrl = getTravellerAvatarUrlForPersonId(p.id);
-          const pulse = highlightPersonId === p.id;
-          return (
-            <div
-              key={p.id}
-              id={`traveller-payment-card-${p.id}`}
-              className={`traveller-payment-card animate-in${pulse ? ' traveller-payment-card--pulse' : ''}`}
-            >
-              <div className="traveller-payment-header">
-                {avatarUrl ? (
-                  <span className="person-avatar person-avatar--photo">
-                    <img src={avatarUrl} alt="" className="person-avatar-header-img" />
-                  </span>
-                ) : (
-                  <span className="person-avatar">{p.name.charAt(0).toUpperCase()}</span>
-                )}
-                <span className="traveller-payment-name">{p.name}</span>
-                {canEditThis ? (
-                  <button
-                    type="button"
-                    className="traveller-payment-save"
-                    disabled={!canEditCost || !canSave}
-                    onClick={() => {
-                      updatePersonPayment(p.id, {
-                        ...(p.paymentInfo || defaultPayment()),
-                        saved: true,
-                        savedAt: new Date().toISOString(),
-                      });
-                      onPaymentCardSaved?.(p.id);
-                    }}
-                  >
-                    {t('cost.savePayment')}
-                  </button>
-                ) : (
-                  <span className="traveller-payment-viewonly-label">{t('cost.viewOnlyPayment')}</span>
-                )}
-              </div>
-              {canEditThis ? (
-                <>
-                  <div className="traveller-payment-body">
-                    <label className="payment-field">
-                      <span>{t('cost.qrCode')}</span>
-                      <TravellerPaymentQrUpload
-                        personId={p.id}
-                        pay={pay}
-                        canEdit={canEditCost && canEditThis}
-                        updatePersonPayment={updatePersonPayment}
-                      />
-                    </label>
-                    <label className="payment-field">
-                      <span>{t('cost.bankName')}</span>
-                      <input
-                        type="text"
-                        placeholder="e.g. Maybank, CIMB"
-                        value={pay.bankName}
-                        disabled={!canEditCost}
-                        onChange={(e) =>
-                          updatePersonPayment(p.id, { bankName: e.target.value, saved: false, savedAt: null })
-                        }
-                      />
-                    </label>
-                    <label className="payment-field">
-                      <span>{t('cost.accountHolder')}</span>
-                      <input
-                        type="text"
-                        placeholder={t('cost.nameOnAccount')}
-                        value={pay.accountHolder}
-                        disabled={!canEditCost}
-                        onChange={(e) =>
-                          updatePersonPayment(p.id, { accountHolder: e.target.value, saved: false, savedAt: null })
-                        }
-                      />
-                    </label>
-                    <label className="payment-field">
-                      <span>{t('cost.accountNumber')}</span>
-                      <input
-                        type="text"
-                        placeholder={t('cost.accountOrCard')}
-                        value={pay.accountNumber}
-                        disabled={!canEditCost}
-                        onChange={(e) =>
-                          updatePersonPayment(p.id, { accountNumber: e.target.value, saved: false, savedAt: null })
-                        }
-                      />
-                    </label>
-                    <label className="payment-field">
-                      <span>{t('cost.notes')}</span>
-                      <input
-                        type="text"
-                        placeholder={t('cost.optional')}
-                        value={pay.notes}
-                        disabled={!canEditCost}
-                        onChange={(e) => updatePersonPayment(p.id, { notes: e.target.value, saved: false, savedAt: null })}
-                      />
-                    </label>
-                  </div>
-                  {(pay.qrCode || pay.bankName || pay.accountNumber) && (
-                    <div className="payment-preview-note">
-                      ✓ {t('cost.othersCanPay', { name: p.name })}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <PaymentReadonlyCard pay={pay} travellerName={p.name} t={t} />
-              )}
-            </div>
-          );
-        })}
+        {firstTimePeople.map((p) => (
+          <TravellerPaymentCard
+            key={p.id}
+            person={p}
+            variant="grid"
+            onPaymentCardSaved={onPaymentCardSaved}
+          />
+        ))}
       </div>
     </section>
   );
@@ -3048,7 +3069,6 @@ function SettlementSummary() {
 export default function Cost() {
   const { t } = useLanguage();
   const { people } = useCost();
-  const [paymentHighlightId, setPaymentHighlightId] = useState(null);
   const [expandedPaymentPersonId, setExpandedPaymentPersonId] = useState(null);
   const expandedPaymentRef = useRef(null);
 
@@ -3068,24 +3088,14 @@ export default function Cost() {
     const isToggleClose = expandedPaymentRef.current === personId;
     if (isToggleClose) {
       setExpandedPaymentPersonId(null);
-      setPaymentHighlightId(null);
     } else {
       setExpandedPaymentPersonId(personId);
-      setPaymentHighlightId(personId);
     }
   }, []);
 
   const handlePaymentCardSaved = useCallback((personId) => {
     setExpandedPaymentPersonId((prev) => (prev === personId ? null : prev));
   }, []);
-
-  useEffect(() => {
-    if (!paymentHighlightId) return undefined;
-    const el = document.getElementById(`traveller-payment-card-${paymentHighlightId}`);
-    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    const timer = window.setTimeout(() => setPaymentHighlightId(null), 2600);
-    return () => window.clearTimeout(timer);
-  }, [paymentHighlightId]);
 
   return (
     <div className="page cost-page">
@@ -3096,9 +3106,10 @@ export default function Cost() {
       <PeopleManager
         onAvatarScrollToPayment={handleTravellerAvatarPayment}
         showPaymentCardsHiddenHint={showPaymentCardsHiddenHint}
+        expandedPaymentPersonId={expandedPaymentPersonId}
+        onPaymentCardSaved={handlePaymentCardSaved}
       />
       <TravellerPaymentDetails
-        highlightPersonId={paymentHighlightId}
         expandedPaymentPersonId={expandedPaymentPersonId}
         onPaymentCardSaved={handlePaymentCardSaved}
       />

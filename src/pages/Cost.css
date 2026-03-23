@@ -37,7 +37,26 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.6rem;
+  align-items: flex-start;
   margin-bottom: 1rem;
+}
+
+.person-chip-column {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.person-payment-accordion {
+  width: 100%;
+  max-width: min(100vw - 2rem, 420px);
+}
+
+.traveller-payment-card--inline {
+  width: 100%;
+  max-width: 420px;
 }
 
 .person-chip {
@@ -2018,7 +2037,7 @@ button.settlement-person-btn {
 .settlement-os-contra-label {
   display: block;
   font-size: 0.78rem;
-  color: var(--text-muted);
+  color: var(--text-primary);
   margin-bottom: 0.35rem;
   line-height: 1.35;
 }
@@ -2027,18 +2046,20 @@ button.settlement-person-btn {
   margin-top: 0;
 }
 
+/* Contra amounts: light cyan-tinted pill; text follows theme tokens */
 .settlement-os-contra-pill {
-  background: rgba(140, 230, 235, 0.38);
-  border: 1px solid rgba(90, 200, 210, 0.45);
+  background: color-mix(in srgb, var(--settlement-contra-tint, #a8ecf0) 42%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--settlement-contra-tint, #78d4dc) 35%, var(--border-soft));
 }
 
 .settlement-os-contra-pill strong {
-  color: #1a8a96;
+  color: var(--text-primary);
   font-weight: 700;
 }
 
 .settlement-os-contra-pill .settlement-os-cur-code {
-  color: #2a7d88;
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 
 .settlement-os-net-block {
@@ -2084,7 +2105,7 @@ button.settlement-person-btn {
 .settlement-os-net-math {
   display: block;
   font-size: 0.78rem;
-  color: #3a9daa;
+  color: var(--text-primary);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   margin-bottom: 0.25rem;
@@ -2115,13 +2136,13 @@ button.settlement-person-btn {
   font-weight: 600;
 }
 
-/* Net signed: debtor owes payer after contra → positive → cyan; payer owes debtor → negative side → red */
+/* Owes − Contra: positive → you still pay creditor → red; negative → they pay you → cyan */
 .settlement-os-net-debtor_pays .settlement-os-net-amt {
-  color: #1a9aaa;
+  color: #c43d3d;
 }
 
 .settlement-os-net-payer_pays .settlement-os-net-amt {
-  color: #c43d3d;
+  color: #1a9aaa;
 }
 
 .settlement-os-bulk-bar-inner {
