@@ -1304,12 +1304,28 @@ export function ItineraryProvider({ children }) {
         .eq('user_id', user.id);
       if (res?.error) return;
       setSharedPlans((prev) => prev.filter((p) => p.id !== planId));
-      if (activePersonalPlanId === planId) {
+      const wasActive = activePersonalPlanId === planId;
+      if (wasActive) {
         const next = personalPlans[0]?.id ?? null;
         await switchToPersonalPlan(next);
       }
+
+      // Guest leaving an invited plan should return to their default home and hard-refresh
+      // to avoid any stale shared-mode state lingering in memory.
+      navigate('/', { replace: true });
+      try {
+        window.location.reload();
+      } catch {}
     },
-    [user?.id, hasSupabase, supabase, activePersonalPlanId, personalPlans, switchToPersonalPlan]
+    [
+      user?.id,
+      hasSupabase,
+      supabase,
+      activePersonalPlanId,
+      personalPlans,
+      switchToPersonalPlan,
+      navigate,
+    ]
   );
 
   /** Invited user leaves shared trip → load personal itinerary (or empty default). */
